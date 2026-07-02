@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #f6f8fc;
+  color: #07132f;
+}
+
+.container-page {
+  width: min(1440px, calc(100% - 96px));
+  margin: 0 auto;
+}
+
+.news-shadow {
+  box-shadow: 0 14px 32px rgba(7, 19, 47, 0.08);
+}
+
+@media (max-width: 900px) {
+  .container-page {
+    width: min(100% - 32px, 720px);
+  }
+}

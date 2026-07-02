@@ -1,0 +1,12 @@
+{
+  "name": "jahon-xabarlari",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "docker compose up --build",
+    "backend:dev": "npm --prefix backend run dev",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "db:migrate": "npm --prefix backend run prisma:migrate",
+    "db:seed": "npm --prefix backend run prisma:seed"
+  }
+}

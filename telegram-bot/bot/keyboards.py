@@ -1,17 +1,17 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
-MENU_ARTICLES = "📰 Yangiliklar"
-MENU_NEW = "➕ Yangi maqola"
-MENU_DRAFTS = "📝 Draftlar"
-MENU_REVIEW = "✅ Review"
-MENU_BREAKING = "🔥 Breaking"
-MENU_FEATURED = "⭐ Featured"
-MENU_STATS = "📊 Statistika"
+MENU_ARTICLES = "🗞️ Yangiliklar"
+MENU_NEW = "✍️ Yangi maqola"
+MENU_DRAFTS = "🗂️ Draftlar"
+MENU_REVIEW = "🛡️ Review"
+MENU_BREAKING = "🚨 Breaking"
+MENU_FEATURED = "💎 Featured"
+MENU_STATS = "📈 Statistika"
 MENU_COMMENTS = "💬 Izohlar"
-MENU_ADS = "📢 Reklama"
+MENU_ADS = "📣 Reklama"
 MENU_SETTINGS = "⚙️ Sozlamalar"
-MENU_BACK = "⬅️ Menyu"
-MENU_CANCEL = "❌ Bekor qilish"
+MENU_BACK = "↩️ Menyu"
+MENU_CANCEL = "✖️ Bekor qilish"
 MENU_CONTINUE = "➡️ Davom etish"
 
 STATUS_LABELS = {
@@ -109,14 +109,14 @@ def article_actions(article_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Published", callback_data=f"status:PUBLISHED:{article_id}"),
-                InlineKeyboardButton(text="Archived", callback_data=f"status:ARCHIVED:{article_id}"),
+                InlineKeyboardButton(text="🚀 Published", callback_data=f"status:PUBLISHED:{article_id}"),
+                InlineKeyboardButton(text="📦 Archived", callback_data=f"status:ARCHIVED:{article_id}"),
             ],
             [
-                InlineKeyboardButton(text="Draft", callback_data=f"status:DRAFT:{article_id}"),
-                InlineKeyboardButton(text="Review", callback_data=f"status:REVIEW:{article_id}"),
+                InlineKeyboardButton(text="🗂️ Draft", callback_data=f"status:DRAFT:{article_id}"),
+                InlineKeyboardButton(text="🛡️ Review", callback_data=f"status:REVIEW:{article_id}"),
             ],
-            [InlineKeyboardButton(text="Trash", callback_data=f"trash_confirm:{article_id}")],
+            [InlineKeyboardButton(text="🗑️ Trash", callback_data=f"trash_confirm:{article_id}")],
         ]
     )
 
@@ -126,7 +126,7 @@ def comment_actions(comment_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"comment:APPROVED:{comment_id}"),
-                InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"comment:DELETED:{comment_id}"),
+                InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"comment:DELETED:{comment_id}"),
             ]
         ]
     )
@@ -136,12 +136,12 @@ def ad_actions(ad_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Active", callback_data=f"ad:ACTIVE:{ad_id}"),
-                InlineKeyboardButton(text="Paused", callback_data=f"ad:PAUSED:{ad_id}"),
+                InlineKeyboardButton(text="🟢 Active", callback_data=f"ad:ACTIVE:{ad_id}"),
+                InlineKeyboardButton(text="⏸️ Paused", callback_data=f"ad:PAUSED:{ad_id}"),
             ],
             [
-                InlineKeyboardButton(text="Draft", callback_data=f"ad:DRAFT:{ad_id}"),
-                InlineKeyboardButton(text="Expired", callback_data=f"ad:EXPIRED:{ad_id}"),
+                InlineKeyboardButton(text="🗂️ Draft", callback_data=f"ad:DRAFT:{ad_id}"),
+                InlineKeyboardButton(text="⏳ Expired", callback_data=f"ad:EXPIRED:{ad_id}"),
             ],
         ]
     )

@@ -10,7 +10,7 @@ export type Article = {
   category?: { name: string; slug: string };
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 export async function getArticles(params = "") {
   try {

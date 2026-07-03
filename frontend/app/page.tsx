@@ -12,6 +12,25 @@ export default async function Home() {
   const latest = rest.slice(0, 6);
   const popularImages = [articles[4], articles[8], articles[9], articles[3], articles[7]].filter(Boolean);
 
+  if (!hero) {
+    return (
+      <main>
+        <Header />
+        <section className="container-page py-16">
+          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center news-shadow">
+            <h1 className="text-3xl font-black">Yangiliklar hali qo'shilmagan</h1>
+            <p className="mx-auto mt-3 max-w-xl text-slate-500">
+              Admin panel orqali yangi maqola qo'shing. Published qilingan xabarlar shu yerda avtomatik ko'rinadi.
+            </p>
+            <Link href="/admin" className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-brand px-5 font-black text-white">
+              Admin panelga o'tish
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main>
       <Header />

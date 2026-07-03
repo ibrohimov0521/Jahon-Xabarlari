@@ -1,55 +1,95 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+
+MENU_ARTICLES = "📰 Yangiliklar"
+MENU_NEW = "➕ Yangi maqola"
+MENU_DRAFTS = "📝 Draftlar"
+MENU_REVIEW = "✅ Review"
+MENU_BREAKING = "🔥 Breaking"
+MENU_FEATURED = "⭐ Featured"
+MENU_STATS = "📊 Statistika"
+MENU_COMMENTS = "💬 Izohlar"
+MENU_ADS = "📢 Reklama"
+MENU_SETTINGS = "⚙️ Sozlamalar"
+MENU_BACK = "⬅️ Menyu"
+MENU_CANCEL = "❌ Bekor qilish"
+MENU_CONTINUE = "➡️ Davom etish"
+
+STATUS_LABELS = {
+    "Draft": "DRAFT",
+    "Review": "REVIEW",
+    "Published": "PUBLISHED",
+    "Scheduled": "SCHEDULED",
+}
+
+VISIBILITY_LABELS = {
+    "Bosh sahifa": "showOnHome",
+    "Slayder": "showInSlider",
+    "Yon panel": "showInSidebar",
+    "So'nggi": "showInLatest",
+    "Ko'p o'qilgan": "showInPopular",
+    "Breaking": "isBreaking",
+    "Featured": "isFeatured",
+    "Editor choice": "isEditorChoice",
+}
 
 
-def main_menu() -> InlineKeyboardMarkup:
-    rows = [
-        [("📰 Yangiliklar", "articles"), ("➕ Yangi maqola", "article_new")],
-        [("📝 Draftlar", "articles:DRAFT"), ("✅ Review", "articles:REVIEW")],
-        [("🔥 Breaking", "toggle:breaking"), ("⭐ Featured", "toggle:featured")],
-        [("📊 Statistika", "stats"), ("💬 Izohlar", "comments")],
-        [("📢 Reklama", "ads"), ("⚙️ Sozlamalar", "settings")],
-    ]
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data) for text, data in row]
-            for row in rows
-        ]
+def reply_menu() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=MENU_ARTICLES), KeyboardButton(text=MENU_NEW)],
+            [KeyboardButton(text=MENU_DRAFTS), KeyboardButton(text=MENU_REVIEW)],
+            [KeyboardButton(text=MENU_BREAKING), KeyboardButton(text=MENU_FEATURED)],
+            [KeyboardButton(text=MENU_STATS), KeyboardButton(text=MENU_COMMENTS)],
+            [KeyboardButton(text=MENU_ADS), KeyboardButton(text=MENU_SETTINGS)],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="Menyudan amal tanlang",
     )
 
 
-def status_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Draft", callback_data="new_status:DRAFT"),
-                InlineKeyboardButton(text="Review", callback_data="new_status:REVIEW"),
-            ],
-            [
-                InlineKeyboardButton(text="Published", callback_data="new_status:PUBLISHED"),
-                InlineKeyboardButton(text="Scheduled", callback_data="new_status:SCHEDULED"),
-            ],
-        ]
+def cancel_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=MENU_CANCEL), KeyboardButton(text=MENU_BACK)]],
+        resize_keyboard=True,
     )
 
 
-def visibility_keyboard(selected: set[str] | None = None) -> InlineKeyboardMarkup:
+def status_reply_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Draft"), KeyboardButton(text="Review")],
+            [KeyboardButton(text="Published"), KeyboardButton(text="Scheduled")],
+            [KeyboardButton(text=MENU_CANCEL)],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def category_reply_keyboard(categories: list[dict]) -> ReplyKeyboardMarkup:
+    rows = [[KeyboardButton(text=item["name"])] for item in categories]
+    rows.append([KeyboardButton(text=MENU_CANCEL)])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def visibility_reply_keyboard(selected: set[str] | None = None) -> ReplyKeyboardMarkup:
     selected = selected or set()
-    options = [
-        ("Bosh sahifa", "showOnHome"),
-        ("Slayder", "showInSlider"),
-        ("Yon panel", "showInSidebar"),
-        ("So'nggi", "showInLatest"),
-        ("Ko'p o'qilgan", "showInPopular"),
-        ("Breaking", "isBreaking"),
-        ("Featured", "isFeatured"),
-        ("Editor choice", "isEditorChoice"),
-    ]
-    buttons = []
-    for label, key in options:
-        mark = "✅ " if key in selected else ""
-        buttons.append(InlineKeyboardButton(text=f"{mark}{label}", callback_data=f"vis:{key}"))
-    return InlineKeyboardMarkup(
-        inline_keyboard=[buttons[i:i + 2] for i in range(0, len(buttons), 2)] + [[InlineKeyboardButton(text="Davom etish", callback_data="vis_done")]]
+    rows = []
+    labels = list(VISIBILITY_LABELS.items())
+    for i in range(0, len(labels), 2):
+        row = []
+        for label, key in labels[i:i + 2]:
+            prefix = "✅ " if key in selected else ""
+            row.append(KeyboardButton(text=f"{prefix}{label}"))
+        rows.append(row)
+    rows.append([KeyboardButton(text=MENU_CONTINUE), KeyboardButton(text=MENU_CANCEL)])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def confirm_reply_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="✅ Tasdiqlash"), KeyboardButton(text=MENU_CANCEL)]],
+        resize_keyboard=True,
     )
 
 
@@ -68,7 +108,40 @@ def confirm_keyboard(prefix: str, item_id: str | None = None) -> InlineKeyboardM
 def article_actions(article_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Published", callback_data=f"status:PUBLISHED:{article_id}"), InlineKeyboardButton(text="Archived", callback_data=f"status:ARCHIVED:{article_id}")],
+            [
+                InlineKeyboardButton(text="Published", callback_data=f"status:PUBLISHED:{article_id}"),
+                InlineKeyboardButton(text="Archived", callback_data=f"status:ARCHIVED:{article_id}"),
+            ],
+            [
+                InlineKeyboardButton(text="Draft", callback_data=f"status:DRAFT:{article_id}"),
+                InlineKeyboardButton(text="Review", callback_data=f"status:REVIEW:{article_id}"),
+            ],
             [InlineKeyboardButton(text="Trash", callback_data=f"trash_confirm:{article_id}")],
+        ]
+    )
+
+
+def comment_actions(comment_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"comment:APPROVED:{comment_id}"),
+                InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"comment:DELETED:{comment_id}"),
+            ]
+        ]
+    )
+
+
+def ad_actions(ad_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Active", callback_data=f"ad:ACTIVE:{ad_id}"),
+                InlineKeyboardButton(text="Paused", callback_data=f"ad:PAUSED:{ad_id}"),
+            ],
+            [
+                InlineKeyboardButton(text="Draft", callback_data=f"ad:DRAFT:{ad_id}"),
+                InlineKeyboardButton(text="Expired", callback_data=f"ad:EXPIRED:{ad_id}"),
+            ],
         ]
     )

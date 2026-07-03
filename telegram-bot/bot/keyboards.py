@@ -126,7 +126,7 @@ def comment_actions(comment_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"comment:APPROVED:{comment_id}"),
-                InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"comment:DELETED:{comment_id}"),
+                InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"comment_trash_confirm:{comment_id}"),
             ]
         ]
     )

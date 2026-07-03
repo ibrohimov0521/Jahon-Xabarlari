@@ -11,6 +11,7 @@ class Settings:
     token: str
     api_base: str
     admin_ids: set[int]
+    admin_panel_url: str
 
 
 def load_settings() -> Settings:
@@ -23,4 +24,5 @@ def load_settings() -> Settings:
         token=os.environ["BOT_TOKEN"],
         api_base=os.getenv("BOT_API_BASE", "http://localhost:4000/api").rstrip("/"),
         admin_ids=ids,
+        admin_panel_url=os.getenv("ADMIN_PANEL_URL", "https://frontend-production-89aa6.up.railway.app/admin"),
     )

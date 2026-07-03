@@ -215,11 +215,25 @@ async def ads(message: Message):
 
 @router.message(F.text == MENU_SETTINGS)
 async def settings_message(message: Message):
-    if await guard_message(message):
-        await message.answer(
-            "Sozlamalar hozircha backend API bilan ulanishga tayyor. Asosiy admin sozlamalar web panelda boshqariladi.",
-            reply_markup=reply_menu(),
-        )
+    if not await guard_message(message):
+        return
+    user = api.get_user(message.from_user.id)
+    if not user:
+        try:
+            data = await api.login_telegram(message.from_user.id)
+            user = data["user"]
+        except PermissionError as exc:
+            await message.answer(str(exc), reply_markup=reply_menu())
+            return
+    await message.answer(
+        "⚙️ <b>Sozlamalar</b>\n\n"
+        f"👤 Admin: {html.escape(user.get('name', '-'))}\n"
+        f"🔑 Rol: {html.escape(user.get('role', '-'))}\n"
+        f"🌐 Backend API: {html.escape(api.base_url)}\n"
+        f"🖥️ Web admin panel: {html.escape(settings.admin_panel_url)}\n\n"
+        "Kategoriya, reklama, foydalanuvchi va boshqa chuqur sozlamalar web admin panelda boshqariladi.",
+        reply_markup=reply_menu(),
+    )
 
 
 @router.message(F.text == MENU_NEW)
@@ -263,19 +277,45 @@ async def set_content(message: Message, state: FSMContext):
     await message.answer("4/9 Rasm URL yuboring yoki '-' deb o'tkazib yuboring:", reply_markup=cancel_keyboard())
 
 
-@router.message(ArticleCreate.image)
-async def set_image(message: Message, state: FSMContext):
-    image = "" if message.text == "-" else (message.text or "").strip()
-    if image and not image.startswith(("http://", "https://")):
-        await message.answer("Rasm URL http:// yoki https:// bilan boshlanishi kerak. Yoki '-' yuboring.")
-        return
-    await state.update_data(mainImage=image)
+async def proceed_to_category(message: Message, state: FSMContext) -> None:
     categories = await request_or_error(message, "GET", "/categories")
     if not categories:
         return
     await state.update_data(categoryOptions={item["name"]: item["id"] for item in categories})
     await state.set_state(ArticleCreate.category)
     await message.answer("5/9 Kategoriyani tanlang:", reply_markup=category_reply_keyboard(categories))
+
+
+@router.message(ArticleCreate.image, F.photo)
+async def set_image_photo(message: Message, state: FSMContext, bot: Bot):
+    if not await guard_message(message):
+        return
+    photo = message.photo[-1]
+    status_message = await message.answer("Rasm yuklanmoqda...")
+    try:
+        file = await bot.get_file(photo.file_id)
+        buffer = await bot.download(file)
+        uploaded = await api.upload_media(message.from_user.id, buffer.read(), f"{photo.file_unique_id}.jpg", "image/jpeg")
+    except Exception as exc:
+        await status_message.edit_text(
+            f"Rasm yuklanmadi: {html.escape(str(exc))}\nQayta urinib ko'ring, boshqa rasm yuboring yoki URL/'-' yuboring."
+        )
+        return
+    await state.update_data(mainImage=f"{api.origin}{uploaded['url']}")
+    await status_message.edit_text("✅ Rasm yuklandi.")
+    await proceed_to_category(message, state)
+
+
+@router.message(ArticleCreate.image)
+async def set_image(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
+    image = "" if message.text == "-" else (message.text or "").strip()
+    if image and not image.startswith(("http://", "https://")):
+        await message.answer("Rasm URL http:// yoki https:// bilan boshlanishi kerak, rasm yuklang yoki '-' yuboring.")
+        return
+    await state.update_data(mainImage=image)
+    await proceed_to_category(message, state)
 
 
 @router.message(ArticleCreate.category)
@@ -394,6 +434,33 @@ async def change_comment(callback: CallbackQuery):
     except Exception as exc:
         await callback.message.answer(f"Izoh yangilanmadi: {html.escape(str(exc))}", reply_markup=reply_menu())
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("comment_trash_confirm:"))
+async def comment_trash_confirm(callback: CallbackQuery):
+    if not await guard_callback(callback):
+        return
+    comment_id = callback.data.split(":")[1]
+    await callback.message.answer("Izohni o'chirishni tasdiqlaysizmi?", reply_markup=confirm_keyboard("comment_trash", comment_id))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("comment_trash_yes:"))
+async def comment_trash_yes(callback: CallbackQuery):
+    if not await guard_callback(callback):
+        return
+    comment_id = callback.data.split(":")[1]
+    try:
+        await api.request(callback.from_user.id, "PATCH", f"/admin/comments/{comment_id}/status", json={"status": "DELETED"})
+        await callback.message.answer("Izoh o'chirildi.", reply_markup=reply_menu())
+    except Exception as exc:
+        await callback.message.answer(f"Izoh o'chirilmadi: {html.escape(str(exc))}", reply_markup=reply_menu())
+    await callback.answer()
+
+
+@router.callback_query(F.data.contains("_no:"))
+async def cancel_confirm(callback: CallbackQuery):
+    await callback.answer("Bekor qilindi")
 
 
 @router.callback_query(F.data.startswith("ad:"))

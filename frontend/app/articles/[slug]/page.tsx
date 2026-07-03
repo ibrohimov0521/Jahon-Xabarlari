@@ -1,9 +1,11 @@
 import { Header } from "../../../components/Header";
 import { getArticle } from "../../../lib/api";
+import { getRequestLang } from "../../../lib/server-lang";
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = await getArticle(slug);
+  const lang = await getRequestLang();
+  const article = await getArticle(slug, lang);
   return (
     <main>
       <Header />

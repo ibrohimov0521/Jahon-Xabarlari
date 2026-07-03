@@ -1,9 +1,11 @@
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
 import { getArticles } from "../../lib/api";
+import { getRequestLang } from "../../lib/server-lang";
 
 export default async function EditorChoicePage() {
-  const articles = await getArticles("?limit=9");
+  const lang = await getRequestLang();
+  const articles = await getArticles("?limit=9", lang);
   return (
     <main>
       <Header />

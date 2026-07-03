@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 export type Language = "uz" | "ru" | "en";
@@ -139,13 +140,21 @@ type UiContextValue = {
 const UiContext = createContext<UiContextValue | null>(null);
 
 export function UiProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [language, setLanguageState] = useState<Language>("uz");
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const storedLanguage = localStorage.getItem("language") as Language | null;
     const storedTheme = localStorage.getItem("theme") as Theme | null;
-    if (storedLanguage && dictionaries[storedLanguage]) setLanguageState(storedLanguage);
+    if (storedLanguage && dictionaries[storedLanguage]) {
+      setLanguageState(storedLanguage);
+      // Backfill the cookie for users who picked a language before cookie-based SSR
+      // translation existed, so the very next server render already matches.
+      if (!document.cookie.includes(`lang=${storedLanguage}`)) {
+        document.cookie = `lang=${storedLanguage}; path=/; max-age=31536000`;
+      }
+    }
     if (storedTheme === "dark" || storedTheme === "light") setTheme(storedTheme);
   }, []);
 
@@ -160,7 +169,11 @@ export function UiProvider({ children }: { children: ReactNode }) {
     setLanguage(nextLanguage) {
       setLanguageState(nextLanguage);
       localStorage.setItem("language", nextLanguage);
+      document.cookie = `lang=${nextLanguage}; path=/; max-age=31536000`;
       document.documentElement.lang = nextLanguage;
+      // Server components (article/category/home pages) read the `lang` cookie to fetch
+      // the right translation, so refresh their data after switching.
+      router.refresh();
     },
     theme,
     toggleTheme() {

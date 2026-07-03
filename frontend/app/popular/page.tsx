@@ -1,9 +1,11 @@
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
 import { getArticles } from "../../lib/api";
+import { getRequestLang } from "../../lib/server-lang";
 
 export default async function PopularPage() {
-  const articles = (await getArticles("?limit=12")).sort((a, b) => b.viewsCount - a.viewsCount);
+  const lang = await getRequestLang();
+  const articles = (await getArticles("?limit=12", lang)).sort((a, b) => b.viewsCount - a.viewsCount);
   return (
     <main>
       <Header />

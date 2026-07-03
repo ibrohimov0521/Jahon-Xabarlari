@@ -1,10 +1,12 @@
 import { Header } from "../../../components/Header";
 import { NewsCard } from "../../../components/NewsCard";
 import { getArticles } from "../../../lib/api";
+import { getRequestLang } from "../../../lib/server-lang";
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const articles = await getArticles(`?category=${slug}`);
+  const lang = await getRequestLang();
+  const articles = await getArticles(`?category=${slug}`, lang);
   return (
     <main>
       <Header />

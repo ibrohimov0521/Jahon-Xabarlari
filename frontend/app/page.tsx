@@ -4,9 +4,11 @@ import { Header } from "../components/Header";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
 import { getArticles } from "../lib/api";
+import { getRequestLang } from "../lib/server-lang";
 
 export default async function Home() {
-  const articles = await getArticles("?limit=12");
+  const lang = await getRequestLang();
+  const articles = await getArticles("?limit=12", lang);
   const [hero, ...rest] = articles;
   const side = rest.slice(0, 3);
   const latest = rest.slice(0, 6);

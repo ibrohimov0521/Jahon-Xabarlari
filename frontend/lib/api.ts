@@ -12,9 +12,16 @@ export type Article = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
-export async function getArticles(params = "") {
+// "uz" is the native/default content language already stored on the article, so there's
+// no need to ask the backend for a translation in that case.
+function withLang(url: string, lang?: string) {
+  if (!lang || lang === "uz") return url;
+  return `${url}${url.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`;
+}
+
+export async function getArticles(params = "", lang?: string) {
   try {
-    const res = await fetch(`${API_URL}/articles${params}`, { next: { revalidate: 60 } });
+    const res = await fetch(withLang(`${API_URL}/articles${params}`, lang), { next: { revalidate: 60 } });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -22,9 +29,9 @@ export async function getArticles(params = "") {
   }
 }
 
-export async function getArticle(slug: string) {
+export async function getArticle(slug: string, lang?: string) {
   try {
-    const res = await fetch(`${API_URL}/articles/${slug}`, { next: { revalidate: 60 } });
+    const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 } });
     if (!res.ok) throw new Error("API error");
     return (await res.json()) as Article;
   } catch {
@@ -32,9 +39,9 @@ export async function getArticle(slug: string) {
   }
 }
 
-export async function searchArticles(q: string) {
+export async function searchArticles(q: string, lang?: string) {
   try {
-    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`, { next: { revalidate: 30 } });
+    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}`, lang), { next: { revalidate: 30 } });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {

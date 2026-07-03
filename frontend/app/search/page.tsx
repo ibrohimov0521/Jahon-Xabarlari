@@ -2,10 +2,12 @@ import { Search } from "lucide-react";
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
 import { getArticles, searchArticles } from "../../lib/api";
+import { getRequestLang } from "../../lib/server-lang";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
-  const articles = q ? await searchArticles(q) : await getArticles("?limit=9");
+  const lang = await getRequestLang();
+  const articles = q ? await searchArticles(q, lang) : await getArticles("?limit=9", lang);
   return (
     <main>
       <Header />

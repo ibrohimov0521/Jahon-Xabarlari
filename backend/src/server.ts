@@ -4,7 +4,7 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { apiPort, env } from "./config/env.js";
+import { apiPort, frontendOrigins } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { articleRouter } from "./modules/articles/routes.js";
 import { categoryRouter } from "./modules/categories/routes.js";
@@ -17,7 +17,7 @@ import { auditRouter } from "./modules/audit/routes.js";
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(cors({ origin: frontendOrigins, credentials: true }));
 app.use(compression());
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));

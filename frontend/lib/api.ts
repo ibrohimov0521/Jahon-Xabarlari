@@ -7,6 +7,9 @@ export type Article = {
   mainImage?: string;
   viewsCount: number;
   publishedAt?: string;
+  updatedAt?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   category?: { name: string; slug: string };
 };
 

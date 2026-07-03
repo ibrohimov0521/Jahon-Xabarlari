@@ -7,6 +7,7 @@ const schema = z.object({
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+  FRONTEND_URLS: z.string().optional(),
   API_PORT: z.coerce.number().optional(),
   PORT: z.coerce.number().optional(),
   ANTHROPIC_API_KEY: z.string().optional()
@@ -14,3 +15,7 @@ const schema = z.object({
 
 export const env = schema.parse(process.env);
 export const apiPort = env.PORT ?? env.API_PORT ?? 4000;
+export const frontendOrigins = [
+  env.FRONTEND_URL,
+  ...(env.FRONTEND_URLS?.split(",").map((item) => item.trim()).filter(Boolean) ?? [])
+];

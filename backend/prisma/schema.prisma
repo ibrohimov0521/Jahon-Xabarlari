@@ -140,7 +140,7 @@ model Comment {
 
 model Advertisement {
   id        String              @id @default(cuid())
-  title     String
+  title     String              @unique
   placement String
   imageUrl  String?
   targetUrl String?

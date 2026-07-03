@@ -1,6 +1,8 @@
-import { ArrowRight, Send, TrendingUp } from "lucide-react";
+import { ArrowRight, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { Header } from "../components/Header";
 import { NewsCard } from "../components/NewsCard";
+import { SubscribeBox } from "../components/SubscribeBox";
 import { getArticles } from "../lib/api";
 
 export default async function Home() {
@@ -22,7 +24,9 @@ export default async function Home() {
             <p className="text-[15px] font-medium">12 May, 2025&nbsp;&nbsp; • &nbsp;&nbsp;10:30</p>
             <h1 className="mt-3 max-w-[610px] text-[34px] font-black leading-[1.2]">{hero.title}</h1>
             <p className="mt-3 max-w-[620px] text-[17px] leading-7 text-white">{hero.summary}</p>
-            <button className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">Batafsil o'qish <ArrowRight size={18} /></button>
+            <Link href={`/articles/${hero.slug}`} className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
+              Batafsil o'qish <ArrowRight size={18} />
+            </Link>
           </div>
         </article>
         <div className="grid content-start gap-[18px]">
@@ -55,31 +59,28 @@ export default async function Home() {
                 </div>
               ))}
             </div>
-            <button className="mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">
+            <Link href="/popular" className="mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">
               Barcha mashhur yangiliklar <ArrowRight size={17} />
-            </button>
+            </Link>
           </aside>
 
-          <aside className="rounded-lg bg-ink p-7 text-white news-shadow">
-            <div className="flex gap-5">
-              <span className="grid size-[58px] shrink-0 place-items-center rounded-full bg-white/10"><Send size={28} fill="white" /></span>
-              <div>
-                <h3 className="text-[18px] font-black leading-snug">Yangiliklarni o'tkazib yubormang!</h3>
-                <p className="mt-3 text-[15px] leading-6 text-slate-100">Eng muhim xabarlar emailingizga yuboriladi.</p>
-              </div>
-            </div>
-            <div className="mt-6 flex overflow-hidden rounded-md border border-white/20">
-              <input className="h-11 min-w-0 flex-1 bg-transparent px-4 text-[14px] outline-none placeholder:text-slate-300" placeholder="Email manzilingiz" />
-              <button className="h-11 bg-brand px-5 text-[14px] font-black">Obuna bo'lish</button>
-            </div>
-          </aside>
+          <SubscribeBox />
         </div>
 
         <div className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <h2 className="mr-auto text-[27px] font-black">So'nggi yangiliklar</h2>
-            {["Barchasi", "O'zbekiston", "Dunyo", "Siyosat", "Iqtisodiyot", "Texnologiya", "Sport", "Madaniyat"].map((item, index) => (
-              <button key={item} className={`h-9 rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</button>
+            {[
+              ["Barchasi", "/"],
+              ["O'zbekiston", "/category/ozbekiston"],
+              ["Dunyo", "/category/dunyo"],
+              ["Siyosat", "/category/siyosat"],
+              ["Iqtisodiyot", "/category/iqtisodiyot"],
+              ["Texnologiya", "/category/texnologiya"],
+              ["Sport", "/category/sport"],
+              ["Madaniyat", "/category/madaniyat"]
+            ].map(([item, href], index) => (
+              <Link key={item} href={href} className={`flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
             ))}
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -94,8 +95,8 @@ export default async function Home() {
             <h2 className="text-2xl font-black">Jahon <span className="text-brand">Xabarlari</span></h2>
             <p className="mt-4 text-slate-300">Dunyodagi eng muhim voqealarni tez, ishonchli va xolis ravishda yetkazib beramiz.</p>
           </div>
-          <div><h3 className="font-black">Bo'limlar</h3><p className="mt-4 text-slate-300">Dunyo<br />O'zbekiston<br />Siyosat<br />Texnologiya</p></div>
-          <div><h3 className="font-black">Foydali havolalar</h3><p className="mt-4 text-slate-300">Biz haqimizda<br />Aloqa<br />Reklama<br />Maxfiylik siyosati</p></div>
+          <div><h3 className="font-black">Bo'limlar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/category/dunyo">Dunyo</Link><Link className="hover:text-white" href="/category/ozbekiston">O'zbekiston</Link><Link className="hover:text-white" href="/category/siyosat">Siyosat</Link><Link className="hover:text-white" href="/category/texnologiya">Texnologiya</Link></div></div>
+          <div><h3 className="font-black">Foydali havolalar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/about">Biz haqimizda</Link><Link className="hover:text-white" href="/contact">Aloqa</Link><Link className="hover:text-white" href="/ads">Reklama</Link><Link className="hover:text-white" href="/search">Qidiruv</Link></div></div>
           <div><h3 className="font-black">Bog'lanish</h3><p className="mt-4 text-slate-300">info@jahonxabarlari.uz<br />Toshkent, O'zbekiston</p></div>
         </div>
       </footer>

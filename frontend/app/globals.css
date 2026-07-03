@@ -11,6 +11,10 @@ body {
   color: #07132f;
 }
 
+.dark-preview body {
+  background: #e9eef8;
+}
+
 .container-page {
   width: min(1440px, calc(100% - 96px));
   margin: 0 auto;

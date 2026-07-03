@@ -32,6 +32,17 @@ export async function getArticle(slug: string) {
   }
 }
 
+export async function searchArticles(q: string) {
+  try {
+    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`, { next: { revalidate: 30 } });
+    if (!res.ok) throw new Error("API error");
+    return (await res.json()).items as Article[];
+  } catch {
+    const needle = q.toLowerCase();
+    return demoArticles.filter((item) => `${item.title} ${item.summary} ${item.category?.name}`.toLowerCase().includes(needle));
+  }
+}
+
 export const demoArticles: Article[] = [
   {
     id: "1",

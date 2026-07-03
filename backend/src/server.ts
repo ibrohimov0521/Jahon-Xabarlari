@@ -4,7 +4,7 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { env } from "./config/env.js";
+import { apiPort, env } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { articleRouter } from "./modules/articles/routes.js";
 import { categoryRouter } from "./modules/categories/routes.js";
@@ -31,6 +31,6 @@ app.use("/api/admin/comments", commentRouter);
 app.use("/api/admin/advertisements", adRouter);
 app.use("/api/admin/media", mediaRouter);
 
-app.listen(env.API_PORT, () => {
-  console.log(`Jahon Xabarlari API http://localhost:${env.API_PORT}`);
+app.listen(apiPort, () => {
+  console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);
 });

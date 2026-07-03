@@ -52,12 +52,12 @@ async function main() {
   const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? "Admin12345!", 12);
   await prisma.user.upsert({
     where: { email: process.env.ADMIN_EMAIL ?? "admin@jahonxabarlari.uz" },
-    update: {},
+    update: { telegramId: process.env.BOT_ADMIN_IDS?.split(",")[0] },
     create: { name: "Super Admin", email: process.env.ADMIN_EMAIL ?? "admin@jahonxabarlari.uz", passwordHash, roleId: role.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[0] }
   });
   await prisma.user.upsert({
     where: { email: "editor@jahonxabarlari.uz" },
-    update: {},
+    update: { telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] },
     create: { name: "Muharrir", email: "editor@jahonxabarlari.uz", passwordHash, roleId: role.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] }
   });
 

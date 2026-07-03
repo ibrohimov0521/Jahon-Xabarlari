@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import { AdsView } from "../../components/admin/AdsView";
 import { ArticleEditor } from "../../components/admin/ArticleEditor";
@@ -37,6 +38,7 @@ import {
   onAuthExpired,
   type AuthUser
 } from "../../lib/admin-api";
+import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 
 type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "auditlog";
 
@@ -283,7 +285,7 @@ export default function AdminPage() {
       <main className="grid min-h-screen place-items-center bg-slate-100 px-4 text-ink">
         <form onSubmit={handleLogin} className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-7 shadow-xl">
           <div className="mb-7">
-            <p className="text-sm font-bold uppercase text-brand">Jahon Xabarlari</p>
+            <Image src={SITE_LOGO} alt={SITE_NAME} width={76} height={76} priority className="h-16 w-16 rounded-md object-cover" />
             <h1 className="mt-2 text-3xl font-black">Admin panel</h1>
             <p className="mt-2 text-sm text-slate-500">Backend API orqali real ma&apos;lumotlarni boshqarish uchun kiring.</p>
           </div>
@@ -322,9 +324,7 @@ export default function AdminPage() {
         }`}
       >
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-black">
-            Jahon <span className="text-brand">Admin</span>
-          </h1>
+          <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
           <div className="flex items-center gap-1">
             <button onClick={handleLogout} className="rounded-md p-2 hover:bg-white/10" title="Chiqish">
               <LogOut size={20} />

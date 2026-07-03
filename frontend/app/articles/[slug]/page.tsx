@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Header } from "../../../components/Header";
 import { getArticle } from "../../../lib/api";
 import { getRequestLang } from "../../../lib/server-lang";
-import { SITE_NAME, SITE_URL } from "../../../lib/site";
+import { SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
 type ArticlePageProps = { params: Promise<{ slug: string }> };
 
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       url,
       type: "article",
       siteName: SITE_NAME,
-      images: article.mainImage ? [{ url: article.mainImage, alt: article.title }] : undefined,
+      images: article.mainImage ? [{ url: article.mainImage, alt: article.title }] : [{ url: SITE_OG_IMAGE, alt: SITE_NAME }],
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt
     },
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       card: "summary_large_image",
       title,
       description,
-      images: article.mainImage ? [article.mainImage] : undefined
+      images: article.mainImage ? [article.mainImage] : [SITE_OG_IMAGE]
     }
   };
 }
@@ -67,7 +67,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             publisher: {
               "@type": "Organization",
               name: SITE_NAME,
-              url: SITE_URL
+              url: SITE_URL,
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}${SITE_LOGO}`
+              }
             }
           })
         }}

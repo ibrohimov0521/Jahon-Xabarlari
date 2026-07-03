@@ -1,11 +1,13 @@
 "use client";
 
 import { Camera, ChevronDown, Globe2, Menu, Moon, Play, Search, Send, Sun, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SearchModal } from "./SearchModal";
 import { Language, useUi } from "../lib/ui-context";
+import { SITE_LOGO, SITE_NAME } from "../lib/site";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -103,8 +105,15 @@ export function Header() {
 
       <header className="site-header border-b border-slate-200 bg-white">
         <div className="container-page flex h-20 items-center gap-7">
-          <Link href="/" className="mr-8 text-[31px] font-black tracking-normal text-ink">
-            Jahon <span className="text-brand">Xabarlari</span>
+          <Link href="/" className="mr-8 flex shrink-0 items-center" aria-label={SITE_NAME}>
+            <Image
+              src={SITE_LOGO}
+              alt={SITE_NAME}
+              width={166}
+              height={64}
+              priority
+              className="h-14 w-auto rounded-md object-contain"
+            />
           </Link>
           <nav className="hidden h-full flex-1 items-center gap-8 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (

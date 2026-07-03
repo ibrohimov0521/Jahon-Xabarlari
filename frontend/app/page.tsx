@@ -1,10 +1,12 @@
 import { ArrowRight, TrendingUp } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Header } from "../components/Header";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
 import { getArticles } from "../lib/api";
 import { getRequestLang } from "../lib/server-lang";
+import { SITE_LOGO, SITE_NAME } from "../lib/site";
 
 export default async function Home() {
   const lang = await getRequestLang();
@@ -113,7 +115,7 @@ export default async function Home() {
       <footer className="bg-ink py-12 text-white">
         <div className="container-page grid gap-8 md:grid-cols-4">
           <div>
-            <h2 className="text-2xl font-black">Jahon <span className="text-brand">Xabarlari</span></h2>
+            <Image src={SITE_LOGO} alt={SITE_NAME} width={150} height={150} className="h-24 w-24 rounded-md object-cover" />
             <p className="mt-4 text-slate-300">Dunyodagi eng muhim voqealarni tez, ishonchli va xolis ravishda yetkazib beramiz.</p>
           </div>
           <div><h3 className="font-black">Bo'limlar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/category/dunyo">Dunyo</Link><Link className="hover:text-white" href="/category/ozbekiston">O'zbekiston</Link><Link className="hover:text-white" href="/category/siyosat">Siyosat</Link><Link className="hover:text-white" href="/category/texnologiya">Texnologiya</Link></div></div>

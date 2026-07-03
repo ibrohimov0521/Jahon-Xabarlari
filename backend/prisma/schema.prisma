@@ -165,7 +165,7 @@ model MediaFile {
   key       String   @unique
   mimeType  String
   size      Int
-  data      Bytes
+  data      Bytes?
   createdAt DateTime @default(now())
 }
 

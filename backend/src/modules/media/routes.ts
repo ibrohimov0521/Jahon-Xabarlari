@@ -14,6 +14,7 @@ const upload = multer({
 mediaRouter.get("/file/:key", async (req, res) => {
   const item = await prisma.mediaFile.findUnique({ where: { key: req.params.key } });
   if (!item) return res.status(404).json({ message: "Fayl topilmadi" });
+  if (!item.data) return res.status(404).json({ message: "Fayl saqlanmagan" });
   res.setHeader("Content-Type", item.mimeType);
   res.setHeader("Content-Length", item.size.toString());
   res.setHeader("Cache-Control", "public, max-age=604800, immutable");

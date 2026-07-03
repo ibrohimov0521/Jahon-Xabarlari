@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { UiProvider } from "../lib/ui-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,8 +14,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz">
-      <body>{children}</body>
+    <html lang="uz" suppressHydrationWarning>
+      <body><UiProvider>{children}</UiProvider></body>
     </html>
   );
 }

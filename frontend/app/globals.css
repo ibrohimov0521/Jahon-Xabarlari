@@ -4,15 +4,64 @@
 
 :root {
   color-scheme: light;
+  --page-bg: #f6f8fc;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --text: #07132f;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 14px 32px rgba(7, 19, 47, 0.08);
+  --scroll-track: #eef3fb;
+  --scroll-thumb: #b8c7dd;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: #07101f;
+  --surface: #0c1729;
+  --surface-soft: #101d33;
+  --text: #eaf1ff;
+  --muted: #9fb0c9;
+  --border: rgba(148, 163, 184, 0.22);
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  --scroll-track: #0b1425;
+  --scroll-thumb: #2b67d7;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1767f5, #7aa7ff);
+  border: 2px solid var(--scroll-track);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #0f56d9, #5f95ff);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: #f6f8fc;
-  color: #07132f;
-}
-
-.dark-preview body {
-  background: #e9eef8;
+  background:
+    radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
+    var(--page-bg);
+  color: var(--text);
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 .container-page {
@@ -21,7 +70,142 @@ body {
 }
 
 .news-shadow {
-  box-shadow: 0 14px 32px rgba(7, 19, 47, 0.08);
+  box-shadow: var(--shadow);
+}
+
+.topbar {
+  background: #07132f;
+}
+
+:root[data-theme="dark"] .topbar {
+  background: #050b16;
+}
+
+.site-header,
+.news-shadow,
+.menu-popover,
+.search-shell {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.site-header {
+  backdrop-filter: blur(18px);
+}
+
+:root[data-theme="dark"] .site-header {
+  background: rgba(12, 23, 41, 0.9);
+}
+
+.text-ink {
+  color: var(--text) !important;
+}
+
+.text-slate-500,
+.text-slate-600 {
+  color: var(--muted) !important;
+}
+
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.border-slate-200,
+.border-slate-100 {
+  border-color: var(--border) !important;
+}
+
+.bg-slate-50,
+.bg-slate-100 {
+  background-color: var(--surface-soft) !important;
+}
+
+.social-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  color: white;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.social-icon:hover {
+  transform: translateY(-2px) scale(1.04);
+  filter: brightness(1.08);
+}
+
+.language-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 800;
+  transition: background 180ms ease;
+}
+
+.language-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.icon-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--text);
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.icon-button:hover {
+  background: var(--surface-soft);
+  color: #1767f5;
+  transform: translateY(-1px);
+}
+
+.theme-toggle {
+  position: relative;
+  width: 62px;
+  height: 34px;
+  border-radius: 999px;
+  background: #07132f;
+  padding: 4px;
+  box-shadow: 0 10px 24px rgba(7, 19, 47, 0.22);
+  transition: background 200ms ease;
+}
+
+.theme-toggle.is-dark {
+  background: linear-gradient(135deg, #1767f5, #07132f);
+}
+
+.theme-knob {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #07132f;
+  transition: transform 220ms ease, background 220ms ease, color 220ms ease;
+}
+
+.theme-toggle.is-dark .theme-knob {
+  transform: translateX(28px);
+  background: #07132f;
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .bg-ink {
+  background-color: #050b16 !important;
+}
+
+:root[data-theme="dark"] .shadow-2xl,
+:root[data-theme="dark"] .shadow-xl,
+:root[data-theme="dark"] .shadow-lg {
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.38) !important;
 }
 
 @media (max-width: 900px) {

@@ -162,9 +162,10 @@ model ArticleTranslation {
 model MediaFile {
   id        String   @id @default(cuid())
   url       String
-  key       String
+  key       String   @unique
   mimeType  String
   size      Int
+  data      Bytes
   createdAt DateTime @default(now())
 }
 

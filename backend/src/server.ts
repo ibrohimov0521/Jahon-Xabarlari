@@ -4,7 +4,6 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import fs from "node:fs";
 import { apiPort, env } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { articleRouter } from "./modules/articles/routes.js";
@@ -15,8 +14,6 @@ import { adRouter } from "./modules/ads/routes.js";
 import { mediaRouter } from "./modules/media/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
 
-fs.mkdirSync("uploads", { recursive: true });
-
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -25,7 +22,6 @@ app.use(compression());
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(rateLimit({ windowMs: 60_000, limit: 180 }));
-app.use("/uploads", express.static("uploads", { maxAge: "7d" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, name: "Jahon Xabarlari API" }));
 app.use("/api/auth", authRouter);

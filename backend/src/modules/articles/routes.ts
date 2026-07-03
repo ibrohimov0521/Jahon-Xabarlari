@@ -100,16 +100,40 @@ articleRouter.get("/articles/:slug", async (req, res) => {
 
 articleRouter.get("/search", async (req, res) => {
   const q = req.query.q?.toString() ?? "";
+  const lang = req.query.lang?.toString();
+  const translatedSearch =
+    isLang(lang) && q
+      ? {
+          translations: {
+            some: {
+              lang,
+              status: "READY" as const,
+              OR: [
+                { title: { contains: q, mode: "insensitive" as const } },
+                { summary: { contains: q, mode: "insensitive" as const } },
+                { content: { contains: q, mode: "insensitive" as const } }
+              ]
+            }
+          }
+        }
+      : undefined;
   const items = await prisma.article.findMany({
     where: {
       deletedAt: null,
       status: "PUBLISHED",
-      OR: [{ title: { contains: q, mode: "insensitive" } }, { summary: { contains: q, mode: "insensitive" } }]
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { summary: { contains: q, mode: "insensitive" } },
+        ...(translatedSearch ? [translatedSearch] : [])
+      ]
     },
-    include: { category: true },
+    include: {
+      category: true,
+      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
+    },
     take: 20
   });
-  res.json({ items });
+  res.json({ items: items.map((item) => applyTranslation(item, lang)) });
 });
 
 articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async (req, res) => {

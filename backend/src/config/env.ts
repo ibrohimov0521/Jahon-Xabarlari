@@ -8,7 +8,8 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   API_PORT: z.coerce.number().optional(),
-  PORT: z.coerce.number().optional()
+  PORT: z.coerce.number().optional(),
+  ANTHROPIC_API_KEY: z.string().optional()
 });
 
 export const env = schema.parse(process.env);

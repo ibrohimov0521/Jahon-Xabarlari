@@ -8,8 +8,19 @@ import { permit, requireAuth } from "../../middleware/auth.js";
 export const commentRouter = Router();
 commentRouter.use(requireAuth, permit("comments.manage"));
 
-commentRouter.get("/", async (_req, res) => {
-  res.json({ items: await prisma.comment.findMany({ include: { article: { select: { title: true } } }, orderBy: { createdAt: "desc" } }) });
+commentRouter.get("/", async (req, res) => {
+  const status = req.query.status?.toString() as CommentStatus | undefined;
+  const search = req.query.search?.toString();
+  res.json({
+    items: await prisma.comment.findMany({
+      where: {
+        ...(status ? { status } : {}),
+        ...(search ? { body: { contains: search, mode: "insensitive" } } : {})
+      },
+      include: { article: { select: { title: true, slug: true } } },
+      orderBy: { createdAt: "desc" }
+    })
+  });
 });
 
 commentRouter.patch("/:id/status", async (req, res) => {

@@ -1,0 +1,161 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { adminRequest } from "../../lib/admin-api";
+import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
+import { ErrorBanner, Input, Panel, Toggle } from "./ui";
+
+function toFormState(article: Article): ArticleFormState {
+  return {
+    title: article.title,
+    summary: article.summary,
+    content: article.content,
+    mainImage: article.mainImage ?? "",
+    categoryId: article.categoryId ?? "",
+    status: article.status,
+    seoTitle: article.seoTitle ?? "",
+    seoDescription: article.seoDescription ?? "",
+    isBreaking: article.isBreaking,
+    isFeatured: article.isFeatured,
+    isEditorChoice: article.isEditorChoice,
+    showOnHome: article.showOnHome,
+    showInSlider: article.showInSlider,
+    showInSidebar: article.showInSidebar,
+    showInLatest: article.showInLatest,
+    showInPopular: article.showInPopular
+  };
+}
+
+export function ArticleEditor({
+  articleId,
+  categories,
+  onSaved,
+  onPreview
+}: {
+  articleId: string | null;
+  categories: Category[];
+  onSaved: () => void;
+  onPreview: (form: ArticleFormState) => void;
+}) {
+  const [form, setForm] = useState<ArticleFormState>({ ...emptyArticleForm, categoryId: categories[0]?.id ?? "" });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!articleId) {
+      setForm({ ...emptyArticleForm, categoryId: categories[0]?.id ?? "" });
+      return;
+    }
+    setLoading(true);
+    setError("");
+    adminRequest<Article>(`/admin/articles/${articleId}`)
+      .then((article) => setForm(toFormState(article)))
+      .catch((err) => setError(err instanceof Error ? err.message : "Maqola topilmadi"))
+      .finally(() => setLoading(false));
+    // Deliberately excludes `categories`: it gets a new array reference on every parent
+    // refresh, and re-running this would silently discard in-progress form edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articleId]);
+
+  // Categories can arrive after mount (async load); backfill the default once, without
+  // re-running on every subsequent categories refetch.
+  useEffect(() => {
+    if (!articleId && !form.categoryId && categories[0]) {
+      setForm((current) => ({ ...current, categoryId: categories[0].id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, articleId]);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      if (articleId) {
+        await adminRequest(`/admin/articles/${articleId}`, { method: "PUT", body: JSON.stringify(form) });
+      } else {
+        await adminRequest("/admin/articles", { method: "POST", body: JSON.stringify(form) });
+      }
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Maqola saqlanmadi");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <Panel title="Maqola">
+        <p className="text-sm text-slate-500">Yuklanmoqda...</p>
+      </Panel>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <Panel title={articleId ? "Maqolani tahrirlash" : "Yangi maqola"}>
+        <ErrorBanner message={error} />
+        <div className="grid gap-4">
+          <Input label="Sarlavha" value={form.title} onChange={(value) => setForm({ ...form, title: value })} />
+          <Input label="Qisqa tavsif" value={form.summary} onChange={(value) => setForm({ ...form, summary: value })} />
+          <label className="text-sm font-bold">
+            Asosiy matn
+            <textarea
+              className="mt-2 min-h-52 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand"
+              value={form.content}
+              onChange={(e) => setForm({ ...form, content: e.target.value })}
+              required
+            />
+          </label>
+          <Input label="Rasm URL" value={form.mainImage} onChange={(value) => setForm({ ...form, mainImage: value })} required={false} />
+          <Input label="SEO sarlavha" value={form.seoTitle} onChange={(value) => setForm({ ...form, seoTitle: value })} required={false} />
+          <Input label="SEO tavsif" value={form.seoDescription} onChange={(value) => setForm({ ...form, seoDescription: value })} required={false} />
+        </div>
+      </Panel>
+      <Panel title="Ko'rinishi">
+        <div className="grid gap-4">
+          <label className="text-sm font-bold">
+            Kategoriya
+            <select
+              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal"
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+              required
+            >
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-bold">
+            Status
+            <select
+              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as ArticleFormState["status"] })}
+            >
+              {ARTICLE_STATUSES.map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+          </label>
+          {FLAG_LABELS.map(([key, label]) => (
+            <Toggle key={key} label={label} checked={form[key as keyof ArticleFlags]} onChange={(checked) => setForm({ ...form, [key]: checked })} />
+          ))}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onPreview(form)} className="flex-1 rounded-md border border-slate-200 px-4 py-3 font-black hover:border-brand">
+              Ko'rib chiqish
+            </button>
+            <button disabled={saving} className="flex-1 rounded-md bg-brand px-4 py-3 font-black text-white hover:bg-blue-700 disabled:opacity-60">
+              {saving ? "Saqlanmoqda..." : "Saqlash"}
+            </button>
+          </div>
+        </div>
+      </Panel>
+    </form>
+  );
+}

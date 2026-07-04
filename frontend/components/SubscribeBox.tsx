@@ -14,7 +14,7 @@ export function SubscribeBox() {
   }
 
   return (
-    <aside className="rounded-lg bg-ink p-7 text-white news-shadow">
+    <aside className="subscribe-box rounded-lg p-7 text-white news-shadow">
       <div className="flex gap-5">
         <span className="grid size-[58px] shrink-0 place-items-center rounded-full bg-white/10"><Send size={28} fill="white" /></span>
         <div>

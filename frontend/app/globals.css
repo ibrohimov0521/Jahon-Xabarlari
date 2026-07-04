@@ -82,11 +82,19 @@ body {
 }
 
 .site-header,
-.news-shadow,
 .menu-popover,
 .search-shell {
   background: var(--surface);
   border-color: var(--border);
+}
+
+.subscribe-box {
+  background: #07132f;
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .subscribe-box {
+  background: linear-gradient(145deg, #07132f, #050b16);
 }
 
 .site-header {

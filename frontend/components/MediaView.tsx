@@ -11,7 +11,7 @@ export function isVideoUrl(src?: string | null) {
 }
 
 export function MediaView({ src, alt = "", className = "", videoClassName, priority }: MediaViewProps) {
-  if (!src) return <div className={className} />;
+  if (!src) return null;
   if (isVideoUrl(src)) {
     return (
       <video className={videoClassName ?? className} controls muted playsInline preload="metadata">

@@ -58,7 +58,11 @@ export default async function Home() {
         </Link>
         <div className="grid content-start gap-[18px]">
           {side.map((item, index) => (
-            <Link key={item.id} href={`/articles/${item.slug}`} className="news-shadow grid h-[157px] grid-cols-[138px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
+            <Link
+              key={item.id}
+              href={`/articles/${item.slug}`}
+              className={`news-shadow grid h-[157px] gap-4 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[138px_1fr]" : "grid-cols-1"}`}
+            >
               <MediaView src={item.mainImage} className="h-[130px] w-[138px] rounded-md object-cover" />
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
@@ -76,7 +80,11 @@ export default async function Home() {
             </div>
             <div className="space-y-[22px]">
               {trendingItems.map((item, index) => (
-                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[30px_1fr_80px] gap-3 rounded-md transition hover:bg-white/10">
+                <Link
+                  key={item.id}
+                  href={`/articles/${item.slug}`}
+                  className={`grid gap-3 rounded-md transition hover:bg-white/10 ${item.mainImage ? "grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
+                >
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>

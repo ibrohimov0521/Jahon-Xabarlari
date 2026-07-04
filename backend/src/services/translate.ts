@@ -1,16 +1,16 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import slugify from "slugify";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 
-const client = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
+const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 
 export const LANGS = ["ru", "en"] as const;
 export type Lang = (typeof LANGS)[number];
 
 const LANG_NAMES: Record<Lang, string> = { ru: "Russian", en: "English" };
-const MODEL = "claude-haiku-4-5-20251001";
-const NOT_CONFIGURED = "ANTHROPIC_API_KEY sozlanmagan";
+const MODEL = "gpt-4o-mini";
+const NOT_CONFIGURED = "OPENAI_API_KEY sozlanmagan";
 
 type TranslatableArticle = {
   id: string;
@@ -52,14 +52,17 @@ async function translateOne(article: TranslatableArticle, lang: Lang) {
   }
 
   try {
-    const message = await client.messages.create({
+    const completion = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 4096,
-      system:
-        `You are a professional news translator. Translate the given Uzbek news article fields into ${LANG_NAMES[lang]}. ` +
-        "Keep proper nouns, numbers and quotes accurate. Respond ONLY with strict JSON matching this shape: " +
-        '{"title": string, "summary": string, "content": string, "seoTitle": string, "seoDescription": string}. No markdown, no commentary.',
+      response_format: { type: "json_object" },
       messages: [
+        {
+          role: "system",
+          content:
+            `You are a professional news translator. Translate the given Uzbek news article fields into ${LANG_NAMES[lang]}. ` +
+            "Keep proper nouns, numbers and quotes accurate. Respond ONLY with strict JSON matching this shape: " +
+            '{"title": string, "summary": string, "content": string, "seoTitle": string, "seoDescription": string}.'
+        },
         {
           role: "user",
           content: JSON.stringify({
@@ -73,9 +76,9 @@ async function translateOne(article: TranslatableArticle, lang: Lang) {
       ]
     });
 
-    const block = message.content.find((item) => item.type === "text");
-    if (!block || block.type !== "text") throw new Error("Bo'sh javob");
-    const parsed = JSON.parse(block.text) as {
+    const text = completion.choices[0]?.message?.content;
+    if (!text) throw new Error("Bo'sh javob");
+    const parsed = JSON.parse(text) as {
       title: string;
       summary: string;
       content: string;

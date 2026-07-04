@@ -11,7 +11,7 @@ aggregatorRouter.get("/status", (_req, res) => {
     enabled: env.NEWS_AGGREGATOR_ENABLED,
     intervalMinutes: env.NEWS_AGGREGATOR_INTERVAL_MINUTES,
     publishStatus: env.NEWS_AGGREGATOR_STATUS,
-    anthropicConfigured: Boolean(env.ANTHROPIC_API_KEY),
+    openaiConfigured: Boolean(env.OPENAI_API_KEY),
     sources: NEWS_SOURCES.map((source) => source.name)
   });
 });

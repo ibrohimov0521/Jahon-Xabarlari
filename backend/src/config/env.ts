@@ -10,7 +10,7 @@ const schema = z.object({
   FRONTEND_URLS: z.string().optional(),
   API_PORT: z.coerce.number().optional(),
   PORT: z.coerce.number().optional(),
-  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
   NEWS_AGGREGATOR_ENABLED: z
     .string()
     .optional()

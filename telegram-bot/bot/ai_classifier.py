@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 
 
-MODEL = "claude-haiku-4-5-20251001"
+MODEL = "gpt-4o-mini"
 
 VISIBILITY_KEYS = [
     "showOnHome",
@@ -126,35 +126,39 @@ async def classify_article(text: str, categories: list[dict[str, Any]], api_key:
     try:
         async with aiohttp.ClientSession(
             headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
+                "Authorization": f"Bearer {api_key}",
                 "content-type": "application/json",
             }
         ) as session:
             async with session.post(
-                "https://api.anthropic.com/v1/messages",
+                "https://api.openai.com/v1/chat/completions",
                 json={
                     "model": MODEL,
-                    "max_tokens": 1000,
-                    "system": (
-                        "You classify Uzbek news articles for a news CMS. "
-                        "Respond ONLY with strict JSON: "
-                        '{"primaryCategory": string, "extraCategories": string[], '
-                        '"showOnHome": boolean, "showInSlider": boolean, "showInSidebar": boolean, '
-                        '"showInLatest": boolean, "showInPopular": boolean, "isBreaking": boolean, '
-                        '"isFeatured": boolean, "isEditorChoice": boolean}.'
-                    ),
-                    "messages": [{"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}],
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You classify Uzbek news articles for a news CMS. "
+                                "Respond ONLY with strict JSON: "
+                                '{"primaryCategory": string, "extraCategories": string[], '
+                                '"showOnHome": boolean, "showInSlider": boolean, "showInSidebar": boolean, '
+                                '"showInLatest": boolean, "showInPopular": boolean, "isBreaking": boolean, '
+                                '"isFeatured": boolean, "isEditorChoice": boolean}.'
+                            ),
+                        },
+                        {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
+                    ],
                 },
                 timeout=20,
             ) as response:
                 data = await response.json()
                 if response.status >= 400:
                     return fallback
-                text_block = next((item for item in data.get("content", []) if item.get("type") == "text"), None)
-                if not text_block:
+                content = data.get("choices", [{}])[0].get("message", {}).get("content")
+                if not content:
                     return fallback
-                parsed = json.loads(text_block["text"])
+                parsed = json.loads(content)
                 return _sanitize(parsed, categories, fallback)
     except Exception:
         return fallback

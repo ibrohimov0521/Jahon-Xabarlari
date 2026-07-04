@@ -1,14 +1,14 @@
-import Anthropic from "@anthropic-ai/sdk";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+import OpenAI from "openai";
 import Parser from "rss-parser";
 import slugify from "slugify";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { queueTranslations } from "./translate.js";
 
-const client = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
-const MODEL = "claude-haiku-4-5-20251001";
+const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+const MODEL = "gpt-4o-mini";
 const parser = new Parser({ timeout: 15_000 });
 const AGGREGATOR_AUTHOR_EMAIL = "aggregator@jahonxabarlari.uz";
 const DUPLICATE_THRESHOLD = 0.4;
@@ -104,7 +104,7 @@ function similarity(a: Set<string>, b: Set<string>): number {
 }
 
 // The cheap word-overlap check above catches near-identical headlines but misses the same
-// story worded very differently across sources/languages. One batched Claude call over just
+// story worded very differently across sources/languages. One batched OpenAI call over just
 // the candidate titles (not full articles) groups genuine semantic duplicates cheaply -- far
 // less costly than a pairwise comparison, and than running the full summarize+categorize call
 // on every duplicate.
@@ -112,15 +112,18 @@ async function aiGroupDuplicates(items: FeedItem[]): Promise<number[][]> {
   if (!client || items.length < 2) return items.map((_, index) => [index]);
 
   try {
-    const message = await client.messages.create({
+    const completion = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 4096,
-      system:
-        "You are given a numbered list of news headlines from different outlets, possibly in different languages " +
-        "(Uzbek, Russian, English). Group the indices whose headlines describe the SAME real-world news story or " +
-        "event, even if worded completely differently or translated. Every index from 0 to N-1 must appear in " +
-        'exactly one group. Respond ONLY with strict JSON: {"groups": number[][]}. No markdown, no commentary.',
+      response_format: { type: "json_object" },
       messages: [
+        {
+          role: "system",
+          content:
+            "You are given a numbered list of news headlines from different outlets, possibly in different languages " +
+            "(Uzbek, Russian, English). Group the indices whose headlines describe the SAME real-world news story or " +
+            "event, even if worded completely differently or translated. Every index from 0 to N-1 must appear in " +
+            'exactly one group. Respond ONLY with strict JSON: {"groups": number[][]}.'
+        },
         {
           role: "user",
           content: JSON.stringify(items.map((item, index) => ({ index, source: item.sourceName, title: item.title })))
@@ -128,9 +131,9 @@ async function aiGroupDuplicates(items: FeedItem[]): Promise<number[][]> {
       ]
     });
 
-    const block = message.content.find((entry) => entry.type === "text");
-    if (!block || block.type !== "text") throw new Error("Bo'sh javob");
-    const parsed = JSON.parse(block.text) as { groups: number[][] };
+    const text = completion.choices[0]?.message?.content;
+    if (!text) throw new Error("Bo'sh javob");
+    const parsed = JSON.parse(text) as { groups: number[][] };
 
     const seen = new Set<number>();
     const validGroups: number[][] = [];
@@ -190,17 +193,19 @@ async function uniqueArticleSlug(title: string): Promise<string> {
 }
 
 async function processItem(item: FeedItem, categories: { id: string; name: string }[], authorId: string) {
-  const message = await client!.messages.create({
+  const completion = await client!.chat.completions.create({
     model: MODEL,
-    max_tokens: 1500,
-    system:
-      "You are a news editor for an Uzbek news portal called Jahon Xabarlari. Given a news item's title and " +
-      "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief based on it: a " +
-      "punchy title, and a 3-5 sentence body covering the key facts in your own words (do not translate " +
-      "word-for-word). Then choose exactly one category from availableCategories that best fits. Respond ONLY " +
-      "with strict JSON: {\"title\": string, \"content\": string, \"category\": string, \"isBreaking\": boolean}. " +
-      "No markdown, no commentary.",
+    response_format: { type: "json_object" },
     messages: [
+      {
+        role: "system",
+        content:
+          "You are a news editor for an Uzbek news portal called Jahon Xabarlari. Given a news item's title and " +
+          "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief based on it: a " +
+          "punchy title, and a 3-5 sentence body covering the key facts in your own words (do not translate " +
+          "word-for-word). Then choose exactly one category from availableCategories that best fits. Respond ONLY " +
+          "with strict JSON: {\"title\": string, \"content\": string, \"category\": string, \"isBreaking\": boolean}."
+      },
       {
         role: "user",
         content: JSON.stringify({
@@ -213,9 +218,9 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
     ]
   });
 
-  const block = message.content.find((entry) => entry.type === "text");
-  if (!block || block.type !== "text") throw new Error("AI javob bermadi");
-  const parsed = JSON.parse(block.text) as { title: string; content: string; category: string; isBreaking?: boolean };
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new Error("AI javob bermadi");
+  const parsed = JSON.parse(text) as { title: string; content: string; category: string; isBreaking?: boolean };
 
   const category = categories.find((c) => c.name.toLowerCase() === parsed.category?.toLowerCase()) ?? categories[0];
   const summary = parsed.content.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ").slice(0, 220);
@@ -265,7 +270,7 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
   if (running) return { published: 0 };
   if (!options.force && !env.NEWS_AGGREGATOR_ENABLED) return { published: 0 };
   if (!client) {
-    console.warn("[aggregator] ANTHROPIC_API_KEY sozlanmagan, sikl o'tkazib yuborildi");
+    console.warn("[aggregator] OPENAI_API_KEY sozlanmagan, sikl o'tkazib yuborildi");
     return { published: 0 };
   }
 

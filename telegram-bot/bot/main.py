@@ -389,7 +389,7 @@ async def process_forwarded_post(messages: list[Message], bot: Bot, prepared: di
     if not categories:
         await status.delete()
         return
-    classification = await classify_article(prepared["content"], categories, settings.anthropic_api_key)
+    classification = await classify_article(prepared["content"], categories, settings.openai_api_key)
     payload = {
         **prepared,
         "mainImage": media_urls[0] if media_urls else "",

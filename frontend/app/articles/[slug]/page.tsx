@@ -45,6 +45,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const lang = await getRequestLang();
   const article = await getArticle(slug, lang);
   const articleUrl = `${SITE_URL}/articles/${article.slug}`;
+  const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
 
   return (
     <main>
@@ -57,7 +58,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             "@type": "NewsArticle",
             headline: article.title,
             description: article.summary,
-            image: article.mainImage ? [article.mainImage] : undefined,
+            image: images.length ? images : undefined,
             datePublished: article.publishedAt,
             dateModified: article.updatedAt ?? article.publishedAt,
             mainEntityOfPage: articleUrl,
@@ -82,6 +83,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <h1 className="mt-3 text-4xl font-black leading-tight">{article.title}</h1>
         <p className="mt-4 text-lg text-slate-600">{article.summary}</p>
         <MediaView src={article.mainImage} alt={article.title} className="mt-7 aspect-video w-full rounded-lg object-cover" />
+        {!!article.gallery?.length && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {article.gallery.map((src) => (
+              <MediaView key={src} src={src} alt={article.title} className="aspect-video w-full rounded-lg object-cover" />
+            ))}
+          </div>
+        )}
         <div className="prose prose-lg mt-8 max-w-none">
           <p>{article.content}</p>
         </div>

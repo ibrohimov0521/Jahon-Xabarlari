@@ -23,6 +23,13 @@ export function ArticlePreview({ form, categories, onBack }: { form: ArticleForm
           <h1 className="mt-4 text-3xl font-black leading-tight">{form.title || "Sarlavha kiritilmagan"}</h1>
           <p className="mt-3 text-lg text-slate-600">{form.summary || "Qisqa tavsif kiritilmagan"}</p>
           {form.mainImage && <MediaView src={form.mainImage} alt={form.title} className="mt-5 w-full rounded-lg border border-slate-200 object-cover" />}
+          {form.gallery.length > 0 && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {form.gallery.map((src) => (
+                <MediaView key={src} src={src} alt={form.title} className="aspect-video w-full rounded-md border border-slate-200 object-cover" />
+              ))}
+            </div>
+          )}
           <div className="prose prose-slate mt-6 max-w-none whitespace-pre-wrap text-base leading-relaxed">
             {form.content || "Matn kiritilmagan"}
           </div>

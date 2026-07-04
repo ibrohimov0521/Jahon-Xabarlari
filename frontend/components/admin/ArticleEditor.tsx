@@ -11,6 +11,7 @@ function toFormState(article: Article): ArticleFormState {
     summary: article.summary,
     content: article.content,
     mainImage: article.mainImage ?? "",
+    gallery: article.gallery ?? [],
     categoryId: article.categoryId ?? "",
     extraCategoryIds: article.extraCategoryIds ?? [],
     status: article.status,

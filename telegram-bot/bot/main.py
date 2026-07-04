@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+from collections import defaultdict
 from io import BytesIO
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -48,6 +49,10 @@ from .states import ArticleCreate
 settings = load_settings()
 api = BackendApi(settings.api_base)
 router = Router()
+forward_semaphore = asyncio.Semaphore(settings.forward_concurrency)
+media_group_buffers: dict[str, list[Message]] = defaultdict(list)
+media_group_tasks: dict[str, asyncio.Task] = {}
+media_group_lock = asyncio.Lock()
 
 
 def allowed(user_id: int) -> bool:
@@ -121,6 +126,18 @@ async def upload_forward_media(message: Message, bot: Bot) -> dict[str, str]:
         return {"url": url, "message": f"Media URL: {url}"}
     except Exception as exc:
         return {"url": "", "message": f"Media yuklanmadi: {html.escape(str(exc))}"}
+
+
+async def upload_forward_media_many(messages: list[Message], bot: Bot) -> dict[str, list[str] | str]:
+    urls: list[str] = []
+    notes: list[str] = []
+    for item in messages:
+        media = await upload_forward_media(item, bot)
+        if media["url"]:
+            urls.append(media["url"])
+        if media["message"]:
+            notes.append(media["message"])
+    return {"urls": urls, "message": "\n".join(notes)}
 
 
 def prepared_post_message(prepared: dict[str, str], media_line: str) -> str:
@@ -299,6 +316,9 @@ async def settings_message(message: Message):
 async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
     if not await guard_message(message):
         return
+    if message.media_group_id:
+        await enqueue_forward_media_group(message, bot)
+        return
     raw_text = message.caption or message.text or ""
     prepared = prepare_forward_post(raw_text)
     if len(prepared["content"]) < 20:
@@ -308,8 +328,63 @@ async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
         )
         return
 
-    status = await message.answer("Forward qilingan post tahlil qilinmoqda va admin panelga yuborilmoqda...")
-    media = await upload_forward_media(message, bot)
+    status = await message.answer(
+        "Navbatga olindi. Bot bir vaqtning o'zida "
+        f"{settings.forward_concurrency} ta forwardni qayta ishlaydi."
+        if forward_semaphore.locked()
+        else "Qabul qilindi. Forward qilingan post tahlil qilinmoqda..."
+    )
+    async with forward_semaphore:
+        await process_forwarded_post([message], bot, prepared, status)
+
+
+async def enqueue_forward_media_group(message: Message, bot: Bot) -> None:
+    key = f"{message.chat.id}:{message.media_group_id}"
+    async with media_group_lock:
+        media_group_buffers[key].append(message)
+        task = media_group_tasks.get(key)
+        if task and not task.done():
+            task.cancel()
+        media_group_tasks[key] = asyncio.create_task(process_media_group_after_delay(key, bot))
+
+
+async def process_media_group_after_delay(key: str, bot: Bot) -> None:
+    try:
+        await asyncio.sleep(1.5)
+        async with media_group_lock:
+            messages = media_group_buffers.pop(key, [])
+            media_group_tasks.pop(key, None)
+        if messages:
+            await handle_forward_media_group(messages, bot)
+    except asyncio.CancelledError:
+        return
+
+
+async def handle_forward_media_group(messages: list[Message], bot: Bot) -> None:
+    first = messages[0]
+    raw_text = next((item.caption or item.text or "" for item in messages if item.caption or item.text), "")
+    prepared = prepare_forward_post(raw_text)
+    if len(prepared["content"]) < 20:
+        await first.answer(
+            "Forward qilingan albomda saytga joylash uchun yetarli matn topilmadi. Caption/matn qo'shib qayta forward qiling.",
+            reply_markup=reply_menu(),
+        )
+        return
+    status = await first.answer(
+        "Albom navbatga olindi. Bot bir vaqtning o'zida "
+        f"{settings.forward_concurrency} ta forwardni qayta ishlaydi."
+        if forward_semaphore.locked()
+        else f"Qabul qilindi. Albomdagi {len(messages)} ta media tahlil qilinmoqda..."
+    )
+    async with forward_semaphore:
+        await process_forwarded_post(messages, bot, prepared, status)
+
+
+async def process_forwarded_post(messages: list[Message], bot: Bot, prepared: dict[str, str], status: Message) -> None:
+    message = messages[0]
+    await status.edit_text("Forward qilingan post tahlil qilinmoqda va admin panelga yuborilmoqda...")
+    media = await upload_forward_media_many(messages, bot)
+    media_urls = media["urls"] if isinstance(media["urls"], list) else []
     categories = await request_or_error(message, "GET", "/categories")
     if not categories:
         await status.delete()
@@ -317,7 +392,8 @@ async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
     classification = await classify_article(prepared["content"], categories, settings.anthropic_api_key)
     payload = {
         **prepared,
-        "mainImage": media["url"],
+        "mainImage": media_urls[0] if media_urls else "",
+        "gallery": media_urls[1:],
         "categoryId": classification["categoryId"],
         "extraCategoryIds": classification.get("extraCategoryIds", []),
         "status": "REVIEW",
@@ -342,12 +418,13 @@ async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
         for item in categories
         if item["id"] in set(payload["extraCategoryIds"])
     ]
-    media_note = f"\n{html.escape(media['message'])}" if media["message"] else ""
+    media_note = f"\n{html.escape(str(media['message']))}" if media["message"] else ""
     await message.answer(
         "✅ <b>Maqola admin panelga REVIEW sifatida yuborildi.</b>\n\n"
         f"<b>Sarlavha:</b> {html.escape(saved['title'])}\n"
         f"<b>Asosiy bo'lim:</b> {html.escape(category['name'] if category else '-')}\n"
         f"<b>Qo'shimcha bo'limlar:</b> {html.escape(', '.join(extra_names) if extra_names else '-')}\n"
+        f"<b>Media:</b> {len(media_urls)} ta fayl yuklandi\n"
         f"<b>AI rejimi:</b> {html.escape('AI' if classification.get('source') == 'ai' else 'fallback')}\n"
         f"<b>Ko'rinish:</b> home={payload['showOnHome']}, slider={payload['showInSlider']}, latest={payload['showInLatest']}, breaking={payload['isBreaking']}, featured={payload['isFeatured']}"
         f"{media_note}\n\n"

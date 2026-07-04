@@ -5,6 +5,7 @@ export type Article = {
   summary: string;
   content: string;
   mainImage?: string;
+  gallery?: string[];
   viewsCount: number;
   publishedAt?: string;
   updatedAt?: string;

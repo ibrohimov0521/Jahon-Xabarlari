@@ -299,6 +299,7 @@ export default function AdminPage() {
       summary: article.summary,
       content: article.content,
       mainImage: article.mainImage ?? "",
+      gallery: article.gallery ?? [],
       categoryId: article.categoryId ?? "",
       extraCategoryIds: article.extraCategoryIds ?? [],
       status: article.status,

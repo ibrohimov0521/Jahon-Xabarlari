@@ -24,6 +24,7 @@ export type Article = ArticleFlags & {
   summary: string;
   content: string;
   mainImage?: string | null;
+  gallery?: string[];
   status: ArticleStatus;
   viewsCount: number;
   seoTitle?: string | null;
@@ -97,6 +98,7 @@ export type ArticleFormState = {
   summary: string;
   content: string;
   mainImage: string;
+  gallery: string[];
   categoryId: string;
   extraCategoryIds: string[];
   status: ArticleStatus;
@@ -109,6 +111,7 @@ export const emptyArticleForm: ArticleFormState = {
   summary: "",
   content: "",
   mainImage: "",
+  gallery: [],
   categoryId: "",
   extraCategoryIds: [],
   status: "DRAFT",

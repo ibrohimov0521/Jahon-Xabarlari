@@ -13,6 +13,7 @@ class Settings:
     admin_ids: set[int]
     admin_panel_url: str
     anthropic_api_key: str | None
+    forward_concurrency: int
 
 
 def load_settings() -> Settings:
@@ -27,4 +28,5 @@ def load_settings() -> Settings:
         admin_ids=ids,
         admin_panel_url=os.getenv("ADMIN_PANEL_URL", "https://frontend-production-89aa6.up.railway.app/admin"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+        forward_concurrency=max(1, int(os.getenv("FORWARD_CONCURRENCY", "5"))),
     )

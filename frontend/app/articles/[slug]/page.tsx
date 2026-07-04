@@ -85,11 +85,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
           <p className="article-summary mt-4 text-lg">{article.summary}</p>
         </div>
-        <MediaView src={article.mainImage} alt={article.title} className="mt-7 aspect-video w-full rounded-lg object-cover news-shadow" />
+        <MediaView src={article.mainImage} alt={article.title} className="mt-7 max-h-[82vh] w-full rounded-lg bg-black/80 object-contain news-shadow" />
         {!!article.gallery?.length && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {article.gallery.map((src) => (
-              <MediaView key={src} src={src} alt={article.title} className="aspect-video w-full rounded-lg object-cover news-shadow" />
+              <MediaView key={src} src={src} alt={article.title} className="max-h-[70vh] w-full rounded-lg bg-black/80 object-contain news-shadow" />
             ))}
           </div>
         )}

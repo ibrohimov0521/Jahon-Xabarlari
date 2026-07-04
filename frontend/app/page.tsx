@@ -40,7 +40,7 @@ export default async function Home() {
     <main>
       <Header />
       <section className="container-page grid gap-6 py-4 lg:grid-cols-[minmax(0,672px)_380px_354px]">
-        <article className="relative h-[506px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
+        <Link href={`/articles/${hero.slug}`} className="relative block h-[506px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
           <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-7">
@@ -48,21 +48,21 @@ export default async function Home() {
             <p className="text-[15px] font-medium">12 May, 2025&nbsp;&nbsp; • &nbsp;&nbsp;10:30</p>
             <h1 className="mt-3 max-w-[610px] text-[34px] font-black leading-[1.2]">{hero.title}</h1>
             <p className="mt-3 max-w-[620px] text-[17px] leading-7 text-white">{hero.summary}</p>
-            <Link href={`/articles/${hero.slug}`} className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
+            <span className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
               Batafsil o'qish <ArrowRight size={18} />
-            </Link>
+            </span>
           </div>
-        </article>
+        </Link>
         <div className="grid content-start gap-[18px]">
           {side.map((item, index) => (
-            <article key={item.id} className="news-shadow grid h-[157px] grid-cols-[138px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-3">
+            <Link key={item.id} href={`/articles/${item.slug}`} className="news-shadow grid h-[157px] grid-cols-[138px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
               <MediaView src={item.mainImage} className="h-[130px] w-[138px] rounded-md object-cover" />
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
                 <h3 className="mt-3 text-[16px] font-black leading-snug">{item.title}</h3>
                 <p className="mt-4 text-[14px] text-slate-500">12 May, 2025&nbsp;&nbsp; • &nbsp;&nbsp;{index === 0 ? "09:15" : index === 1 ? "08:45" : "07:30"}</p>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
         <div className="row-span-2 flex flex-col gap-4">
@@ -73,14 +73,14 @@ export default async function Home() {
             </div>
             <div className="space-y-[22px]">
               {popularImages.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-[30px_1fr_80px] gap-3">
+                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[30px_1fr_80px] gap-3 rounded-md transition hover:bg-white/10">
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
                     <p className="mt-2 text-[13px] text-slate-500">{["120,5", "98,7", "75,3", "64,1", "58,2"][index]} ming o'qish</p>
                   </div>
                   <MediaView src={item.mainImage} className="h-[78px] w-[80px] rounded-md object-cover" />
-                </div>
+                </Link>
               ))}
             </div>
             <Link href="/popular" className="mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">

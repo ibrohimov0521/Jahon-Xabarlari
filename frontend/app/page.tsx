@@ -5,18 +5,20 @@ import { Header } from "../components/Header";
 import { MediaView } from "../components/MediaView";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
-import { getArticles } from "../lib/api";
+import { getArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
 
 export default async function Home() {
   const lang = await getRequestLang();
-  const articles = await getArticles("?limit=12", lang);
+  const [articles, trending] = await Promise.all([getArticles("?limit=12", lang), getTrendingArticles(lang, 5)]);
   const [hero, ...rest] = articles;
   const side = rest.slice(0, 3);
   const latest = rest.slice(0, 6);
-  const popularImages = [articles[4], articles[8], articles[9], articles[3], articles[7]].filter(Boolean);
+  // Last 24h view velocity (not just lifetime views), falls back to the fetched list if there's
+  // not enough recent view data yet (e.g. right after launch).
+  const trendingItems = trending.length ? trending : [articles[4], articles[8], articles[9], articles[3], articles[7]].filter(Boolean);
 
   if (!hero) {
     return (
@@ -69,11 +71,11 @@ export default async function Home() {
         <div className="row-span-2 flex flex-col gap-4">
           <aside className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-[22px] font-black">Eng ko'p o'qilgan</h2>
+            <h2 className="text-[22px] font-black">Trend bo'layotgan</h2>
               <TrendingUp className="text-brand" />
             </div>
             <div className="space-y-[22px]">
-              {popularImages.map((item, index) => (
+              {trendingItems.map((item, index) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[30px_1fr_80px] gap-3 rounded-md transition hover:bg-white/10">
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>

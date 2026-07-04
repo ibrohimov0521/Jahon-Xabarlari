@@ -16,18 +16,45 @@ const DEDUP_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 export type NewsSource = { name: string; feedUrl: string };
 
+// Every URL below was verified with a live rss-parser fetch before being added here.
 // Reuters and AP are intentionally excluded: neither offers a public RSS feed anymore (both
-// moved to paid-API-only access years ago), so there's no free/legal way to pull their content
-// here. Daryo.uz and Qalampir.uz don't have a discoverable feed either -- update feedUrl below
-// once you have the real one for each.
+// moved to paid-API-only access years ago), so there's no free/legal way to pull their content.
+// Daryo.uz and Qalampir.uz don't have a discoverable feed (tried /rss, /feed, /rss.xml -- all
+// 404 or malformed) -- add them here once you have the real feed URL for each.
 export const NEWS_SOURCES: NewsSource[] = [
+  // O'zbekiston
   { name: "Kun.uz", feedUrl: "https://kun.uz/news/rss" },
   { name: "Gazeta.uz", feedUrl: "https://www.gazeta.uz/en/rss/" },
-  { name: "Daryo.uz", feedUrl: "https://daryo.uz/rss" },
-  { name: "Qalampir.uz", feedUrl: "https://qalampir.uz/rss" },
-  { name: "BBC", feedUrl: "http://feeds.bbci.co.uk/news/world/rss.xml" },
+  { name: "UzA", feedUrl: "https://uza.uz/uz/rss" },
+  { name: "Podrobno.uz", feedUrl: "https://podrobno.uz/rss/" },
+  { name: "Anhor.uz", feedUrl: "https://anhor.uz/rss" },
+  { name: "Sputnik O'zbekiston", feedUrl: "https://uz.sputniknews.ru/export/rss2/archive/index.xml" },
+  { name: "Xabar.uz", feedUrl: "https://xabar.uz/rss" },
+  // Dunyo
+  { name: "BBC World", feedUrl: "http://feeds.bbci.co.uk/news/world/rss.xml" },
+  { name: "Al Jazeera", feedUrl: "https://www.aljazeera.com/xml/rss/all.xml" },
+  { name: "NYT World", feedUrl: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
+  { name: "CNN Top Stories", feedUrl: "http://rss.cnn.com/rss/cnn_topstories.rss" },
+  { name: "The Guardian World", feedUrl: "https://www.theguardian.com/world/rss" },
+  { name: "DW", feedUrl: "https://rss.dw.com/rdf/rss-en-all" },
+  // Sport
+  { name: "BBC Sport", feedUrl: "https://feeds.bbci.co.uk/sport/rss.xml?edition=int" },
+  { name: "ESPN", feedUrl: "https://www.espn.com/espn/rss/news" },
+  { name: "Marca", feedUrl: "https://e00-marca.uecdn.es/rss/en/football.xml" },
+  // Texnologiya
   { name: "The Verge", feedUrl: "https://www.theverge.com/rss/index.xml" },
-  { name: "TechCrunch", feedUrl: "https://techcrunch.com/feed/" }
+  { name: "TechCrunch", feedUrl: "https://techcrunch.com/feed/" },
+  { name: "Ars Technica", feedUrl: "https://feeds.arstechnica.com/arstechnica/index" },
+  { name: "Engadget", feedUrl: "https://www.engadget.com/rss.xml" },
+  { name: "Wired", feedUrl: "https://www.wired.com/feed/rss" },
+  { name: "VentureBeat", feedUrl: "https://venturebeat.com/feed/" },
+  { name: "MIT Technology Review", feedUrl: "https://www.technologyreview.com/feed/" },
+  { name: "BBC Technology", feedUrl: "https://feeds.bbci.co.uk/news/technology/rss.xml" },
+  // Iqtisodiyot
+  { name: "BBC Business", feedUrl: "https://feeds.bbci.co.uk/news/business/rss.xml" },
+  { name: "CNBC", feedUrl: "https://www.cnbc.com/id/100003114/device/rss/rss.html" },
+  { name: "Investing.com", feedUrl: "https://www.investing.com/rss/news.rss" },
+  { name: "Yahoo Finance", feedUrl: "https://finance.yahoo.com/news/rssindex" }
 ];
 
 type FeedItem = {
@@ -74,6 +101,52 @@ function similarity(a: Set<string>, b: Set<string>): number {
   for (const word of a) if (b.has(word)) intersection += 1;
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+// The cheap word-overlap check above catches near-identical headlines but misses the same
+// story worded very differently across sources/languages. One batched Claude call over just
+// the candidate titles (not full articles) groups genuine semantic duplicates cheaply -- far
+// less costly than a pairwise comparison, and than running the full summarize+categorize call
+// on every duplicate.
+async function aiGroupDuplicates(items: FeedItem[]): Promise<number[][]> {
+  if (!client || items.length < 2) return items.map((_, index) => [index]);
+
+  try {
+    const message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      system:
+        "You are given a numbered list of news headlines from different outlets, possibly in different languages " +
+        "(Uzbek, Russian, English). Group the indices whose headlines describe the SAME real-world news story or " +
+        "event, even if worded completely differently or translated. Every index from 0 to N-1 must appear in " +
+        'exactly one group. Respond ONLY with strict JSON: {"groups": number[][]}. No markdown, no commentary.',
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify(items.map((item, index) => ({ index, source: item.sourceName, title: item.title })))
+        }
+      ]
+    });
+
+    const block = message.content.find((entry) => entry.type === "text");
+    if (!block || block.type !== "text") throw new Error("Bo'sh javob");
+    const parsed = JSON.parse(block.text) as { groups: number[][] };
+
+    const seen = new Set<number>();
+    const validGroups: number[][] = [];
+    for (const group of parsed.groups ?? []) {
+      const filtered = (group ?? []).filter((index) => Number.isInteger(index) && index >= 0 && index < items.length && !seen.has(index));
+      filtered.forEach((index) => seen.add(index));
+      if (filtered.length) validGroups.push(filtered);
+    }
+    for (let index = 0; index < items.length; index += 1) {
+      if (!seen.has(index)) validGroups.push([index]);
+    }
+    return validGroups;
+  } catch (error) {
+    console.error("[aggregator] AI dublikat guruhlash ishlamadi, har biri alohida ko'riladi:", error instanceof Error ? error.message : error);
+    return items.map((_, index) => [index]);
+  }
 }
 
 async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
@@ -201,7 +274,9 @@ export async function runAggregatorCycle(): Promise<void> {
     const batches = await Promise.all(NEWS_SOURCES.map(fetchSource));
     const candidates = batches.flat();
 
-    let published = 0;
+    // Pass 1: cheap filter -- drop items already ingested (by URL) or an obvious word-overlap
+    // match against something recently published or already accepted earlier in this loop.
+    const survivors: FeedItem[] = [];
     for (const item of candidates) {
       // eslint-disable-next-line no-await-in-loop
       const existing = await prisma.article.findUnique({ where: { sourceUrl: item.link } });
@@ -210,7 +285,22 @@ export async function runAggregatorCycle(): Promise<void> {
       const tokens = tokenize(item.title);
       if (seenTokens.some((other) => similarity(tokens, other) >= DUPLICATE_THRESHOLD)) continue;
       seenTokens.push(tokens);
+      survivors.push(item);
+    }
 
+    // Cap how many go through the (paid, slower) AI dedup + rewrite pipeline per cycle so a
+    // large first run or a burst across many sources can't blow up cost/latency in one go --
+    // anything left over simply gets picked up on the next cycle since it's still unpublished.
+    const MAX_PER_CYCLE = 40;
+    const batch = survivors.slice(0, MAX_PER_CYCLE);
+
+    // Pass 2: semantic dedup via AI across the surviving candidates -- catches same-story
+    // items worded too differently for the word-overlap check to have caught.
+    const groups = await aiGroupDuplicates(batch);
+    const deduped = groups.map((group) => batch[group[0]]);
+
+    let published = 0;
+    for (const item of deduped) {
       try {
         // eslint-disable-next-line no-await-in-loop
         await processItem(item, categories, author.id);

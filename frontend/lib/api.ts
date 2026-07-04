@@ -11,6 +11,7 @@ export type Article = {
   updatedAt?: string;
   seoTitle?: string;
   seoDescription?: string;
+  sourceName?: string | null;
   category?: { name: string; slug: string };
 };
 
@@ -40,6 +41,16 @@ export async function getArticle(slug: string, lang?: string) {
     return (await res.json()) as Article;
   } catch {
     return demoArticles.find((item) => item.slug === slug) ?? demoArticles[0];
+  }
+}
+
+export async function getTrendingArticles(lang?: string, limit = 5) {
+  try {
+    const res = await fetch(withLang(`${API_URL}/articles/trending?limit=${limit}`, lang), { next: { revalidate: 120 } });
+    if (!res.ok) throw new Error("API error");
+    return (await res.json()).items as Article[];
+  } catch {
+    return [];
   }
 }
 

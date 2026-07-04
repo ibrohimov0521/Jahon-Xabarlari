@@ -91,6 +91,46 @@ articleRouter.get("/articles", async (req, res) => {
   res.json({ items: items.map((item) => applyTranslation(item, lang)), total, page, pages: Math.ceil(total / take) });
 });
 
+articleRouter.get("/articles/trending", async (req, res) => {
+  const lang = req.query.lang?.toString();
+  const take = Math.min(Number(req.query.limit ?? 8), 20);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const grouped = await prisma.articleView.groupBy({
+    by: ["articleId"],
+    where: { createdAt: { gte: since } },
+    _count: { articleId: true },
+    orderBy: { _count: { articleId: "desc" } },
+    take: take * 2
+  });
+
+  const includeArgs = {
+    category: true,
+    ...(isLang(lang) ? { translations: { where: { lang, status: "READY" as const } } } : {})
+  };
+
+  if (!grouped.length) {
+    // Not enough recent view data yet (e.g. right after launch) -- fall back to lifetime views.
+    const fallback = await prisma.article.findMany({
+      where: { deletedAt: null, status: "PUBLISHED" },
+      include: includeArgs,
+      orderBy: { viewsCount: "desc" },
+      take
+    });
+    return res.json({ items: fallback.map((item) => applyTranslation(item, lang)) });
+  }
+
+  const ids = grouped.map((item) => item.articleId);
+  const articles = await prisma.article.findMany({
+    where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED" },
+    include: includeArgs
+  });
+  const order = new Map(ids.map((id, index) => [id, index]));
+  const sorted = articles.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).slice(0, take);
+
+  res.json({ items: sorted.map((item) => applyTranslation(item, lang)) });
+});
+
 articleRouter.get("/articles/:slug", async (req, res) => {
   const lang = req.query.lang?.toString();
   const article = await prisma.article

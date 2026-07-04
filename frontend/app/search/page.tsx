@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     <main>
       <Header />
       <section className="container-page py-8">
-        <h1 className="text-3xl font-black">Qidiruv</h1>
+        <h1 className="section-title text-3xl font-black">Qidiruv</h1>
         <form className="news-shadow mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2" action="/search">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-brand"><Search size={20} /></span>
           <input name="q" defaultValue={q} className="h-12 min-w-0 flex-1 bg-transparent px-2 text-base font-semibold outline-none placeholder:text-slate-400" placeholder="Yangilik qidirish" />

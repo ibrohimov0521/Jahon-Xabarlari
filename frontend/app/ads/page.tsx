@@ -13,8 +13,10 @@ export default function AdsPage() {
     <main>
       <Header />
       <section className="container-page max-w-3xl py-10">
+        <div className="rounded-lg border border-slate-200 bg-white p-6 news-shadow">
         <h1 className="text-3xl font-black">Reklama</h1>
         <p className="mt-4 text-lg text-slate-600">Portal reklama joylashuvlari backend admin paneli orqali boshqariladi.</p>
+        </div>
       </section>
     </main>
   );

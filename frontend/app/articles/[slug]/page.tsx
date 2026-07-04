@@ -80,18 +80,20 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         }}
       />
       <article className="container-page max-w-4xl py-8">
-        <span className="font-black uppercase text-brand">{article.category?.name}</span>
-        <h1 className="mt-3 text-4xl font-black leading-tight">{article.title}</h1>
-        <p className="mt-4 text-lg text-slate-600">{article.summary}</p>
-        <MediaView src={article.mainImage} alt={article.title} className="mt-7 aspect-video w-full rounded-lg object-cover" />
+        <div className="article-detail-panel rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-7">
+          <span className="font-black uppercase text-brand">{article.category?.name}</span>
+          <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
+          <p className="article-summary mt-4 text-lg">{article.summary}</p>
+        </div>
+        <MediaView src={article.mainImage} alt={article.title} className="mt-7 aspect-video w-full rounded-lg object-cover news-shadow" />
         {!!article.gallery?.length && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {article.gallery.map((src) => (
-              <MediaView key={src} src={src} alt={article.title} className="aspect-video w-full rounded-lg object-cover" />
+              <MediaView key={src} src={src} alt={article.title} className="aspect-video w-full rounded-lg object-cover news-shadow" />
             ))}
           </div>
         )}
-        <div className="prose prose-lg mt-8 max-w-none">
+        <div className="article-body prose prose-lg mt-8 max-w-none rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-7">
           <p>{article.content}</p>
         </div>
       </article>

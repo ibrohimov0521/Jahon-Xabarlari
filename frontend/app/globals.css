@@ -152,6 +152,37 @@ body > main {
   color: var(--text) !important;
 }
 
+.section-title {
+  color: #f8fdff;
+  text-shadow:
+    0 2px 14px rgba(3, 12, 24, 0.9),
+    0 0 30px rgba(25, 211, 224, 0.22);
+}
+
+:root[data-theme="dark"] .section-title {
+  color: #f8fdff;
+}
+
+.article-title,
+.article-body {
+  color: var(--text);
+}
+
+.article-title {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.article-summary,
+.article-body p {
+  color: #334155;
+  text-shadow: none;
+}
+
+:root[data-theme="dark"] .article-summary,
+:root[data-theme="dark"] .article-body p {
+  color: #cbd5e1;
+}
+
 .text-slate-500,
 .text-slate-600 {
   color: var(--muted) !important;

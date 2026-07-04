@@ -68,7 +68,7 @@ export default async function Home() {
         <div className="row-span-2 flex flex-col gap-4">
           <aside className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-[22px] font-black">Eng ko'p o'qilgan</h2>
+            <h2 className="text-[22px] font-black">Eng ko'p o'qilgan</h2>
               <TrendingUp className="text-brand" />
             </div>
             <div className="space-y-[22px]">
@@ -93,7 +93,7 @@ export default async function Home() {
 
         <div className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <h2 className="mr-auto text-[27px] font-black">So'nggi yangiliklar</h2>
+            <h2 className="section-title mr-auto text-[27px] font-black">So'nggi yangiliklar</h2>
             {[
               ["Barchasi", "/"],
               ["O'zbekiston", "/category/ozbekiston"],

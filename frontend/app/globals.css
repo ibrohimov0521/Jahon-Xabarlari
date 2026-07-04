@@ -58,10 +58,29 @@ html {
 
 body {
   background:
+    linear-gradient(rgba(246, 248, 252, 0.9), rgba(246, 248, 252, 0.94)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
+    url("/brand/site-background.png") center top / cover fixed,
     var(--page-bg);
+  background-attachment: scroll, scroll, fixed, scroll;
   color: var(--text);
   transition: background-color 220ms ease, color 220ms ease;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    linear-gradient(rgba(7, 16, 31, 0.82), rgba(7, 16, 31, 0.9)),
+    radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
+    url("/brand/site-background.png") center top / cover fixed,
+    var(--page-bg);
+  background-attachment: scroll, scroll, fixed, scroll;
+}
+
+@media (max-width: 768px) {
+  body,
+  :root[data-theme="dark"] body {
+    background-attachment: scroll, scroll, scroll, scroll;
+  }
 }
 
 .container-page {

@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: light;
-  --page-bg: #f6f8fc;
+  --page-bg: #e3edfb;
   --surface: #ffffff;
   --surface-soft: #f8fafc;
   --text: #07132f;
@@ -62,40 +62,29 @@ body {
   transition: background-color 220ms ease, color 220ms ease;
 }
 
-/*
- * Real fixed-position element, not `background-attachment: fixed` or a negative z-index trick.
- * `background-attachment: fixed` is unreliable on mobile browsers (which is what previously
- * caused the image to appear to repeat/drift while scrolling on phones), and a z-index:-1
- * pseudo-element loses to the browser's special body->canvas background propagation, which
- * paints behind absolutely everything including negative z-index layers. Being the very first
- * element in <body> with `position: fixed` (default z-index:auto) instead relies on normal
- * paint order: it's removed from layout flow, and every real (in-flow) page element after it
- * paints on top of it, so it stays put while only the content scrolls.
- * `contain` (not `cover`) guarantees the whole image -- including its logo/text -- stays visible
- * instead of being cropped or blown up to fill a narrow, tall mobile viewport.
- */
 .site-backdrop {
   position: fixed;
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(rgba(246, 248, 252, 0.68), rgba(246, 248, 252, 0.76)),
+    linear-gradient(rgba(227, 237, 251, 0.38), rgba(227, 237, 251, 0.48)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
-    url("/brand/site-background.png") center / min(80%, 900px) no-repeat,
+    url("/brand/site-background.png") center / cover no-repeat,
     var(--page-bg);
 }
 
 :root[data-theme="dark"] .site-backdrop {
   background:
-    linear-gradient(rgba(7, 16, 31, 0.48), rgba(7, 16, 31, 0.72)),
+    linear-gradient(rgba(7, 16, 31, 0.26), rgba(7, 16, 31, 0.46)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
-    url("/brand/site-background.png") center / min(80%, 900px) no-repeat,
+    url("/brand/site-background.png") center / cover no-repeat,
     var(--page-bg);
 }
 
 @media (max-width: 768px) {
   .site-backdrop {
-    background-size: auto, auto, min(92%, 520px), auto;
+    background-position: center;
+    background-size: auto, auto, cover, auto;
   }
 }
 
@@ -193,6 +182,10 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.topbar-info {
+  line-height: 1.2;
+}
+
 .icon-button {
   display: grid;
   width: 44px;
@@ -258,6 +251,92 @@ body {
 }
 
 @media (max-width: 640px) {
+  .topbar {
+    background:
+      radial-gradient(circle at 14% 10%, rgba(39, 226, 230, 0.34), transparent 9rem),
+      linear-gradient(135deg, rgba(6, 18, 34, 0.74), rgba(9, 26, 48, 0.56));
+    backdrop-filter: blur(18px);
+  }
+
+  .topbar .container-page {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-height: 58px;
+    padding-left: 12px;
+    padding-right: 10px;
+  }
+
+  .topbar-info {
+    position: absolute;
+    left: 12px;
+    top: 8px;
+    z-index: 2;
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 196px;
+    border: 1px solid rgba(166, 246, 255, 0.24);
+    border-radius: 20px;
+    padding: 7px 12px;
+    background:
+      linear-gradient(145deg, rgba(71, 226, 239, 0.18), rgba(255, 255, 255, 0.07)),
+      rgba(4, 17, 31, 0.42);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 16px 34px rgba(0, 10, 24, 0.28),
+      0 0 34px rgba(25, 211, 224, 0.12);
+    backdrop-filter: blur(20px) saturate(145%);
+    font-size: 11px;
+    color: #ffffff;
+  }
+
+  .topbar-weather {
+    color: #f8fdff;
+    font-weight: 800;
+    text-shadow: 0 1px 10px rgba(89, 234, 245, 0.18);
+  }
+
+  .topbar-weather,
+  .topbar-date {
+    max-width: calc(100vw - 138px);
+  }
+
+  .topbar-date {
+    color: rgba(214, 249, 255, 0.78);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .topbar-weather svg,
+  .topbar-date svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .topbar .language-trigger {
+    gap: 5px;
+    border: 1px solid rgba(166, 246, 255, 0.24);
+    padding: 8px 10px;
+    background:
+      linear-gradient(145deg, rgba(71, 226, 239, 0.18), rgba(255, 255, 255, 0.08)),
+      rgba(4, 17, 31, 0.44);
+    font-size: 12px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 14px 28px rgba(0, 10, 24, 0.24),
+      0 0 24px rgba(25, 211, 224, 0.11);
+    backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .topbar .container-page > div:last-child {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 3;
+  }
+
   .icon-button {
     width: 38px;
     height: 38px;

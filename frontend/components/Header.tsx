@@ -1,10 +1,10 @@
 "use client";
 
-import { Camera, ChevronDown, Globe2, Menu, Moon, Play, Search, Send, Sun, X } from "lucide-react";
+import { CalendarDays, Camera, ChevronDown, CloudSun, Globe2, Menu, Moon, Play, Search, Send, Sun, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SearchModal } from "./SearchModal";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
@@ -42,6 +42,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState("");
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
@@ -55,20 +56,44 @@ export function Header() {
       activeHref === href ? "border-brand text-brand" : "border-transparent text-ink hover:border-brand/40 hover:text-brand"
     }`;
 
+  useEffect(() => {
+    const date = new Date();
+    const months = {
+      uz: ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"],
+      ru: ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"],
+      en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    };
+    const weekdays = {
+      uz: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
+      ru: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],
+      en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    };
+    setCurrentDate(`${weekdays[language][date.getDay()]}, ${date.getDate()} ${months[language][date.getMonth()]} ${date.getFullYear()}`);
+  }, [language]);
+
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0];
 
   return (
     <>
       <div className="topbar bg-ink text-white">
-        <div className="container-page flex h-10 items-center justify-between text-sm">
-          <div className="hidden items-center gap-8 sm:flex">
-            <span>{t.top.city}&nbsp;&nbsp; 22C</span>
-            <span>12 May, 2025&nbsp; {t.top.day}</span>
+        <div className="container-page flex min-h-10 items-center justify-between gap-2 py-1 text-xs sm:h-10 sm:py-0 sm:text-sm">
+          <div className="topbar-info flex min-w-0 flex-1 items-center gap-2 sm:gap-8">
+            <span className="topbar-weather flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+              <CloudSun className="h-4 w-4 text-amber-200" />
+              <span>{t.top.city}</span>
+              <span>22C</span>
+            </span>
+            <span className="topbar-date flex min-w-0 items-center gap-1.5 truncate">
+              <CalendarDays className="h-4 w-4 shrink-0 text-blue-200" />
+              <span className="truncate capitalize">{currentDate}</span>
+            </span>
           </div>
-          <div className="ml-auto flex items-center gap-5 lg:gap-7">
-            <Link className="transition hover:text-blue-200" href="/about">{t.top.about}</Link>
-            <Link className="transition hover:text-blue-200" href="/ads">{t.top.ads}</Link>
-            <Link className="transition hover:text-blue-200" href="/contact">{t.top.contact}</Link>
+          <div className="flex shrink-0 items-center gap-3 sm:gap-5 lg:gap-7">
+            <div className="hidden items-center gap-5 sm:flex lg:gap-7">
+              <Link className="transition hover:text-blue-200" href="/about">{t.top.about}</Link>
+              <Link className="transition hover:text-blue-200" href="/ads">{t.top.ads}</Link>
+              <Link className="transition hover:text-blue-200" href="/contact">{t.top.contact}</Link>
+            </div>
             <div className="hidden items-center gap-3 lg:flex">
               <a aria-label="Telegram" className="social-icon bg-sky-500" href="https://t.me/" target="_blank"><Send size={14} fill="white" /></a>
               <a aria-label="Facebook" className="social-icon bg-blue-600 text-xs font-black" href="https://facebook.com/" target="_blank">f</a>

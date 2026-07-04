@@ -16,6 +16,7 @@ import { auditRouter } from "./modules/audit/routes.js";
 
 const app = express();
 
+app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: frontendOrigins, credentials: true }));
 app.use(compression());

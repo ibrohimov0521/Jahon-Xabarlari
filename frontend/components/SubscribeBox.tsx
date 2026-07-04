@@ -14,19 +14,19 @@ export function SubscribeBox() {
   }
 
   return (
-    <aside className="subscribe-box rounded-lg p-7 text-white news-shadow">
+    <aside className="subscribe-box news-shadow rounded-lg border border-slate-200 bg-white p-7">
       <div className="flex gap-5">
-        <span className="grid size-[58px] shrink-0 place-items-center rounded-full bg-white/10"><Send size={28} fill="white" /></span>
+        <span className="grid size-[58px] shrink-0 place-items-center rounded-full bg-brand/10 text-brand"><Send size={27} fill="currentColor" /></span>
         <div>
-          <h3 className="text-[18px] font-black leading-snug">{t.subscribe.title}</h3>
-          <p className="mt-3 text-[15px] leading-6 text-slate-100">{t.subscribe.body}</p>
+          <h3 className="text-[18px] font-black leading-snug text-ink">{t.subscribe.title}</h3>
+          <p className="mt-3 text-[15px] leading-6 text-slate-500">{t.subscribe.body}</p>
         </div>
       </div>
-      <form onSubmit={submit} className="mt-6 flex overflow-hidden rounded-md border border-white/20">
-        <input required type="email" className="h-11 min-w-0 flex-1 bg-transparent px-4 text-[14px] outline-none placeholder:text-slate-300" placeholder={t.subscribe.placeholder} />
-        <button className="h-11 bg-brand px-5 text-[14px] font-black transition hover:bg-blue-500">{t.subscribe.button}</button>
+      <form onSubmit={submit} className="mt-6 flex overflow-hidden rounded-md border border-slate-200 bg-white">
+        <input required type="email" className="h-11 min-w-0 flex-1 bg-transparent px-4 text-[14px] text-ink outline-none placeholder:text-slate-400" placeholder={t.subscribe.placeholder} />
+        <button className="h-11 bg-brand px-5 text-[14px] font-black text-white transition hover:bg-blue-500">{t.subscribe.button}</button>
       </form>
-      {sent && <p className="mt-3 text-sm text-blue-100">{t.subscribe.sent}</p>}
+      {sent && <p className="mt-3 text-sm font-semibold text-brand">{t.subscribe.sent}</p>}
     </aside>
   );
 }

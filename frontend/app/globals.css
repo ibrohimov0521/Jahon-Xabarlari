@@ -89,12 +89,12 @@ body {
 }
 
 .subscribe-box {
-  background: #07132f;
-  color: #ffffff;
+  background: var(--surface);
+  color: var(--text);
 }
 
 :root[data-theme="dark"] .subscribe-box {
-  background: linear-gradient(145deg, #07132f, #050b16);
+  background: var(--surface);
 }
 
 .site-header {

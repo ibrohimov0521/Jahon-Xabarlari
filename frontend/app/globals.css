@@ -60,7 +60,7 @@ body {
   background:
     linear-gradient(rgba(246, 248, 252, 0.68), rgba(246, 248, 252, 0.76)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
-    url("/brand/site-background.png") center top / cover fixed,
+    url("/brand/site-background.png") center -120px / cover fixed,
     var(--page-bg);
   background-attachment: scroll, scroll, fixed, scroll;
   color: var(--text);
@@ -71,7 +71,7 @@ body {
   background:
     linear-gradient(rgba(7, 16, 31, 0.48), rgba(7, 16, 31, 0.72)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
-    url("/brand/site-background.png") center top / cover fixed,
+    url("/brand/site-background.png") center -120px / cover fixed,
     var(--page-bg);
   background-attachment: scroll, scroll, fixed, scroll;
 }
@@ -79,6 +79,7 @@ body {
 @media (max-width: 768px) {
   body,
   :root[data-theme="dark"] body {
+    background-position: 0 0, top right, center -42px, 0 0;
     background-attachment: scroll, scroll, scroll, scroll;
   }
 }

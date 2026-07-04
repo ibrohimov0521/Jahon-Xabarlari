@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AdsView } from "../../components/admin/AdsView";
 import { ArticleEditor } from "../../components/admin/ArticleEditor";
 import { ArticlePreview } from "../../components/admin/ArticlePreview";
@@ -28,7 +28,7 @@ import { CommentsView } from "../../components/admin/CommentsView";
 import { Dashboard } from "../../components/admin/Dashboard";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
-import { ErrorBanner, LoadingBlock, SuccessBanner } from "../../components/admin/ui";
+import { ErrorBanner, LoadingBlock, Toast } from "../../components/admin/ui";
 import {
   AdminApiError,
   adminRequest,
@@ -81,6 +81,7 @@ export default function AdminPage() {
   const [previewReturnView, setPreviewReturnView] = useState<View>("new");
   const [articleStatusFilter, setArticleStatusFilter] = useState<ArticleStatus | "">("");
   const [articleOnlyToday, setArticleOnlyToday] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
@@ -210,8 +211,9 @@ export default function AdminPage() {
   }
 
   function flash(text: string) {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
     setMessage(text);
-    setTimeout(() => setMessage(""), 4000);
+    flashTimer.current = setTimeout(() => setMessage(""), 4000);
   }
 
   async function withErrorHandling(action: () => Promise<void>) {
@@ -412,7 +414,7 @@ export default function AdminPage() {
 
         <div className="p-4 sm:p-5">
           <ErrorBanner message={error} />
-          <SuccessBanner message={message} />
+          <Toast message={message} onClose={() => setMessage("")} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}
 
           {view === "dashboard" && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}

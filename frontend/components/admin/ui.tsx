@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -44,6 +44,26 @@ export function ErrorBanner({ message }: { message: string }) {
 export function SuccessBanner({ message }: { message: string }) {
   if (!message) return null;
   return <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{message}</div>;
+}
+
+export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+  if (!message) return null;
+  return (
+    <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-md rounded-lg border border-green-200 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-900/20 sm:inset-x-auto sm:right-6 sm:mx-0">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-green-50 text-green-700">
+          <CheckCircle2 size={20} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black text-green-700">Amal bajarildi</p>
+          <p className="mt-1 text-sm font-semibold leading-5 text-slate-700">{message}</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Xabarni yopish">
+          <X size={17} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function LoadingBlock({ label = "Yuklanmoqda..." }: { label?: string }) {

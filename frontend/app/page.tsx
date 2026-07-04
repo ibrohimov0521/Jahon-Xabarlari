@@ -6,6 +6,7 @@ import { MediaView } from "../components/MediaView";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
 import { getArticles } from "../lib/api";
+import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
 
@@ -45,7 +46,7 @@ export default async function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-7">
             <span className="absolute left-6 top-7 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg">{hero.category?.name}</span>
-            <p className="text-[15px] font-medium">12 May, 2025&nbsp;&nbsp; • &nbsp;&nbsp;10:30</p>
+            <p className="text-[15px] font-medium">{formatArticleDateTime(hero.publishedAt)}</p>
             <h1 className="mt-3 max-w-[610px] text-[34px] font-black leading-[1.2]">{hero.title}</h1>
             <p className="mt-3 max-w-[620px] text-[17px] leading-7 text-white">{hero.summary}</p>
             <span className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
@@ -60,7 +61,7 @@ export default async function Home() {
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
                 <h3 className="mt-3 text-[16px] font-black leading-snug">{item.title}</h3>
-                <p className="mt-4 text-[14px] text-slate-500">12 May, 2025&nbsp;&nbsp; • &nbsp;&nbsp;{index === 0 ? "09:15" : index === 1 ? "08:45" : "07:30"}</p>
+                <p className="mt-4 text-[14px] text-slate-500">{formatArticleDateTime(item.publishedAt)}</p>
               </div>
             </Link>
           ))}
@@ -77,7 +78,7 @@ export default async function Home() {
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
-                    <p className="mt-2 text-[13px] text-slate-500">{["120,5", "98,7", "75,3", "64,1", "58,2"][index]} ming o'qish</p>
+                    <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount)}</p>
                   </div>
                   <MediaView src={item.mainImage} className="h-[78px] w-[80px] rounded-md object-cover" />
                 </Link>

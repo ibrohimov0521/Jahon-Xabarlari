@@ -108,6 +108,7 @@ model Article {
   mainImage       String?
   gallery         String[]      @default([])
   categoryId      String
+  extraCategoryIds String[]     @default([])
   category        Category      @relation(fields: [categoryId], references: [id])
   authorId        String
   author          User          @relation(fields: [authorId], references: [id])

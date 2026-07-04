@@ -7,8 +7,9 @@ import { permit, requireAuth } from "../../middleware/auth.js";
 export const mediaRouter = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, ["image/jpeg", "image/png", "image/webp", "video/mp4"].includes(file.mimetype))
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) =>
+    cb(null, ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"].includes(file.mimetype))
 });
 
 mediaRouter.get("/file/:key", async (req, res) => {

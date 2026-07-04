@@ -94,6 +94,7 @@ CREATE TABLE "Article" (
     "mainImage" TEXT,
     "gallery" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "categoryId" TEXT NOT NULL,
+    "extraCategoryIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "authorId" TEXT NOT NULL,
     "status" "ArticleStatus" NOT NULL DEFAULT 'DRAFT',
     "isFeatured" BOOLEAN NOT NULL DEFAULT false,

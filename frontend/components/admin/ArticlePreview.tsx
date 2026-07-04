@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { MediaView } from "../MediaView";
 import type { ArticleFormState, Category } from "./types";
 import { Badge, Panel } from "./ui";
 
@@ -21,10 +22,7 @@ export function ArticlePreview({ form, categories, onBack }: { form: ArticleForm
           </div>
           <h1 className="mt-4 text-3xl font-black leading-tight">{form.title || "Sarlavha kiritilmagan"}</h1>
           <p className="mt-3 text-lg text-slate-600">{form.summary || "Qisqa tavsif kiritilmagan"}</p>
-          {form.mainImage && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={form.mainImage} alt={form.title} className="mt-5 w-full rounded-lg border border-slate-200 object-cover" />
-          )}
+          {form.mainImage && <MediaView src={form.mainImage} alt={form.title} className="mt-5 w-full rounded-lg border border-slate-200 object-cover" />}
           <div className="prose prose-slate mt-6 max-w-none whitespace-pre-wrap text-base leading-relaxed">
             {form.content || "Matn kiritilmagan"}
           </div>

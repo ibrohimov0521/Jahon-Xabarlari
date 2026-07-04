@@ -1,10 +1,11 @@
 import type { Article } from "../lib/api";
 import Link from "next/link";
+import { MediaView } from "./MediaView";
 
 export function NewsCard({ article }: { article: Article }) {
   return (
     <Link href={`/articles/${article.slug}`} className="news-shadow overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:-translate-y-0.5">
-      <img src={article.mainImage} alt="" className="h-[152px] w-full object-cover" />
+      <MediaView src={article.mainImage} className="h-[152px] w-full object-cover" />
       <div className="p-4">
         <span className="text-[12px] font-black uppercase text-brand">{article.category?.name}</span>
         <h3 className="mt-2 min-h-[52px] text-[17px] font-black leading-snug">{article.title}</h3>

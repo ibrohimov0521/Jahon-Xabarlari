@@ -2,6 +2,7 @@ import { ArrowRight, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Header } from "../components/Header";
+import { MediaView } from "../components/MediaView";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
 import { getArticles } from "../lib/api";
@@ -40,7 +41,7 @@ export default async function Home() {
       <Header />
       <section className="container-page grid gap-6 py-4 lg:grid-cols-[minmax(0,672px)_380px_354px]">
         <article className="relative h-[506px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
-          <img src={hero.mainImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-7">
             <span className="absolute left-6 top-7 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg">{hero.category?.name}</span>
@@ -55,7 +56,7 @@ export default async function Home() {
         <div className="grid content-start gap-[18px]">
           {side.map((item, index) => (
             <article key={item.id} className="news-shadow grid h-[157px] grid-cols-[138px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-3">
-              <img src={item.mainImage} alt="" className="h-[130px] w-[138px] rounded-md object-cover" />
+              <MediaView src={item.mainImage} className="h-[130px] w-[138px] rounded-md object-cover" />
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
                 <h3 className="mt-3 text-[16px] font-black leading-snug">{item.title}</h3>
@@ -78,7 +79,7 @@ export default async function Home() {
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
                     <p className="mt-2 text-[13px] text-slate-500">{["120,5", "98,7", "75,3", "64,1", "58,2"][index]} ming o'qish</p>
                   </div>
-                  <img src={item.mainImage} alt="" className="h-[78px] w-[80px] rounded-md object-cover" />
+                  <MediaView src={item.mainImage} className="h-[78px] w-[80px] rounded-md object-cover" />
                 </div>
               ))}
             </div>

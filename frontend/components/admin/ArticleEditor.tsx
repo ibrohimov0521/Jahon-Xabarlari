@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminRequest } from "../../lib/admin-api";
+import { adminRequest, uploadAdminMedia } from "../../lib/admin-api";
 import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
 import { ErrorBanner, Input, Panel, Toggle } from "./ui";
 
@@ -12,6 +12,7 @@ function toFormState(article: Article): ArticleFormState {
     content: article.content,
     mainImage: article.mainImage ?? "",
     categoryId: article.categoryId ?? "",
+    extraCategoryIds: article.extraCategoryIds ?? [],
     status: article.status,
     seoTitle: article.seoTitle ?? "",
     seoDescription: article.seoDescription ?? "",
@@ -40,6 +41,7 @@ export function ArticleEditor({
   const [form, setForm] = useState<ArticleFormState>({ ...emptyArticleForm, categoryId: categories[0]?.id ?? "" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -85,6 +87,20 @@ export function ArticleEditor({
     }
   }
 
+  async function uploadMainFile(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const uploaded = await uploadAdminMedia(file);
+      setForm((current) => ({ ...current, mainImage: uploaded.url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fayl yuklanmadi");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (loading) {
     return (
       <Panel title="Maqola">
@@ -109,7 +125,19 @@ export function ArticleEditor({
               required
             />
           </label>
-          <Input label="Rasm URL" value={form.mainImage} onChange={(value) => setForm({ ...form, mainImage: value })} required={false} />
+          <div className="grid gap-2">
+            <Input label="Rasm/video URL" value={form.mainImage} onChange={(value) => setForm({ ...form, mainImage: value })} required={false} />
+            <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-black transition hover:border-brand hover:text-brand">
+              {uploading ? "Fayl yuklanmoqda..." : "Fayl biriktirish (rasm/video)"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                disabled={uploading}
+                onChange={(event) => uploadMainFile(event.target.files?.[0])}
+              />
+            </label>
+          </div>
           <Input label="SEO sarlavha" value={form.seoTitle} onChange={(value) => setForm({ ...form, seoTitle: value })} required={false} />
           <Input label="SEO tavsif" value={form.seoDescription} onChange={(value) => setForm({ ...form, seoDescription: value })} required={false} />
         </div>
@@ -117,7 +145,7 @@ export function ArticleEditor({
       <Panel title="Ko'rinishi">
         <div className="grid gap-4">
           <label className="text-sm font-bold">
-            Kategoriya
+            Asosiy kategoriya
             <select
               className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal"
               value={form.categoryId}
@@ -131,6 +159,32 @@ export function ArticleEditor({
               ))}
             </select>
           </label>
+          <div className="grid gap-2">
+            <p className="text-sm font-bold">Qo'shimcha kategoriyalar</p>
+            <div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
+              {categories
+                .filter((category) => category.id !== form.categoryId)
+                .map((category) => {
+                  const checked = form.extraCategoryIds.includes(category.id);
+                  return (
+                    <label key={category.id} className="flex items-center gap-2 text-sm font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const next = event.target.checked
+                            ? [...form.extraCategoryIds, category.id]
+                            : form.extraCategoryIds.filter((id) => id !== category.id);
+                          setForm({ ...form, extraCategoryIds: next });
+                        }}
+                      />
+                      {category.name}
+                    </label>
+                  );
+                })}
+            </div>
+            <p className="text-xs font-semibold text-slate-500">Asosiy menyuda bitta kategoriya ko'rinadi, qo'shimcha kategoriyalar faqat tegishli bo'limlarda topilishi uchun.</p>
+          </div>
           <label className="text-sm font-bold">
             Status
             <select

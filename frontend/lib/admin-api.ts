@@ -103,6 +103,39 @@ export async function adminRequest<T>(path: string, options: RequestInit = {}): 
   return data as T;
 }
 
+export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeType: string; size: number }> {
+  let token = getStoredToken();
+  const createForm = () => {
+    const form = new FormData();
+    form.append("file", file);
+    return form;
+  };
+  let res = await fetch(`${API_URL}/admin/media/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: createForm()
+  });
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      token = refreshed;
+      res = await fetch(`${API_URL}/admin/media/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: createForm()
+      });
+    }
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new AdminApiError(data.message ?? "Fayl yuklanmadi", res.status);
+  if (data.url && !data.url.startsWith("http")) {
+    data.url = `${API_URL.replace(/\/api$/, "")}${data.url}`;
+  }
+  return data;
+}
+
 export async function login(email: string, password: string) {
   const data = await adminRequest<{ user: AuthUser; accessToken: string; refreshToken: string }>("/auth/login", {
     method: "POST",

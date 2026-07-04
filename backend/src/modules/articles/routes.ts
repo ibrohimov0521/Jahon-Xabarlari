@@ -17,6 +17,7 @@ const articleSchema = z.object({
   mainImage: z.string().url().optional().or(z.literal("")),
   gallery: z.array(z.string().url()).optional(),
   categoryId: z.string(),
+  extraCategoryIds: z.array(z.string()).optional(),
   status: z.nativeEnum(ArticleStatus).default("DRAFT"),
   isFeatured: z.boolean().default(false),
   isBreaking: z.boolean().default(false),
@@ -59,10 +60,11 @@ articleRouter.get("/articles", async (req, res) => {
   const take = Math.min(Number(req.query.limit ?? 12), 50);
   const category = req.query.category?.toString();
   const lang = req.query.lang?.toString();
+  const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
   const where = {
     deletedAt: null,
     status: "PUBLISHED" as ArticleStatus,
-    ...(category ? { category: { slug: category } } : {})
+    ...(categoryRow ? { OR: [{ categoryId: categoryRow.id }, { extraCategoryIds: { has: categoryRow.id } }] } : category ? { category: { slug: category } } : {})
   };
   const [items, total] = await Promise.all([
     prisma.article.findMany({
@@ -173,6 +175,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
       ...data,
       mainImage: data.mainImage || null,
       gallery: data.gallery ?? [],
+      extraCategoryIds: (data.extraCategoryIds ?? []).filter((id) => id !== data.categoryId),
       authorId: req.user!.id,
       slug: data.slug || slugify(data.title, { lower: true, strict: true }),
       publishedAt: data.status === "PUBLISHED" ? new Date() : null
@@ -185,7 +188,15 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
 
 articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"), async (req, res) => {
   const data = articleSchema.partial().parse(req.body);
-  const article = await prisma.article.update({ where: { id: req.params.id }, data });
+  const article = await prisma.article.update({
+    where: { id: req.params.id },
+    data: {
+      ...data,
+      ...(data.extraCategoryIds || data.categoryId
+        ? { extraCategoryIds: (data.extraCategoryIds ?? []).filter((id) => id !== (data.categoryId ?? undefined)) }
+        : {})
+    }
+  });
   await audit(req, "ARTICLE_UPDATE", "Article", article.id, data);
   if (data.title || data.summary || data.content || data.seoTitle || data.seoDescription) {
     queueTranslations(article);

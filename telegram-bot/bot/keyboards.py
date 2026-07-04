@@ -36,15 +36,12 @@ VISIBILITY_LABELS = {
 def reply_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=MENU_ARTICLES), KeyboardButton(text=MENU_NEW)],
-            [KeyboardButton(text=MENU_DRAFTS), KeyboardButton(text=MENU_REVIEW)],
-            [KeyboardButton(text=MENU_BREAKING), KeyboardButton(text=MENU_FEATURED)],
-            [KeyboardButton(text=MENU_STATS), KeyboardButton(text=MENU_COMMENTS)],
-            [KeyboardButton(text=MENU_ADS), KeyboardButton(text=MENU_SETTINGS)],
+            [KeyboardButton(text=MENU_NEW)],
+            [KeyboardButton(text=MENU_ARTICLES), KeyboardButton(text=MENU_STATS)],
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="Menyudan amal tanlang",
+        input_field_placeholder="Yangilik qo'shish, o'chirish yoki statistika",
     )
 
 
@@ -108,14 +105,6 @@ def confirm_keyboard(prefix: str, item_id: str | None = None) -> InlineKeyboardM
 def article_actions(article_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(text="🚀 Published", callback_data=f"status:PUBLISHED:{article_id}"),
-                InlineKeyboardButton(text="📦 Archived", callback_data=f"status:ARCHIVED:{article_id}"),
-            ],
-            [
-                InlineKeyboardButton(text="🗂️ Draft", callback_data=f"status:DRAFT:{article_id}"),
-                InlineKeyboardButton(text="🛡️ Review", callback_data=f"status:REVIEW:{article_id}"),
-            ],
             [InlineKeyboardButton(text="🗑️ Trash", callback_data=f"trash_confirm:{article_id}")],
         ]
     )

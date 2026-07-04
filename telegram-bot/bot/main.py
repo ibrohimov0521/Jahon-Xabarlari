@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import html
+from io import BytesIO
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message
 
 from .api import BackendApi
 from .config import load_settings
+from .forward_cleaner import prepare_forward_post
 from .keyboards import (
     MENU_ADS,
     MENU_ARTICLES,
@@ -79,6 +81,61 @@ async def request_or_error(message: Message, method: str, path: str, **kwargs) -
     except Exception as exc:
         await message.answer(f"Amal bajarilmadi: {html.escape(str(exc))}", reply_markup=reply_menu())
         return None
+
+
+def is_forwarded(message: Message) -> bool:
+    return bool(getattr(message, "forward_origin", None) or getattr(message, "forward_from_chat", None) or getattr(message, "forward_from", None))
+
+
+async def upload_forward_media(message: Message, bot: Bot) -> str:
+    media = None
+    filename = "forward-media.bin"
+    content_type = "application/octet-stream"
+
+    if message.photo:
+        photo = message.photo[-1]
+        media = photo
+        filename = f"{photo.file_unique_id}.jpg"
+        content_type = "image/jpeg"
+    elif message.video:
+        video = message.video
+        if video.file_size and video.file_size > 10 * 1024 * 1024:
+            return "Media: video 10MB dan katta, saytga avtomatik yuklanmadi."
+        media = video
+        filename = f"{video.file_unique_id}.mp4"
+        content_type = video.mime_type or "video/mp4"
+
+    if not media:
+        return ""
+
+    try:
+        file = await bot.get_file(media.file_id)
+        downloaded = await bot.download(file)
+        if isinstance(downloaded, BytesIO):
+            content = downloaded.getvalue()
+        else:
+            content = downloaded.read()
+        uploaded = await api.upload_media(message.from_user.id, content, filename, content_type)
+        return f"Media URL: {api.origin}{uploaded['url']}"
+    except Exception as exc:
+        return f"Media yuklanmadi: {html.escape(str(exc))}"
+
+
+def prepared_post_message(prepared: dict[str, str], media_line: str) -> str:
+    if not prepared["content"]:
+        return (
+            "Tozalash uchun matn topilmadi.\n"
+            "Post captionida faqat link/reklama bo'lishi mumkin. Matnli xabar yuboring yoki caption qo'shing."
+        )
+    media_block = f"\n\n<b>{html.escape(media_line)}</b>" if media_line else ""
+    return (
+        "🧹 <b>Saytga joylashga tayyor matn</b>\n\n"
+        f"<b>Sarlavha:</b>\n{html.escape(prepared['title'])}\n\n"
+        f"<b>Qisqa tavsif:</b>\n{html.escape(prepared['summary'])}\n\n"
+        f"<b>Asosiy matn:</b>\n{html.escape(prepared['content'])}"
+        f"{media_block}\n\n"
+        "Keraksiz kanal takliflari, t.me linklar, @username, hashtaglar va reklama chaqiriqlari olib tashlandi."
+    )
 
 
 @router.message(CommandStart())
@@ -234,6 +291,18 @@ async def settings_message(message: Message):
         "Kategoriya, reklama, foydalanuvchi va boshqa chuqur sozlamalar web admin panelda boshqariladi.",
         reply_markup=reply_menu(),
     )
+
+
+@router.message(StateFilter(None), F.forward_origin)
+async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
+    if not await guard_message(message):
+        return
+    raw_text = message.caption or message.text or ""
+    prepared = prepare_forward_post(raw_text)
+    status = await message.answer("Forward qilingan post tozalanmoqda...")
+    media_line = await upload_forward_media(message, bot)
+    await status.delete()
+    await message.answer(prepared_post_message(prepared, media_line), reply_markup=reply_menu())
 
 
 @router.message(F.text == MENU_NEW)

@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  Bot,
   FilePlus2,
   History,
   LayoutDashboard,
@@ -19,6 +20,7 @@ import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { AdsView } from "../../components/admin/AdsView";
+import { AggregatorView } from "../../components/admin/AggregatorView";
 import { ArticleEditor } from "../../components/admin/ArticleEditor";
 import { ArticlePreview } from "../../components/admin/ArticlePreview";
 import { ArticlesView, fetchArticles } from "../../components/admin/ArticlesView";
@@ -42,7 +44,7 @@ import {
 } from "../../lib/admin-api";
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 
-type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "users" | "auditlog";
+type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "users" | "auditlog" | "aggregator";
 
 const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -53,7 +55,8 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "comments", label: "Izohlar", icon: MessageCircle },
   { id: "stats", label: "Statistika", icon: BarChart3 },
   { id: "users", label: "Foydalanuvchilar", icon: Users },
-  { id: "auditlog", label: "Audit log", icon: History }
+  { id: "auditlog", label: "Audit log", icon: History },
+  { id: "aggregator", label: "Agregator", icon: Bot }
 ];
 
 export default function AdminPage() {
@@ -465,6 +468,7 @@ export default function AdminPage() {
           {view === "ads" && <AdsView ads={ads} onChanged={loadAds} />}
           {view === "users" && <UsersView users={users} />}
           {view === "auditlog" && <AuditLogView />}
+          {view === "aggregator" && <AggregatorView />}
         </div>
       </section>
     </main>

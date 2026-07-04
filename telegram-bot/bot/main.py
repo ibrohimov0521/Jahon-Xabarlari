@@ -99,8 +99,8 @@ async def upload_forward_media(message: Message, bot: Bot) -> str:
         content_type = "image/jpeg"
     elif message.video:
         video = message.video
-        if video.file_size and video.file_size > 10 * 1024 * 1024:
-            return "Media: video 10MB dan katta, saytga avtomatik yuklanmadi."
+        if video.file_size and video.file_size > 100 * 1024 * 1024:
+            return "Media: video 100MB dan katta, saytga avtomatik yuklanmadi."
         media = video
         filename = f"{video.file_unique_id}.mp4"
         content_type = video.mime_type or "video/mp4"

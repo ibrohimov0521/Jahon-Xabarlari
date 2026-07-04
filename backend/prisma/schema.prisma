@@ -127,6 +127,8 @@ model Article {
   seoTitle        String?
   seoDescription  String?
   seoKeywords     String?
+  sourceName      String?
+  sourceUrl       String?       @unique
   deletedAt       DateTime?
   tags            ArticleTag[]
   comments        Comment[]

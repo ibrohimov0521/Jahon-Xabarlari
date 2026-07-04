@@ -4,7 +4,7 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { apiPort, frontendOrigins } from "./config/env.js";
+import { apiPort, env, frontendOrigins } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { articleRouter } from "./modules/articles/routes.js";
 import { categoryRouter } from "./modules/categories/routes.js";
@@ -14,6 +14,8 @@ import { adRouter } from "./modules/ads/routes.js";
 import { mediaRouter } from "./modules/media/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
 import { userRouter } from "./modules/users/routes.js";
+import { aggregatorRouter } from "./modules/aggregator/routes.js";
+import { runAggregatorCycle } from "./services/aggregator.js";
 
 const app = express();
 
@@ -35,7 +37,15 @@ app.use("/api/admin/advertisements", adRouter);
 app.use("/api/admin/media", mediaRouter);
 app.use("/api/admin/audit-logs", auditRouter);
 app.use("/api/admin/users", userRouter);
+app.use("/api/admin/aggregator", aggregatorRouter);
 
 app.listen(apiPort, () => {
   console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);
 });
+
+if (env.NEWS_AGGREGATOR_ENABLED) {
+  const intervalMs = env.NEWS_AGGREGATOR_INTERVAL_MINUTES * 60_000;
+  console.log(`[aggregator] enabled, running every ${env.NEWS_AGGREGATOR_INTERVAL_MINUTES} min`);
+  setTimeout(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), 15_000);
+  setInterval(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), intervalMs);
+}

@@ -159,7 +159,14 @@ export function ArticlesView({
                     })}
                   </div>
                 </td>
-                <td className="text-slate-500">{[item.isBreaking && "Breaking", item.isFeatured && "Featured", item.isEditorChoice && "Editor"].filter(Boolean).join(", ") || "-"}</td>
+                <td className="text-slate-500">
+                  {[item.isBreaking && "Breaking", item.isFeatured && "Featured", item.isEditorChoice && "Editor"].filter(Boolean).join(", ") || "-"}
+                  {item.sourceName && (
+                    <div className="mt-1">
+                      <Badge tone="slate">🤖 {item.sourceName}</Badge>
+                    </div>
+                  )}
+                </td>
                 <td>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => onEdit(item.id)} className="rounded-md border border-slate-200 p-1.5 hover:border-brand" title="Tahrirlash">

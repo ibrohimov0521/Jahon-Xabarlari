@@ -31,6 +31,8 @@ export type Article = ArticleFlags & {
   seoDescription?: string | null;
   categoryId?: string;
   extraCategoryIds?: string[];
+  sourceName?: string | null;
+  sourceUrl?: string | null;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;

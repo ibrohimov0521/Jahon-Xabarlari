@@ -57,30 +57,45 @@ html {
 }
 
 body {
-  background:
-    linear-gradient(rgba(246, 248, 252, 0.68), rgba(246, 248, 252, 0.76)),
-    radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
-    url("/brand/site-background.png") center -120px / cover fixed,
-    var(--page-bg);
-  background-attachment: scroll, scroll, fixed, scroll;
+  background: var(--page-bg);
   color: var(--text);
   transition: background-color 220ms ease, color 220ms ease;
 }
 
-:root[data-theme="dark"] body {
+/*
+ * Real fixed-position element, not `background-attachment: fixed` or a negative z-index trick.
+ * `background-attachment: fixed` is unreliable on mobile browsers (which is what previously
+ * caused the image to appear to repeat/drift while scrolling on phones), and a z-index:-1
+ * pseudo-element loses to the browser's special body->canvas background propagation, which
+ * paints behind absolutely everything including negative z-index layers. Being the very first
+ * element in <body> with `position: fixed` (default z-index:auto) instead relies on normal
+ * paint order: it's removed from layout flow, and every real (in-flow) page element after it
+ * paints on top of it, so it stays put while only the content scrolls.
+ * `contain` (not `cover`) guarantees the whole image -- including its logo/text -- stays visible
+ * instead of being cropped or blown up to fill a narrow, tall mobile viewport.
+ */
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(246, 248, 252, 0.68), rgba(246, 248, 252, 0.76)),
+    radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
+    url("/brand/site-background.png") center / min(80%, 900px) no-repeat,
+    var(--page-bg);
+}
+
+:root[data-theme="dark"] .site-backdrop {
   background:
     linear-gradient(rgba(7, 16, 31, 0.48), rgba(7, 16, 31, 0.72)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
-    url("/brand/site-background.png") center -120px / cover fixed,
+    url("/brand/site-background.png") center / min(80%, 900px) no-repeat,
     var(--page-bg);
-  background-attachment: scroll, scroll, fixed, scroll;
 }
 
 @media (max-width: 768px) {
-  body,
-  :root[data-theme="dark"] body {
-    background-position: 0 0, top right, center -42px, 0 0;
-    background-attachment: scroll, scroll, scroll, scroll;
+  .site-backdrop {
+    background-size: auto, auto, min(92%, 520px), auto;
   }
 }
 

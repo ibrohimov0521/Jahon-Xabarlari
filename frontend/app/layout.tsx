@@ -83,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uz" suppressHydrationWarning>
       <body>
+        <div className="site-backdrop" aria-hidden="true" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

@@ -1,7 +1,7 @@
 "use client";
 
 import { Edit3, Eye, RotateCcw, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { ARTICLE_STATUSES, type Article, type ArticleStatus } from "./types";
 import { Badge, ConfirmButton, Empty, Panel, SearchInput, SelectFilter } from "./ui";
@@ -20,7 +20,9 @@ export function ArticlesView({
   onBulkRestore,
   onEdit,
   onPreview,
-  onRegenerateTranslation
+  onRegenerateTranslation,
+  initialStatus = "",
+  onlyToday = false
 }: {
   articles: Article[];
   trashed: boolean;
@@ -34,18 +36,28 @@ export function ArticlesView({
   onEdit: (id: string) => void;
   onPreview: (article: Article) => void;
   onRegenerateTranslation: (id: string, lang: string) => void;
+  initialStatus?: ArticleStatus | "";
+  onlyToday?: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<ArticleStatus | "">("");
+  const [status, setStatus] = useState<ArticleStatus | "">(initialStatus);
   const [selected, setSelected] = useState<string[]>([]);
 
+  useEffect(() => {
+    setStatus(initialStatus);
+    setSelected([]);
+  }, [initialStatus, onlyToday]);
+
   const filtered = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return articles.filter((item) => {
       if (status && item.status !== status) return false;
+      if (onlyToday && new Date(item.createdAt) < today) return false;
       if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [articles, search, status]);
+  }, [articles, onlyToday, search, status]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
@@ -60,6 +72,7 @@ export function ArticlesView({
       title={trashed ? "Trash" : "Yangiliklar jadvali"}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {onlyToday && <Badge tone="green">Bugun qo'shilganlar</Badge>}
           <SearchInput value={search} onChange={setSearch} placeholder="Sarlavha bo'yicha qidirish..." />
           {!trashed && <SelectFilter value={status} onChange={setStatus} options={ARTICLE_STATUSES} allLabel="Barcha statuslar" />}
           <button

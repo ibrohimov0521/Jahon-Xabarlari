@@ -5,24 +5,30 @@ import type { LucideIcon } from "lucide-react";
 import type { Article, Stats } from "./types";
 import { Empty, Panel } from "./ui";
 
-export function Dashboard({ stats, articles }: { stats: Stats | null; articles: Article[] }) {
-  const cards: { label: string; value: number; icon: LucideIcon }[] = [
-    { label: "Jami yangiliklar", value: stats?.totalArticles ?? 0, icon: Newspaper },
-    { label: "Bugun qo'shildi", value: stats?.todayArticles ?? 0, icon: FileText },
-    { label: "Jami ko'rishlar", value: stats?.totalViews ?? 0, icon: BarChart3 },
-    { label: "Review", value: stats?.reviewArticles ?? 0, icon: ShieldCheck },
-    { label: "Draft", value: stats?.draftArticles ?? 0, icon: BookOpen },
-    { label: "Foydalanuvchilar", value: stats?.users ?? 0, icon: Users }
+type DashboardAction = "articles" | "today" | "stats" | "review" | "draft" | "users";
+
+export function Dashboard({ stats, articles, onAction }: { stats: Stats | null; articles: Article[]; onAction: (action: DashboardAction) => void }) {
+  const cards: { label: string; value: number; icon: LucideIcon; action: DashboardAction }[] = [
+    { label: "Jami yangiliklar", value: stats?.totalArticles ?? 0, icon: Newspaper, action: "articles" },
+    { label: "Bugun qo'shildi", value: stats?.todayArticles ?? 0, icon: FileText, action: "today" },
+    { label: "Jami ko'rishlar", value: stats?.totalViews ?? 0, icon: BarChart3, action: "stats" },
+    { label: "Review", value: stats?.reviewArticles ?? 0, icon: ShieldCheck, action: "review" },
+    { label: "Draft", value: stats?.draftArticles ?? 0, icon: BookOpen, action: "draft" },
+    { label: "Foydalanuvchilar", value: stats?.users ?? 0, icon: Users, action: "users" }
   ];
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-        {cards.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        {cards.map(({ label, value, icon: Icon, action }) => (
+          <button
+            key={label}
+            onClick={() => onAction(action)}
+            className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand/30"
+          >
             <Icon className="text-brand" />
             <p className="mt-5 text-sm text-slate-500">{label}</p>
             <strong className="text-3xl">{value.toLocaleString("uz-UZ")}</strong>
-          </div>
+          </button>
         ))}
       </div>
       <div className="grid gap-5 xl:grid-cols-2">

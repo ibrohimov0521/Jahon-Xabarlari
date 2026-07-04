@@ -31,6 +31,7 @@ export type Article = ArticleFlags & {
   categoryId?: string;
   extraCategoryIds?: string[];
   deletedAt?: string | null;
+  createdAt: string;
   updatedAt: string;
   category?: { name: string; slug: string };
   author?: { name: string };
@@ -79,6 +80,16 @@ export type AuditLogItem = {
   ip?: string | null;
   createdAt: string;
   user?: { name: string; email: string } | null;
+};
+
+export type UserItem = {
+  id: string;
+  name: string;
+  email: string;
+  telegramId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  role: { name: string };
 };
 
 export type ArticleFormState = {

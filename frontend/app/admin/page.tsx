@@ -12,6 +12,7 @@ import {
   Newspaper,
   RefreshCcw,
   Tags,
+  Users,
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -25,7 +26,8 @@ import { AuditLogView } from "../../components/admin/AuditLogView";
 import { CategoriesView } from "../../components/admin/CategoriesView";
 import { CommentsView } from "../../components/admin/CommentsView";
 import { Dashboard } from "../../components/admin/Dashboard";
-import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats } from "../../components/admin/types";
+import { UsersView } from "../../components/admin/UsersView";
+import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
 import { ErrorBanner, LoadingBlock, SuccessBanner } from "../../components/admin/ui";
 import {
   AdminApiError,
@@ -40,7 +42,7 @@ import {
 } from "../../lib/admin-api";
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 
-type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "auditlog";
+type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "users" | "auditlog";
 
 const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -50,6 +52,7 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "ads", label: "Reklama", icon: Megaphone },
   { id: "comments", label: "Izohlar", icon: MessageCircle },
   { id: "stats", label: "Statistika", icon: BarChart3 },
+  { id: "users", label: "Foydalanuvchilar", icon: Users },
   { id: "auditlog", label: "Audit log", icon: History }
 ];
 
@@ -72,9 +75,12 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [ads, setAds] = useState<AdItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [previewForm, setPreviewForm] = useState<ArticleFormState | null>(null);
   const [previewReturnView, setPreviewReturnView] = useState<View>("new");
+  const [articleStatusFilter, setArticleStatusFilter] = useState<ArticleStatus | "">("");
+  const [articleOnlyToday, setArticleOnlyToday] = useState(false);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
@@ -108,6 +114,11 @@ export default function AdminPage() {
     setAds(data.items);
   }
 
+  async function loadUsers() {
+    const data = await adminRequest<{ items: UserItem[] }>("/admin/users");
+    setUsers(data.items);
+  }
+
   async function loadDashboard() {
     const data = await adminRequest<Stats>("/admin/dashboard/stats");
     setStats(data);
@@ -122,6 +133,7 @@ export default function AdminPage() {
       if (["articles", "dashboard", "stats", "new", "edit"].includes(nextView)) await loadArticles();
       if (nextView === "comments") await loadComments();
       if (nextView === "ads") await loadAds();
+      if (nextView === "users") await loadUsers();
     } catch (err) {
       if (!(err instanceof AdminApiError && err.status === 401)) {
         setError(err instanceof Error ? err.message : "Ma'lumot yuklanmadi");
@@ -166,7 +178,35 @@ export default function AdminPage() {
     setView(nextView);
     setMobileMenuOpen(false);
     if (nextView === "new") setEditingArticleId(null);
+    if (nextView !== "articles") {
+      setArticleStatusFilter("");
+      setArticleOnlyToday(false);
+    }
     await refreshAll(nextView);
+  }
+
+  async function openArticlesFromDashboard(status: ArticleStatus | "" = "", onlyToday = false) {
+    setArticleStatusFilter(status);
+    setArticleOnlyToday(onlyToday);
+    setTrashed(false);
+    setView("articles");
+    await loadArticles(false);
+  }
+
+  async function handleDashboardAction(action: "articles" | "today" | "stats" | "review" | "draft" | "users") {
+    if (action === "articles") return openArticlesFromDashboard();
+    if (action === "today") return openArticlesFromDashboard("", true);
+    if (action === "review") return openArticlesFromDashboard("REVIEW");
+    if (action === "draft") return openArticlesFromDashboard("DRAFT");
+    if (action === "users") {
+      setView("users");
+      setArticleStatusFilter("");
+      setArticleOnlyToday(false);
+      await loadUsers();
+      return;
+    }
+    setView("stats");
+    await refreshAll("stats");
   }
 
   function flash(text: string) {
@@ -375,12 +415,14 @@ export default function AdminPage() {
           <SuccessBanner message={message} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}
 
-          {view === "dashboard" && <Dashboard stats={stats} articles={articles} />}
-          {view === "stats" && <Dashboard stats={stats} articles={articles} />}
+          {view === "dashboard" && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}
+          {view === "stats" && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}
           {view === "articles" && (
             <ArticlesView
               articles={articles}
               trashed={trashed}
+              initialStatus={articleStatusFilter}
+              onlyToday={articleOnlyToday}
               onTrashedChange={(next) => {
                 setTrashed(next);
                 loadArticles(next);
@@ -418,6 +460,7 @@ export default function AdminPage() {
           {view === "categories" && <CategoriesView categories={categories} onChanged={loadCategories} />}
           {view === "comments" && <CommentsView comments={comments} onStatus={changeCommentStatus} />}
           {view === "ads" && <AdsView ads={ads} onChanged={loadAds} />}
+          {view === "users" && <UsersView users={users} />}
           {view === "auditlog" && <AuditLogView />}
         </div>
       </section>

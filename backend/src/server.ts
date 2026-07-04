@@ -13,6 +13,7 @@ import { commentRouter } from "./modules/comments/routes.js";
 import { adRouter } from "./modules/ads/routes.js";
 import { mediaRouter } from "./modules/media/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
+import { userRouter } from "./modules/users/routes.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/admin/comments", commentRouter);
 app.use("/api/admin/advertisements", adRouter);
 app.use("/api/admin/media", mediaRouter);
 app.use("/api/admin/audit-logs", auditRouter);
+app.use("/api/admin/users", userRouter);
 
 app.listen(apiPort, () => {
   console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);

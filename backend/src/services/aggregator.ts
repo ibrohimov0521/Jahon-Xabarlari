@@ -114,7 +114,7 @@ async function aiGroupDuplicates(items: FeedItem[]): Promise<number[][]> {
   try {
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 4096,
       system:
         "You are given a numbered list of news headlines from different outlets, possibly in different languages " +
         "(Uzbek, Russian, English). Group the indices whose headlines describe the SAME real-world news story or " +
@@ -253,18 +253,26 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
 
 let running = false;
 
-export async function runAggregatorCycle(): Promise<void> {
-  if (running) return;
-  if (!env.NEWS_AGGREGATOR_ENABLED) return;
+export type AggregatorRunOptions = {
+  // Bypasses the NEWS_AGGREGATOR_ENABLED gate for a single explicit, manually-triggered run
+  // (e.g. a one-time backfill) without switching on the permanent recurring schedule.
+  force?: boolean;
+  // Overrides the default per-cycle cap on how many items go through the AI pipeline.
+  maxPerCycle?: number;
+};
+
+export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Promise<{ published: number }> {
+  if (running) return { published: 0 };
+  if (!options.force && !env.NEWS_AGGREGATOR_ENABLED) return { published: 0 };
   if (!client) {
     console.warn("[aggregator] ANTHROPIC_API_KEY sozlanmagan, sikl o'tkazib yuborildi");
-    return;
+    return { published: 0 };
   }
 
   running = true;
   try {
     const categories = await prisma.category.findMany();
-    if (!categories.length) return;
+    if (!categories.length) return { published: 0 };
 
     const author = await ensureAggregatorAuthor();
     const since = new Date(Date.now() - DEDUP_WINDOW_MS);
@@ -291,7 +299,7 @@ export async function runAggregatorCycle(): Promise<void> {
     // Cap how many go through the (paid, slower) AI dedup + rewrite pipeline per cycle so a
     // large first run or a burst across many sources can't blow up cost/latency in one go --
     // anything left over simply gets picked up on the next cycle since it's still unpublished.
-    const MAX_PER_CYCLE = 40;
+    const MAX_PER_CYCLE = options.maxPerCycle ?? 40;
     const batch = survivors.slice(0, MAX_PER_CYCLE);
 
     // Pass 2: semantic dedup via AI across the surviving candidates -- catches same-story
@@ -311,6 +319,7 @@ export async function runAggregatorCycle(): Promise<void> {
     }
 
     if (published > 0) console.log(`[aggregator] ${published} ta yangi maqola nashr qilindi`);
+    return { published };
   } finally {
     running = false;
   }

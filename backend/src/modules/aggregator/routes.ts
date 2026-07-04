@@ -16,7 +16,8 @@ aggregatorRouter.get("/status", (_req, res) => {
   });
 });
 
-aggregatorRouter.post("/run", (_req, res) => {
-  runAggregatorCycle().catch((error) => console.error("[aggregator] manual run failed:", error));
+aggregatorRouter.post("/run", (req, res) => {
+  const maxPerCycle = req.body?.limit ? Number(req.body.limit) : undefined;
+  runAggregatorCycle({ force: true, maxPerCycle }).catch((error) => console.error("[aggregator] manual run failed:", error));
   res.json({ ok: true, message: "Aggregator sikli ishga tushirildi" });
 });

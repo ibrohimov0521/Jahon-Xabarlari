@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message
 
+from .ai_classifier import classify_article
 from .api import BackendApi
 from .config import load_settings
 from .forward_cleaner import prepare_forward_post
@@ -87,7 +88,7 @@ def is_forwarded(message: Message) -> bool:
     return bool(getattr(message, "forward_origin", None) or getattr(message, "forward_from_chat", None) or getattr(message, "forward_from", None))
 
 
-async def upload_forward_media(message: Message, bot: Bot) -> str:
+async def upload_forward_media(message: Message, bot: Bot) -> dict[str, str]:
     media = None
     filename = "forward-media.bin"
     content_type = "application/octet-stream"
@@ -100,13 +101,13 @@ async def upload_forward_media(message: Message, bot: Bot) -> str:
     elif message.video:
         video = message.video
         if video.file_size and video.file_size > 100 * 1024 * 1024:
-            return "Media: video 100MB dan katta, saytga avtomatik yuklanmadi."
+            return {"url": "", "message": "Media: video 100MB dan katta, saytga avtomatik yuklanmadi."}
         media = video
         filename = f"{video.file_unique_id}.mp4"
         content_type = video.mime_type or "video/mp4"
 
     if not media:
-        return ""
+        return {"url": "", "message": ""}
 
     try:
         file = await bot.get_file(media.file_id)
@@ -116,9 +117,10 @@ async def upload_forward_media(message: Message, bot: Bot) -> str:
         else:
             content = downloaded.read()
         uploaded = await api.upload_media(message.from_user.id, content, filename, content_type)
-        return f"Media URL: {api.origin}{uploaded['url']}"
+        url = uploaded["url"] if uploaded["url"].startswith("http") else f"{api.origin}{uploaded['url']}"
+        return {"url": url, "message": f"Media URL: {url}"}
     except Exception as exc:
-        return f"Media yuklanmadi: {html.escape(str(exc))}"
+        return {"url": "", "message": f"Media yuklanmadi: {html.escape(str(exc))}"}
 
 
 def prepared_post_message(prepared: dict[str, str], media_line: str) -> str:
@@ -299,10 +301,59 @@ async def clean_forwarded_post(message: Message, state: FSMContext, bot: Bot):
         return
     raw_text = message.caption or message.text or ""
     prepared = prepare_forward_post(raw_text)
-    status = await message.answer("Forward qilingan post tozalanmoqda...")
-    media_line = await upload_forward_media(message, bot)
+    if len(prepared["content"]) < 20:
+        await message.answer(
+            "Forward qilingan postda saytga joylash uchun yetarli matn topilmadi. Caption/matn qo'shib qayta forward qiling.",
+            reply_markup=reply_menu(),
+        )
+        return
+
+    status = await message.answer("Forward qilingan post tahlil qilinmoqda va admin panelga yuborilmoqda...")
+    media = await upload_forward_media(message, bot)
+    categories = await request_or_error(message, "GET", "/categories")
+    if not categories:
+        await status.delete()
+        return
+    classification = await classify_article(prepared["content"], categories, settings.anthropic_api_key)
+    payload = {
+        **prepared,
+        "mainImage": media["url"],
+        "categoryId": classification["categoryId"],
+        "extraCategoryIds": classification.get("extraCategoryIds", []),
+        "status": "REVIEW",
+        "showOnHome": classification.get("showOnHome", True),
+        "showInSlider": classification.get("showInSlider", False),
+        "showInSidebar": classification.get("showInSidebar", False),
+        "showInLatest": classification.get("showInLatest", True),
+        "showInPopular": classification.get("showInPopular", False),
+        "isBreaking": classification.get("isBreaking", False),
+        "isFeatured": classification.get("isFeatured", False),
+        "isEditorChoice": classification.get("isEditorChoice", False),
+        "seoTitle": prepared["title"],
+        "seoDescription": prepared["summary"],
+    }
+    saved = await request_or_error(message, "POST", "/admin/articles", json=payload)
     await status.delete()
-    await message.answer(prepared_post_message(prepared, media_line), reply_markup=reply_menu())
+    if not saved:
+        return
+    category = next((item for item in categories if item["id"] == payload["categoryId"]), None)
+    extra_names = [
+        item["name"]
+        for item in categories
+        if item["id"] in set(payload["extraCategoryIds"])
+    ]
+    media_note = f"\n{html.escape(media['message'])}" if media["message"] else ""
+    await message.answer(
+        "✅ <b>Maqola admin panelga REVIEW sifatida yuborildi.</b>\n\n"
+        f"<b>Sarlavha:</b> {html.escape(saved['title'])}\n"
+        f"<b>Asosiy bo'lim:</b> {html.escape(category['name'] if category else '-')}\n"
+        f"<b>Qo'shimcha bo'limlar:</b> {html.escape(', '.join(extra_names) if extra_names else '-')}\n"
+        f"<b>AI rejimi:</b> {html.escape('AI' if classification.get('source') == 'ai' else 'fallback')}\n"
+        f"<b>Ko'rinish:</b> home={payload['showOnHome']}, slider={payload['showInSlider']}, latest={payload['showInLatest']}, breaking={payload['isBreaking']}, featured={payload['isFeatured']}"
+        f"{media_note}\n\n"
+        f"Admin panelda tekshirib, kerak bo'lsa to'g'rilab Publish qiling:\n{html.escape(settings.admin_panel_url)}",
+        reply_markup=reply_menu(),
+    )
 
 
 @router.message(F.text == MENU_NEW)

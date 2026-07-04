@@ -7,7 +7,7 @@ type ApiArticle = { slug: string; updatedAt?: string; publishedAt?: string; cate
 
 async function getPublishedArticles() {
   try {
-    const response = await fetch(`${API_URL}/articles?limit=50`, { next: { revalidate: 300 } });
+    const response = await fetch(`${API_URL}/articles?limit=200`, { next: { revalidate: 300 } });
     if (!response.ok) return [];
     const data = (await response.json()) as { items?: ApiArticle[] };
     return data.items ?? [];

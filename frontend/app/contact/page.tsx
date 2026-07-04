@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import { Header } from "../../components/Header";
+import { SITE_NAME, SITE_URL } from "../../lib/site";
+
+export const metadata: Metadata = {
+  title: "Aloqa",
+  description: `${SITE_NAME} tahririyati bilan bog'lanish va murojaat yuborish uchun aloqa ma'lumotlari.`,
+  alternates: { canonical: `${SITE_URL}/contact` }
+};
 
 export default function ContactPage() {
   return (

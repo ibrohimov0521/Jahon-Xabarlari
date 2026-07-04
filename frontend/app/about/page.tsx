@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import { Header } from "../../components/Header";
+import { SITE_NAME, SITE_URL } from "../../lib/site";
+
+export const metadata: Metadata = {
+  title: "Biz haqimizda",
+  description: `${SITE_NAME} - O'zbekiston va dunyodagi muhim voqealarni tezkor, ishonchli va xolis yorituvchi yangiliklar portali.`,
+  alternates: { canonical: `${SITE_URL}/about` }
+};
 
 export default function AboutPage() {
   return (

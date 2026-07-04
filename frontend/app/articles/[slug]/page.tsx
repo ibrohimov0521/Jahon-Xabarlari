@@ -14,6 +14,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.summary;
   const url = `${SITE_URL}/articles/${article.slug}`;
+  const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
 
   return {
     title,
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       url,
       type: "article",
       siteName: SITE_NAME,
-      images: article.mainImage ? [{ url: article.mainImage, alt: article.title }] : [{ url: SITE_OG_IMAGE, alt: SITE_NAME }],
+      images: images.length ? images.map((image) => ({ url: image, alt: article.title })) : [{ url: SITE_OG_IMAGE, alt: SITE_NAME }],
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt
     },
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       card: "summary_large_image",
       title,
       description,
-      images: article.mainImage ? [article.mainImage] : [SITE_OG_IMAGE]
+      images: images.length ? images : [SITE_OG_IMAGE]
     }
   };
 }

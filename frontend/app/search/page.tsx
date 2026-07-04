@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
 import { Search } from "lucide-react";
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
 import { getArticles, searchArticles } from "../../lib/api";
 import { getRequestLang } from "../../lib/server-lang";
+import { SITE_NAME, SITE_URL } from "../../lib/site";
+
+export const metadata: Metadata = {
+  title: "Yangilik qidirish",
+  description: `${SITE_NAME} saytidan O'zbekiston, dunyo, siyosat, iqtisodiyot, texnologiya va sport yangiliklarini qidiring.`,
+  alternates: { canonical: `${SITE_URL}/search` },
+  robots: { index: false, follow: true }
+};
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;

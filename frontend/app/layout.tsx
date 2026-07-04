@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { UiProvider } from "../lib/ui-context";
-import { SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../lib/site";
+import { SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_URL } from "../lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,7 +10,17 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`
   },
   description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
   applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  referrer: "origin-when-cross-origin",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false
+  },
   icons: {
     icon: [
       { url: "/icon.png", sizes: "512x512", type: "image/png" },
@@ -57,6 +67,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@jahonxabarlari",
+    creator: "@jahonxabarlari",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
     images: [SITE_OG_IMAGE]
@@ -81,7 +93,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               url: SITE_URL,
               logo: `${SITE_URL}${SITE_LOGO}`,
               image: `${SITE_URL}${SITE_OG_IMAGE}`,
-              sameAs: ["https://t.me/", "https://facebook.com/", "https://instagram.com/", "https://youtube.com/"]
+              sameAs: SITE_SOCIAL_LINKS
+            })
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: SITE_NAME,
+              url: SITE_URL,
+              potentialAction: {
+                "@type": "SearchAction",
+                target: `${SITE_URL}/search?q={search_term_string}`,
+                "query-input": "required name=search_term_string"
+              }
             })
           }}
         />

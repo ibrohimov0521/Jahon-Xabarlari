@@ -57,7 +57,7 @@ function applyTranslation<T extends { title: string; summary: string; content: s
 
 articleRouter.get("/articles", async (req, res) => {
   const page = Math.max(Number(req.query.page ?? 1), 1);
-  const take = Math.min(Number(req.query.limit ?? 12), 50);
+  const take = Math.min(Number(req.query.limit ?? 12), 200);
   const category = req.query.category?.toString();
   const lang = req.query.lang?.toString();
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;

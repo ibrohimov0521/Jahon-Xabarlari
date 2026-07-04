@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
 import { getArticles } from "../../lib/api";
 import { getRequestLang } from "../../lib/server-lang";
+import { SITE_NAME, SITE_URL } from "../../lib/site";
+
+export const metadata: Metadata = {
+  title: "Muharrir tanlovi",
+  description: `${SITE_NAME} tahririyati tanlagan eng muhim va dolzarb xabarlar.`,
+  alternates: { canonical: `${SITE_URL}/editor-choice` }
+};
 
 export default async function EditorChoicePage() {
   const lang = await getRequestLang();

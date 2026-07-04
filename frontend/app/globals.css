@@ -65,9 +65,10 @@ body {
 .site-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(rgba(227, 237, 251, 0.38), rgba(227, 237, 251, 0.48)),
+    linear-gradient(rgba(227, 237, 251, 0.08), rgba(227, 237, 251, 0.14)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
     url("/brand/site-background.png") center / cover no-repeat,
     var(--page-bg);
@@ -75,10 +76,15 @@ body {
 
 :root[data-theme="dark"] .site-backdrop {
   background:
-    linear-gradient(rgba(7, 16, 31, 0.26), rgba(7, 16, 31, 0.46)),
+    linear-gradient(rgba(7, 16, 31, 0.08), rgba(7, 16, 31, 0.18)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
     url("/brand/site-background.png") center / cover no-repeat,
     var(--page-bg);
+}
+
+body > main {
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-width: 768px) {
@@ -98,11 +104,11 @@ body {
 }
 
 .topbar {
-  background: #07132f;
-}
-
-:root[data-theme="dark"] .topbar {
-  background: #050b16;
+  background:
+    radial-gradient(circle at 14% 10%, rgba(39, 226, 230, 0.24), transparent 22rem),
+    linear-gradient(135deg, rgba(6, 18, 34, 0.76), rgba(9, 26, 48, 0.62));
+  border-bottom: 1px solid rgba(166, 246, 255, 0.14);
+  backdrop-filter: blur(18px) saturate(140%);
 }
 
 .site-header,

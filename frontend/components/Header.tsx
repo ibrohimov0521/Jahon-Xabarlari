@@ -104,18 +104,18 @@ export function Header() {
       </div>
 
       <header className="site-header border-b border-slate-200 bg-white">
-        <div className="container-page flex h-20 items-center gap-7">
-          <Link href="/" className="mr-8 flex shrink-0 items-center" aria-label={SITE_NAME}>
+        <div className="container-page flex h-16 items-center gap-3 lg:h-20 lg:gap-7">
+          <Link href="/" className="flex shrink-0 items-center" aria-label={SITE_NAME}>
             <Image
               src={SITE_LOGO}
               alt={SITE_NAME}
               width={166}
               height={64}
               priority
-              className="h-14 w-auto rounded-md object-contain"
+              className="h-11 w-auto rounded-md object-contain sm:h-12 lg:h-14"
             />
           </Link>
-          <nav className="hidden h-full flex-1 items-center gap-8 text-[15px] font-bold lg:flex">
+          <nav className="hidden h-full flex-1 items-center gap-8 pl-5 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
               <Link key={item.href} className={navLinkClass(item.href)} href={item.href}>
                 {t.nav[item.key]}
@@ -137,15 +137,17 @@ export function Header() {
             </div>
           </nav>
 
-          <button onClick={() => setSearchOpen(true)} aria-label={t.more.search} className="icon-button">
-            <Search size={24} strokeWidth={2.2} />
-          </button>
-          <button onClick={toggleTheme} aria-label="Theme" className={`theme-toggle ${theme === "dark" ? "is-dark" : ""}`}>
-            <span className="theme-knob">{theme === "dark" ? <Moon size={17} fill="white" /> : <Sun size={17} />}</span>
-          </button>
-          <button onClick={() => setMobileOpen((value) => !value)} aria-label="Menu" className="icon-button lg:hidden">
-            {mobileOpen ? <X /> : <Menu />}
-          </button>
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+            <button onClick={() => setSearchOpen(true)} aria-label={t.more.search} className="icon-button">
+              <Search className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={2.2} />
+            </button>
+            <button onClick={toggleTheme} aria-label="Theme" className={`theme-toggle mobile-icon-toggle ${theme === "dark" ? "is-dark" : ""}`}>
+              <span className="theme-knob">{theme === "dark" ? <Moon className="h-4 w-4" fill="white" /> : <Sun className="h-4 w-4" />}</span>
+            </button>
+            <button onClick={() => setMobileOpen((value) => !value)} aria-label="Menu" className="icon-button lg:hidden">
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         {mobileOpen && (

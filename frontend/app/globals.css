@@ -213,3 +213,32 @@ body {
     width: min(100% - 32px, 720px);
   }
 }
+
+@media (max-width: 640px) {
+  .icon-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .theme-toggle.mobile-icon-toggle {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    padding: 0;
+    background: var(--surface-soft);
+    box-shadow: none;
+  }
+
+  .theme-toggle.mobile-icon-toggle.is-dark {
+    background: #07132f;
+  }
+
+  .theme-toggle.mobile-icon-toggle .theme-knob,
+  .theme-toggle.mobile-icon-toggle.is-dark .theme-knob {
+    width: 38px;
+    height: 38px;
+    transform: none;
+    background: transparent;
+  }
+}

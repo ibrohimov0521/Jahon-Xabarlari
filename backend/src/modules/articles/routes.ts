@@ -1,5 +1,6 @@
 import { ArticleStatus } from "@prisma/client";
-import { Router } from "express";
+import crypto from "crypto";
+import { Router, type Request } from "express";
 import slugify from "slugify";
 import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
@@ -33,9 +34,16 @@ const articleSchema = z.object({
 });
 
 const idsSchema = z.object({ ids: z.array(z.string()).min(1) });
+const VIEW_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 function isLang(value: string | undefined): value is Lang {
   return !!value && (LANGS as readonly string[]).includes(value);
+}
+
+function viewerHash(req: Request) {
+  const ip = req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
+  const userAgent = req.headers["user-agent"]?.toString() || "unknown";
+  return crypto.createHash("sha256").update(`${ip}:${userAgent}`).digest("hex");
 }
 
 function applyTranslation<T extends { title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null }>(
@@ -86,9 +94,8 @@ articleRouter.get("/articles", async (req, res) => {
 articleRouter.get("/articles/:slug", async (req, res) => {
   const lang = req.query.lang?.toString();
   const article = await prisma.article
-    .update({
+    .findUnique({
       where: { slug: req.params.slug },
-      data: { viewsCount: { increment: 1 } },
       include: {
         category: true,
         author: { select: { name: true } },
@@ -97,7 +104,28 @@ articleRouter.get("/articles/:slug", async (req, res) => {
     })
     .catch(() => null);
   if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
-  res.json(applyTranslation(article, lang));
+
+  const ipHash = viewerHash(req);
+  const since = new Date(Date.now() - VIEW_WINDOW_MS);
+  const existingView = await prisma.articleView.findFirst({
+    where: {
+      articleId: article.id,
+      ipHash,
+      createdAt: { gte: since }
+    },
+    select: { id: true }
+  });
+
+  let viewsCount = article.viewsCount;
+  if (!existingView) {
+    await prisma.$transaction([
+      prisma.articleView.create({ data: { articleId: article.id, ipHash } }),
+      prisma.article.update({ where: { id: article.id }, data: { viewsCount: { increment: 1 } } })
+    ]);
+    viewsCount += 1;
+  }
+
+  res.json(applyTranslation({ ...article, viewsCount }, lang));
 });
 
 articleRouter.get("/search", async (req, res) => {

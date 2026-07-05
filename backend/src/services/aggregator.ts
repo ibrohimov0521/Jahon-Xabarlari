@@ -71,7 +71,11 @@ type FeedItem = {
   title: string;
   link: string;
   snippet: string;
+  // High-confidence media (enclosure, or the largest media:content variant): trusted as-is.
   mediaUrl?: string | null;
+  // Low-confidence media (media:thumbnail, inline <img>): RSS thumbnails are explicitly small
+  // preview images, so this is only used if the article page itself has no og:image/og:video.
+  fallbackMediaUrl?: string | null;
 };
 
 type RawFeedItem = {
@@ -192,6 +196,35 @@ function firstMedia(value: unknown): { url: string | null; type: string | null }
   return { url: null, type: null };
 }
 
+function mediaScore(entry: unknown): number {
+  if (!entry || typeof entry !== "object") return 0;
+  const record = entry as Record<string, unknown>;
+  const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : record;
+  const width = Number(attrs.width) || 0;
+  const height = Number(attrs.height) || 0;
+  const fileSize = Number(attrs.fileSize) || 0;
+  return width && height ? width * height : fileSize;
+}
+
+// media:content / media:thumbnail often list several resolution variants for the same item.
+// Picking the first one (as opposed to the largest) is how a 150x150 thumbnail can end up as
+// mainImage even when a proper full-size version was right there in the same array.
+function bestMedia(value: unknown): { url: string | null; type: string | null } {
+  if (!Array.isArray(value)) return firstMedia(value);
+  let best: { url: string | null; type: string | null } = { url: null, type: null };
+  let bestScore = -1;
+  for (const entry of value) {
+    const found = firstMedia(entry);
+    if (!found.url) continue;
+    const score = mediaScore(entry);
+    if (score > bestScore) {
+      best = found;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 function extractHtmlMedia(html: string | undefined, baseUrl: string) {
   if (!html) return null;
   const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
@@ -199,11 +232,23 @@ function extractHtmlMedia(html: string | undefined, baseUrl: string) {
   return absolutizeMediaUrl(videoMatch?.[1] ?? imgMatch?.[1] ?? null, baseUrl);
 }
 
-function extractFeedMedia(item: RawFeedItem, baseUrl: string) {
+// High-confidence media only: an enclosure or the largest media:content variant. Both are
+// normally full-size images/video meant to represent the article, safe to trust as-is.
+function extractPrimaryFeedMedia(item: RawFeedItem, baseUrl: string) {
+  const candidates = [firstMedia(item.enclosure), bestMedia(item.mediaContent)];
+  for (const candidate of candidates) {
+    const url = absolutizeMediaUrl(candidate.url, baseUrl);
+    if (looksLikeMedia(url, candidate.type)) return url;
+  }
+  return null;
+}
+
+// Low-confidence media: media:thumbnail is explicitly a small preview image, and a scraped
+// inline <img> from the feed's HTML body is often a logo or unrelated icon. Only used as a
+// last resort when neither the feed nor the article page itself yields anything better.
+function extractFallbackFeedMedia(item: RawFeedItem, baseUrl: string) {
   const candidates = [
-    firstMedia(item.enclosure),
-    firstMedia(item.mediaContent),
-    firstMedia(item.mediaThumbnail),
+    bestMedia(item.mediaThumbnail),
     { url: extractHtmlMedia(item.contentEncoded ?? item["content:encoded"] ?? item.content, baseUrl), type: null }
   ];
   for (const candidate of candidates) {
@@ -230,12 +275,11 @@ function extractMetaMedia(html: string, baseUrl: string) {
   return looksLikeMedia(inline) ? inline : null;
 }
 
-async function resolveArticleMedia(item: FeedItem) {
-  if (item.mediaUrl) return item.mediaUrl;
+async function fetchPageMedia(link: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(item.link, {
+    const response = await fetch(link, {
       signal: controller.signal,
       headers: {
         "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)"
@@ -243,12 +287,23 @@ async function resolveArticleMedia(item: FeedItem) {
     });
     if (!response.ok) return null;
     const html = await response.text();
-    return extractMetaMedia(html.slice(0, 250_000), item.link);
+    return extractMetaMedia(html.slice(0, 250_000), link);
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Priority: (1) enclosure / largest media:content -- already known-good, full-size. (2) the
+// article page's own og:image/og:video -- a "share card" image, reliably full-size/high-res
+// since it's designed to look good large. (3) RSS media:thumbnail / an inline <img> scraped
+// from the feed body -- both are explicitly small previews, only used if nothing better exists.
+async function resolveArticleMedia(item: FeedItem) {
+  if (item.mediaUrl) return item.mediaUrl;
+  const pageMedia = await fetchPageMedia(item.link);
+  if (pageMedia) return pageMedia;
+  return item.fallbackMediaUrl ?? null;
 }
 
 // The cheap word-overlap check above catches near-identical headlines but misses the same
@@ -311,7 +366,8 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
         title: item.title.trim(),
         link: item.link.trim(),
         snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000),
-        mediaUrl: extractFeedMedia(item, item.link)
+        mediaUrl: extractPrimaryFeedMedia(item, item.link),
+        fallbackMediaUrl: extractFallbackFeedMedia(item, item.link)
       }));
   } catch (error) {
     console.error(`[aggregator] "${source.name}" feed fetch failed:`, error instanceof Error ? error.message : error);

@@ -6,9 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { SearchModal } from "./SearchModal";
+import { WeatherModal } from "./WeatherModal";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
-import { fetchTemperature, findRegionByName, nearestRegion, UZ_REGIONS, type UzRegion } from "../lib/weather";
+import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, type FullWeather, type UzRegion } from "../lib/weather";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -45,8 +46,9 @@ export function Header() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
   const [region, setRegion] = useState<UzRegion>(UZ_REGIONS[0]);
-  const [temperature, setTemperature] = useState<number | null>(null);
-  const [regionOpen, setRegionOpen] = useState(false);
+  const [weather, setWeather] = useState<FullWeather | null>(null);
+  const [weatherModalOpen, setWeatherModalOpen] = useState(false);
+  const [tickerIndex, setTickerIndex] = useState(0);
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
@@ -93,19 +95,29 @@ export function Header() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchTemperature(region.lat, region.lon).then((temp) => {
-      if (!cancelled) setTemperature(temp);
+    fetchFullWeather(region.lat, region.lon).then((data) => {
+      if (!cancelled) setWeather(data);
     });
     return () => {
       cancelled = true;
     };
   }, [region]);
 
+  // Rotating ticker: cycles between temperature, feels-like and the date every few seconds
+  // instead of showing just one static line in the same amount of space.
+  useEffect(() => {
+    const timer = setInterval(() => setTickerIndex((value) => (value + 1) % 3), 4000);
+    return () => clearInterval(timer);
+  }, []);
+
   function selectRegion(next: UzRegion) {
     setRegion(next);
     localStorage.setItem("weather_region", next.name);
-    setRegionOpen(false);
   }
+
+  const tickerSlides = weather
+    ? [`${region.name} ${weather.temperature}°C`, `His qilinishi: ${weather.feelsLike}°C`, conditionLabel(weather.condition)]
+    : [region.name, "...", currentDate];
 
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0];
 
@@ -146,27 +158,13 @@ export function Header() {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-            <div className="relative hidden md:block">
-              <button onClick={() => setRegionOpen((value) => !value)} className="weather-pill">
-                <CloudSun className="h-4 w-4 text-amber-300" />
-                <span>{region.name}</span>
-                <span>{temperature === null ? "..." : `${temperature}?C`}</span>
-                <ChevronDown size={13} />
-              </button>
-              {regionOpen && (
-                <div className="menu-popover absolute right-0 top-12 z-[100] max-h-72 w-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                  {UZ_REGIONS.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => selectRegion(item)}
-                      className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-bold transition hover:bg-slate-50 ${region.name === item.name ? "text-brand" : "text-ink"}`}
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
+              <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
+              <span key={tickerIndex} className="weather-ticker min-w-[92px] text-left">
+                {tickerSlides[tickerIndex]}
+              </span>
+              <ChevronDown size={13} />
+            </button>
             <div className="relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
                 <Globe2 size={15} />
@@ -215,6 +213,13 @@ export function Header() {
       </header>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <WeatherModal
+        open={weatherModalOpen}
+        onClose={() => setWeatherModalOpen(false)}
+        region={region}
+        regions={UZ_REGIONS}
+        onSelectRegion={selectRegion}
+      />
     </>
   );
 }

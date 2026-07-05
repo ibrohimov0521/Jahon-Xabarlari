@@ -297,23 +297,41 @@ button.bg-white {
 .weather-pill {
   display: flex;
   align-items: center;
-  gap: 7px;
-  min-height: 38px;
+  gap: 9px;
+  min-height: 46px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0 12px;
-  background: var(--glass-bg-soft);
+  padding: 0 16px;
+  background: linear-gradient(135deg, rgba(23, 103, 245, 0.12), rgba(39, 226, 230, 0.1)), var(--glass-bg-soft);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
+  box-shadow: 0 4px 16px rgba(7, 19, 47, 0.08);
   backdrop-filter: blur(16px) saturate(140%);
-  transition: border-color 180ms ease, color 180ms ease, transform 180ms ease;
+  transition: border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
 
 .weather-pill:hover {
   border-color: #1767f5;
   color: #1767f5;
   transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(23, 103, 245, 0.18);
+}
+
+.weather-ticker {
+  display: inline-block;
+  animation: weather-ticker-in 420ms ease;
+}
+
+@keyframes weather-ticker-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .topbar-info {

@@ -127,8 +127,6 @@ export default async function Home() {
               Barcha mashhur yangiliklar <ArrowRight size={17} />
             </Link>
           </aside>
-
-          <SubscribeBox />
         </div>
 
         <div className="lg:col-span-2">
@@ -238,7 +236,6 @@ export default async function Home() {
               ))}
             </div>
           </section>
-          <SubscribeBox />
         </aside>
       </section>
 
@@ -250,6 +247,9 @@ export default async function Home() {
           </div>
           <div><h3 className="font-black">Havolalar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/about">Biz haqimizda</Link><Link className="hover:text-white" href="/ads">Reklama</Link><Link className="hover:text-white" href="/contact">Aloqa</Link></div></div>
           <div><h3 className="font-black">Bog'lanish</h3><div className="mt-4 grid gap-2 text-slate-300"><a className="hover:text-white" href="mailto:info@jahonxabarlari.uz">info@jahonxabarlari.uz</a><a className="hover:text-white" href="https://t.me/" target="_blank">Telegram</a><span>Toshkent, O'zbekiston</span></div></div>
+        </div>
+        <div className="container-page mt-8">
+          <SubscribeBox />
         </div>
       </footer>
     </main>

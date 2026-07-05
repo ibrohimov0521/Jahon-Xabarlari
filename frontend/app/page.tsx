@@ -10,15 +10,44 @@ import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
 
+const categoryTabs = [
+  ["Barchasi", "/"],
+  ["O'zbekiston", "/category/ozbekiston"],
+  ["Dunyo", "/category/dunyo"],
+  ["Siyosat", "/category/siyosat"],
+  ["Iqtisodiyot", "/category/iqtisodiyot"],
+  ["Texnologiya", "/category/texnologiya"],
+  ["Sport", "/category/sport"],
+  ["Madaniyat", "/category/madaniyat"]
+];
+
+const categorySections = [
+  { title: "O'zbekiston", slug: "ozbekiston" },
+  { title: "Dunyo", slug: "dunyo" },
+  { title: "Iqtisodiyot", slug: "iqtisodiyot" },
+  { title: "Sport", slug: "sport" },
+  { title: "Texnologiya", slug: "texnologiya" },
+  { title: "Madaniyat", slug: "madaniyat" }
+];
+
 export default async function Home() {
   const lang = await getRequestLang();
-  const [articles, trending] = await Promise.all([getArticles("?limit=12", lang), getTrendingArticles(lang, 5)]);
+  const [articles, trending] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8)]);
   const [hero, ...rest] = articles;
   const side = rest.slice(0, 3);
-  const latest = rest.slice(0, 6);
+  const latest = rest.slice(3, 15);
+  const editorLead = rest[15] ?? rest[4];
+  const editorList = rest.slice(16, 20);
+  const extraStream = rest.slice(20, 32);
   // Last 24h view velocity (not just lifetime views), falls back to the fetched list if there's
   // not enough recent view data yet (e.g. right after launch).
   const trendingItems = trending.length ? trending : [articles[4], articles[8], articles[9], articles[3], articles[7]].filter(Boolean);
+  const sectionGroups = categorySections
+    .map((section) => ({
+      ...section,
+      items: articles.filter((item) => item.category?.slug === section.slug).slice(0, 4)
+    }))
+    .filter((section) => section.items.length >= 2);
 
   if (!hero) {
     return (
@@ -105,23 +134,112 @@ export default async function Home() {
         <div className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <h2 className="section-title mr-auto text-[27px] font-black">So'nggi yangiliklar</h2>
-            {[
-              ["Barchasi", "/"],
-              ["O'zbekiston", "/category/ozbekiston"],
-              ["Dunyo", "/category/dunyo"],
-              ["Siyosat", "/category/siyosat"],
-              ["Iqtisodiyot", "/category/iqtisodiyot"],
-              ["Texnologiya", "/category/texnologiya"],
-              ["Sport", "/category/sport"],
-              ["Madaniyat", "/category/madaniyat"]
-            ].map(([item, href], index) => (
+            {categoryTabs.map(([item, href], index) => (
               <Link key={item} href={href} className={`flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
             ))}
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {latest.slice(1, 5).map((item) => <NewsCard key={item.id} article={item} />)}
+            {latest.map((item) => <NewsCard key={item.id} article={item} />)}
           </div>
         </div>
+      </section>
+
+      <section className="container-page grid gap-6 pb-8 lg:grid-cols-[minmax(0,1fr)_354px]">
+        <div className="grid gap-6">
+          {editorLead && (
+            <section className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+              <Link href={`/articles/${editorLead.slug}`} className="relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
+                <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+                <div className="relative flex min-h-[360px] flex-col justify-end p-7">
+                  <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{editorLead.category?.name}</span>
+                  <h2 className="max-w-2xl text-[30px] font-black leading-tight">Muharrir tanlovi: {editorLead.title}</h2>
+                  <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/90">{editorLead.summary}</p>
+                  <span className="mt-5 flex h-11 w-fit items-center gap-3 rounded-md border border-white/45 px-5 text-sm font-black transition hover:bg-white hover:text-ink">
+                    Batafsil o'qish <ArrowRight size={17} />
+                  </span>
+                </div>
+              </Link>
+              <div className="grid gap-3">
+                {editorList.map((item) => (
+                  <Link key={item.id} href={`/articles/${item.slug}`} className="news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
+                    <MediaView src={item.mainImage} className="h-24 w-28 shrink-0 rounded-md object-cover" />
+                    <div className="min-w-0">
+                      <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
+                      <h3 className="mt-2 line-clamp-2 text-[16px] font-black leading-snug">{item.title}</h3>
+                      <p className="mt-2 text-[13px] text-slate-500">{formatArticleDateTime(item.publishedAt)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {sectionGroups.map((section) => (
+              <section key={section.slug} className="news-shadow rounded-lg border border-slate-200 bg-white p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-[22px] font-black">{section.title}</h2>
+                  <Link href={`/category/${section.slug}`} className="flex items-center gap-2 text-sm font-black text-brand">
+                    Barchasi <ArrowRight size={16} />
+                  </Link>
+                </div>
+                <div className="grid gap-3">
+                  {section.items.map((item, index) => (
+                    <Link
+                      key={item.id}
+                      href={`/articles/${item.slug}`}
+                      className={`grid gap-3 rounded-lg transition hover:bg-white/10 ${
+                        item.mainImage ? (index === 0 ? "sm:grid-cols-[160px_1fr]" : "grid-cols-[92px_1fr]") : "grid-cols-1"
+                      }`}
+                    >
+                      <MediaView src={item.mainImage} className={`${index === 0 ? "h-32 sm:w-40" : "h-20 w-[92px]"} rounded-md object-cover`} />
+                      <div className="min-w-0 py-1">
+                        <h3 className={`${index === 0 ? "text-[18px]" : "text-[15px]"} line-clamp-2 font-black leading-snug`}>{item.title}</h3>
+                        <p className="mt-2 line-clamp-2 text-sm text-slate-500">{item.summary}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          {!!extraStream.length && (
+            <section>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="section-title text-[27px] font-black">Ko'proq yangiliklar</h2>
+                <Link href="/search" className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
+                  Qidirish <ArrowRight size={16} />
+                </Link>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {extraStream.map((item) => <NewsCard key={item.id} article={item} />)}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <aside className="grid content-start gap-4">
+          <section className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-[22px] font-black">Eng ko'p o'qilganlar</h2>
+              <TrendingUp className="text-brand" />
+            </div>
+            <div className="grid gap-4">
+              {trendingItems.slice(0, 8).map((item, index) => (
+                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[32px_1fr] gap-3 rounded-lg transition hover:bg-white/10">
+                  <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
+                  <span>
+                    <span className="line-clamp-2 text-[15px] font-black leading-snug">{item.title}</span>
+                    <span className="mt-1 block text-[13px] text-slate-500">{formatViews(item.viewsCount)}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+          <SubscribeBox />
+        </aside>
       </section>
 
       <footer className="bg-ink py-12 text-white">

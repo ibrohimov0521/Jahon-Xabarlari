@@ -1,16 +1,22 @@
+"use client";
+
+import { useState } from "react";
+
 type MediaViewProps = {
   src?: string | null;
   alt?: string;
   className?: string;
   videoClassName?: string;
   priority?: boolean;
+  avoidUpscale?: boolean;
 };
 
 export function isVideoUrl(src?: string | null) {
   return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
 }
 
-export function MediaView({ src, alt = "", className = "", videoClassName, priority }: MediaViewProps) {
+export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true }: MediaViewProps) {
+  const [isSmallImage, setIsSmallImage] = useState(false);
   if (!src) return null;
   if (isVideoUrl(src)) {
     return (
@@ -19,5 +25,20 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
       </video>
     );
   }
-  return <img src={src} alt={alt} className={className} loading={priority ? "eager" : "lazy"} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading={priority ? "eager" : "lazy"}
+      onLoad={(event) => {
+        if (!avoidUpscale) return;
+        const image = event.currentTarget;
+        const tooNarrow = image.naturalWidth > 0 && image.clientWidth > 0 && image.naturalWidth < image.clientWidth * 0.85;
+        const tooShort = image.naturalHeight > 0 && image.clientHeight > 0 && image.naturalHeight < image.clientHeight * 0.85;
+        setIsSmallImage(tooNarrow || tooShort);
+      }}
+      style={isSmallImage ? { objectFit: "contain", backgroundColor: "rgba(2, 8, 23, 0.72)" } : undefined}
+    />
+  );
 }

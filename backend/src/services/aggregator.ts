@@ -66,6 +66,23 @@ export const NEWS_SOURCES: NewsSource[] = [
   { name: "Yahoo Finance", feedUrl: "https://finance.yahoo.com/news/rssindex" }
 ];
 
+export async function ensureDefaultAggregatorSources() {
+  const count = await prisma.aggregatorSource.count();
+  if (count > 0) return;
+  await prisma.aggregatorSource.createMany({
+    data: NEWS_SOURCES.map((source) => ({ ...source, enabled: true })),
+    skipDuplicates: true
+  });
+}
+
+export async function getAggregatorSources(options: { enabledOnly?: boolean } = {}) {
+  await ensureDefaultAggregatorSources();
+  return prisma.aggregatorSource.findMany({
+    where: options.enabledOnly ? { enabled: true } : undefined,
+    orderBy: { createdAt: "asc" }
+  });
+}
+
 type FeedItem = {
   sourceName: string;
   title: string;
@@ -203,7 +220,10 @@ function mediaScore(entry: unknown): number {
   const width = Number(attrs.width) || 0;
   const height = Number(attrs.height) || 0;
   const fileSize = Number(attrs.fileSize) || 0;
-  return width && height ? width * height : fileSize;
+  const url = firstString(attrs.url ?? attrs.href) ?? "";
+  const baseScore = width && height ? width * height : fileSize;
+  const thumbnailPenalty = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}\/)/i.test(url) ? 0.25 : 1;
+  return baseScore * thumbnailPenalty;
 }
 
 // media:content / media:thumbnail often list several resolution variants for the same item.
@@ -491,7 +511,8 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
     const recentArticles = await prisma.article.findMany({ where: { createdAt: { gte: since } }, select: { title: true } });
     const seenTokens = recentArticles.map((item) => tokenize(item.title));
 
-    const batches = await Promise.all(NEWS_SOURCES.map(fetchSource));
+    const sources = await getAggregatorSources({ enabledOnly: true });
+    const batches = await Promise.all(sources.map(fetchSource));
     const candidates = batches.flat();
 
     // Pass 1: cheap filter -- drop items already ingested (by URL) or an obvious word-overlap

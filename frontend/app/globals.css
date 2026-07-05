@@ -294,6 +294,28 @@ button.bg-white {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.weather-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: var(--glass-bg-soft);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+  backdrop-filter: blur(16px) saturate(140%);
+  transition: border-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.weather-pill:hover {
+  border-color: #1767f5;
+  color: #1767f5;
+  transform: translateY(-1px);
+}
+
 .topbar-info {
   line-height: 1.2;
 }

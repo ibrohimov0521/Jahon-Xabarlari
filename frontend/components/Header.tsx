@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Camera, ChevronDown, CloudSun, Globe2, Menu, Moon, Play, Search, Send, Sun, X } from "lucide-react";
+import { ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -111,75 +111,6 @@ export function Header() {
 
   return (
     <>
-      <div className="topbar bg-ink text-white">
-        <div className="container-page flex min-h-10 items-center justify-between gap-2 py-1 text-xs sm:h-10 sm:py-0 sm:text-sm">
-          <div className="topbar-info flex min-w-0 flex-1 items-center gap-2 sm:gap-8">
-            <div className="relative">
-              <button onClick={() => setRegionOpen((value) => !value)} className="topbar-weather flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-                <CloudSun className="h-4 w-4 text-amber-200" />
-                <span>{region.name}</span>
-                <span>{temperature === null ? "..." : `${temperature}°C`}</span>
-                <ChevronDown size={12} />
-              </button>
-              {regionOpen && (
-                <div className="absolute left-0 top-8 z-40 max-h-72 w-52 overflow-y-auto rounded-xl border border-white/10 bg-ink/95 p-1 shadow-2xl backdrop-blur">
-                  {UZ_REGIONS.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => selectRegion(item)}
-                      className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10 ${region.name === item.name ? "text-blue-300" : "text-white"}`}
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <span className="topbar-date flex min-w-0 items-center gap-1.5 truncate">
-              <CalendarDays className="h-4 w-4 shrink-0 text-blue-200" />
-              <span className="truncate capitalize">{currentDate}</span>
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-3 sm:gap-5 lg:gap-7">
-            <div className="hidden items-center gap-5 sm:flex lg:gap-7">
-              <Link className="transition hover:text-blue-200" href="/about">{t.top.about}</Link>
-              <Link className="transition hover:text-blue-200" href="/ads">{t.top.ads}</Link>
-              <Link className="transition hover:text-blue-200" href="/contact">{t.top.contact}</Link>
-            </div>
-            <div className="hidden items-center gap-3 lg:flex">
-              <a aria-label="Telegram" className="social-icon bg-sky-500" href="https://t.me/" target="_blank"><Send size={14} fill="white" /></a>
-              <a aria-label="Facebook" className="social-icon bg-blue-600 text-xs font-black" href="https://facebook.com/" target="_blank">f</a>
-              <a aria-label="Instagram" className="social-icon bg-rose-500" href="https://instagram.com/" target="_blank"><Camera size={13} /></a>
-              <a aria-label="YouTube" className="social-icon bg-red-600" href="https://youtube.com/" target="_blank"><Play size={13} fill="white" /></a>
-            </div>
-            <div className="relative">
-              <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger">
-                <Globe2 size={15} />
-                {selectedLanguage.label}
-                <ChevronDown size={14} />
-              </button>
-              {languageOpen && (
-                <div className="absolute right-0 top-8 z-40 w-40 overflow-hidden rounded-xl border border-white/10 bg-ink/95 p-1 shadow-2xl backdrop-blur">
-                  {languages.map((item) => (
-                    <button
-                      key={item.code}
-                      onClick={() => {
-                        setLanguage(item.code);
-                        setLanguageOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10 ${language === item.code ? "text-blue-300" : "text-white"}`}
-                    >
-                      <span>{item.name}</span>
-                      <span className="font-black">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <header className="site-header border-b border-slate-200 bg-white">
         <div className="container-page flex h-16 items-center gap-3 lg:h-20 lg:gap-7">
           <Link href="/" className="flex shrink-0 items-center" aria-label={SITE_NAME}>
@@ -215,6 +146,51 @@ export function Header() {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+            <div className="relative hidden md:block">
+              <button onClick={() => setRegionOpen((value) => !value)} className="weather-pill">
+                <CloudSun className="h-4 w-4 text-amber-300" />
+                <span>{region.name}</span>
+                <span>{temperature === null ? "..." : `${temperature}?C`}</span>
+                <ChevronDown size={13} />
+              </button>
+              {regionOpen && (
+                <div className="menu-popover absolute right-0 top-12 z-[100] max-h-72 w-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                  {UZ_REGIONS.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => selectRegion(item)}
+                      className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-bold transition hover:bg-slate-50 ${region.name === item.name ? "text-brand" : "text-ink"}`}
+                    >
+                      {item.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
+                <Globe2 size={15} />
+                {selectedLanguage.label}
+                <ChevronDown size={14} />
+              </button>
+              {languageOpen && (
+                <div className="menu-popover absolute right-0 top-12 z-[100] w-40 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                  {languages.map((item) => (
+                    <button
+                      key={item.code}
+                      onClick={() => {
+                        setLanguage(item.code);
+                        setLanguageOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-bold transition hover:bg-slate-50 ${language === item.code ? "text-brand" : "text-ink"}`}
+                    >
+                      <span>{item.name}</span>
+                      <span className="font-black">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={() => setSearchOpen(true)} aria-label={t.more.search} className="icon-button">
               <Search className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={2.2} />
             </button>

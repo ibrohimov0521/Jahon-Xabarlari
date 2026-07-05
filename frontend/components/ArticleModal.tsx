@@ -1,0 +1,89 @@
+"use client";
+
+import { ArrowRight, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { formatArticleDateTime, formatViews } from "../lib/format";
+import type { Article } from "../lib/api";
+import { MediaView } from "./MediaView";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
+
+export function ArticleModal() {
+  const [article, setArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    function onClick(event: globalThis.MouseEvent) {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (window.matchMedia("(max-width: 767px)").matches) return;
+      if (window.location.pathname.startsWith("/articles/")) return;
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/articles/"]');
+      if (!link || link.target || link.dataset.fullPage === "true") return;
+
+      event.preventDefault();
+      const slug = link.getAttribute("href")?.split("/articles/")[1]?.split(/[?#]/)[0];
+      if (!slug) return;
+
+      setLoading(true);
+      fetch(`${API_URL}/articles/${slug}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Maqola topilmadi");
+          return res.json();
+        })
+        .then((data: Article) => setArticle(data))
+        .finally(() => setLoading(false));
+    }
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+
+  useEffect(() => {
+    if (!article && !loading) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setArticle(null);
+        setLoading(false);
+      }
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [article, loading]);
+
+  if (!article && !loading) return null;
+
+  return (
+    <div className="fixed inset-0 z-[220] bg-slate-950/72 p-4 backdrop-blur-md" onClick={() => setArticle(null)}>
+      <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
+        <article className="max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur">
+            <span className="text-sm font-black text-brand">{article?.category?.name ?? (loading ? "Yuklanmoqda..." : "")}</span>
+            <button onClick={() => setArticle(null)} className="grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label="Yopish">
+              <X size={20} />
+            </button>
+          </div>
+          {loading && <div className="p-10 text-center text-lg font-black text-ink">Maqola yuklanmoqda...</div>}
+          {article && (
+            <div className="p-5 sm:p-7">
+              <MediaView src={article.mainImage} alt={article.title} className="max-h-[58vh] w-full rounded-xl bg-black/80 object-contain" priority />
+              <p className="mt-5 text-sm font-bold text-slate-500">
+                {formatArticleDateTime(article.publishedAt)} · {formatViews(article.viewsCount)}
+              </p>
+              <h1 className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
+              <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.summary}</p>
+              <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
+              <Link data-full-page="true" href={`/articles/${article.slug}`} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
+                To'liq sahifada ochish <ArrowRight size={17} />
+              </Link>
+            </div>
+          )}
+        </article>
+      </div>
+    </div>
+  );
+}

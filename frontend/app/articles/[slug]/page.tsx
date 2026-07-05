@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { CommentSection } from "../../../components/CommentSection";
 import { Header } from "../../../components/Header";
 import { MediaView } from "../../../components/MediaView";
-import { getArticle } from "../../../lib/api";
+import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
@@ -12,6 +14,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const { slug } = await params;
   const lang = await getRequestLang();
   const article = await getArticle(slug, lang);
+  if (!article) return {};
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.summary;
   const url = `${SITE_URL}/articles/${article.slug}`;
@@ -46,8 +49,10 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
   const lang = await getRequestLang();
   const article = await getArticle(slug, lang);
+  if (!article) notFound();
   const articleUrl = `${SITE_URL}/articles/${article.slug}`;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
+  const comments = await getComments(article.id);
 
   return (
     <main>
@@ -101,6 +106,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <p>{article.content}</p>
           {article.sourceName && <p className="mt-6 text-xs text-slate-400">Manba: {article.sourceName}</p>}
         </div>
+        <CommentSection articleId={article.id} initialComments={comments} />
       </article>
     </main>
   );

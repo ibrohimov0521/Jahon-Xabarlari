@@ -86,6 +86,10 @@ export function WeatherModal({
     let cancelled = false;
     setLoading(true);
     setError("");
+    // Clear the previous region's data immediately -- otherwise it stays on screen (looking
+    // current) for the entire loading window after switching regions.
+    setWeather(null);
+    setAlerts([]);
     fetchFullWeather(region.lat, region.lon).then((data) => {
       if (cancelled) return;
       if (!data) setError("Ob-havo ma'lumotlarini olishda xatolik");

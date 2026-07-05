@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import type { Article } from "../lib/api";
 import { MediaView } from "./MediaView";
@@ -11,6 +11,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8
 export function ArticleModal() {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(false);
+  // Guards against out-of-order responses: if the user opens article B before article A's
+  // fetch resolves, A's stale response must not overwrite B once it lands.
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     function onClick(event: globalThis.MouseEvent) {
@@ -24,14 +27,20 @@ export function ArticleModal() {
       const slug = link.getAttribute("href")?.split("/articles/")[1]?.split(/[?#]/)[0];
       if (!slug) return;
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       fetch(`${API_URL}/articles/${slug}`)
         .then((res) => {
           if (!res.ok) throw new Error("Maqola topilmadi");
           return res.json();
         })
-        .then((data: Article) => setArticle(data))
-        .finally(() => setLoading(false));
+        .then((data: Article) => {
+          if (requestIdRef.current !== requestId) return;
+          setArticle(data);
+        })
+        .finally(() => {
+          if (requestIdRef.current === requestId) setLoading(false);
+        });
     }
 
     document.addEventListener("click", onClick, true);
@@ -41,10 +50,7 @@ export function ArticleModal() {
   useEffect(() => {
     if (!article && !loading) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setArticle(null);
-        setLoading(false);
-      }
+      if (event.key === "Escape") close();
     }
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
@@ -52,17 +58,25 @@ export function ArticleModal() {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [article, loading]);
+
+  function close() {
+    // Invalidate any in-flight fetch so it can't resurrect the modal after the user closed it.
+    requestIdRef.current += 1;
+    setArticle(null);
+    setLoading(false);
+  }
 
   if (!article && !loading) return null;
 
   return (
-    <div className="fixed inset-0 z-[220] bg-slate-950/72 p-4 backdrop-blur-md" onClick={() => setArticle(null)}>
+    <div className="fixed inset-0 z-[220] bg-slate-950/72 p-4 backdrop-blur-md" onClick={close}>
       <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
         <article className="max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3 backdrop-blur">
             <span className="text-sm font-black text-brand">{article?.category?.name ?? (loading ? "Yuklanmoqda..." : "")}</span>
-            <button onClick={() => setArticle(null)} className="article-modal-close grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label="Yopish">
+            <button onClick={close} className="article-modal-close grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label="Yopish">
               <X size={20} />
             </button>
           </div>
@@ -76,7 +90,7 @@ export function ArticleModal() {
               <h1 className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
               <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.summary}</p>
               <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
-              <a data-full-page="true" href={`/articles/${article.slug}`} onClick={() => setArticle(null)} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
+              <a data-full-page="true" href={`/articles/${article.slug}`} onClick={close} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
                 To'liq sahifada ochish <ArrowRight size={17} />
               </a>
             </div>

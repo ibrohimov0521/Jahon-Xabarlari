@@ -13,6 +13,14 @@ export type Article = {
   seoDescription?: string;
   sourceName?: string | null;
   category?: { name: string; slug: string };
+  isFeatured?: boolean;
+  isBreaking?: boolean;
+  isEditorChoice?: boolean;
+  showOnHome?: boolean;
+  showInSlider?: boolean;
+  showInSidebar?: boolean;
+  showInLatest?: boolean;
+  showInPopular?: boolean;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
@@ -34,13 +42,15 @@ export async function getArticles(params = "", lang?: string) {
   }
 }
 
-export async function getArticle(slug: string, lang?: string) {
+// Unlike the list endpoints below, a single article that's missing or errored must not be
+// papered over with unrelated demo content -- the caller renders a real 404 for null.
+export async function getArticle(slug: string, lang?: string): Promise<Article | null> {
   try {
     const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 } });
-    if (!res.ok) throw new Error("API error");
+    if (!res.ok) return null;
     return (await res.json()) as Article;
   } catch {
-    return demoArticles.find((item) => item.slug === slug) ?? demoArticles[0];
+    return null;
   }
 }
 
@@ -51,6 +61,33 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
     return (await res.json()).items as Article[];
   } catch {
     return [];
+  }
+}
+
+export type Comment = { id: string; name: string; body: string; createdAt: string };
+
+export async function getComments(articleId: string): Promise<Comment[]> {
+  try {
+    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return (await res.json()).items as Comment[];
+  } catch {
+    return [];
+  }
+}
+
+export async function submitComment(articleId: string, name: string, body: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, body })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, message: data.message ?? "Izohni yuborib bo'lmadi" };
+    return { ok: true, message: data.message ?? "Izohingiz yuborildi" };
+  } catch {
+    return { ok: false, message: "Izohni yuborib bo'lmadi" };
   }
 }
 

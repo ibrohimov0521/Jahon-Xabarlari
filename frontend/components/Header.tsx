@@ -89,7 +89,12 @@ export function Header() {
     // back to Tashkent (the default state) if permission is denied or unavailable.
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (position) => setRegion(nearestRegion(position.coords.latitude, position.coords.longitude)),
+      (position) => {
+        // The permission prompt/lookup can resolve well after mount -- if the user has since
+        // picked a region manually (selectRegion writes this key immediately), don't clobber it.
+        if (localStorage.getItem("weather_region")) return;
+        setRegion(nearestRegion(position.coords.latitude, position.coords.longitude));
+      },
       () => {},
       { timeout: 8000 }
     );

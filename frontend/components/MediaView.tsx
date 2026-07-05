@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type MediaViewProps = {
   src?: string | null;
@@ -17,6 +17,11 @@ export function isVideoUrl(src?: string | null) {
 
 export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
+  // Reset before the new src's own onLoad recalculates it -- otherwise a reused instance (e.g.
+  // ArticleModal swapping between articles) briefly keeps the previous image's styling.
+  useEffect(() => {
+    setIsSmallImage(false);
+  }, [src]);
   if (!src) return null;
   if (isVideoUrl(src)) {
     return (

@@ -150,9 +150,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
     if (storedLanguage && dictionaries[storedLanguage]) {
       setLanguageState(storedLanguage);
       // Backfill the cookie for users who picked a language before cookie-based SSR
-      // translation existed, so the very next server render already matches.
+      // translation existed, so the very next server render already matches. The current
+      // page was just SSR'd against the (missing/stale) cookie, so refresh it now too --
+      // otherwise server-rendered content stays in the wrong language until the next navigation.
       if (!document.cookie.includes(`lang=${storedLanguage}`)) {
         document.cookie = `lang=${storedLanguage}; path=/; max-age=31536000`;
+        router.refresh();
       }
     }
     if (storedTheme === "dark" || storedTheme === "light") setTheme(storedTheme);

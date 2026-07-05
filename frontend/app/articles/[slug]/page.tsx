@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Header } from "../../../components/Header";
 import { MediaView } from "../../../components/MediaView";
 import { getArticle } from "../../../lib/api";
+import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
@@ -82,6 +83,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <article className="container-page max-w-4xl py-8">
         <div className="article-detail-panel rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-7">
           <span className="font-black uppercase text-brand">{article.category?.name}</span>
+          <p className="mt-3 text-sm font-bold text-slate-500">
+            {formatArticleDateTime(article.publishedAt)} &nbsp;•&nbsp; {formatViews(article.viewsCount)}
+          </p>
           <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
           <p className="article-summary mt-4 text-lg">{article.summary}</p>
         </div>

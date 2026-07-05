@@ -367,6 +367,17 @@ button.bg-white {
   will-change: opacity, transform;
 }
 
+:root[data-theme="dark"] .article-modal-close {
+  background: rgba(6, 18, 34, 0.86);
+  border-color: rgba(166, 246, 255, 0.24) !important;
+  color: #f8fdff !important;
+}
+
+:root[data-theme="dark"] .article-modal-close:hover {
+  border-color: #1767f5 !important;
+  color: #7dd3fc !important;
+}
+
 @keyframes weather-bg-in {
   to {
     opacity: 1;

@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowRight, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import type { Article } from "../lib/api";
@@ -61,9 +60,9 @@ export function ArticleModal() {
     <div className="fixed inset-0 z-[220] bg-slate-950/72 p-4 backdrop-blur-md" onClick={() => setArticle(null)}>
       <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
         <article className="max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3 backdrop-blur">
             <span className="text-sm font-black text-brand">{article?.category?.name ?? (loading ? "Yuklanmoqda..." : "")}</span>
-            <button onClick={() => setArticle(null)} className="grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label="Yopish">
+            <button onClick={() => setArticle(null)} className="article-modal-close grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label="Yopish">
               <X size={20} />
             </button>
           </div>
@@ -77,9 +76,9 @@ export function ArticleModal() {
               <h1 className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
               <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.summary}</p>
               <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
-              <Link data-full-page="true" href={`/articles/${article.slug}`} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
+              <a data-full-page="true" href={`/articles/${article.slug}`} onClick={() => setArticle(null)} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
                 To'liq sahifada ochish <ArrowRight size={17} />
-              </Link>
+              </a>
             </div>
           )}
         </article>

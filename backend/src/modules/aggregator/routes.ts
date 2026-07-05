@@ -25,10 +25,24 @@ aggregatorRouter.get("/status", async (_req, res) => {
   });
 });
 
-aggregatorRouter.post("/run", (req, res) => {
+const SKIP_MESSAGES: Record<string, string> = {
+  already_running: "Aggregator allaqachon ishlamoqda, biroz kutib qayta urinib ko'ring",
+  disabled: "Aggregator o'chirilgan (NEWS_AGGREGATOR_ENABLED=false)",
+  not_configured: "OPENAI_API_KEY sozlanmagan"
+};
+
+aggregatorRouter.post("/run", async (req, res) => {
   const maxPerCycle = req.body?.limit ? Number(req.body.limit) : undefined;
-  runAggregatorCycle({ force: true, maxPerCycle }).catch((error) => console.error("[aggregator] manual run failed:", error));
-  res.json({ ok: true, message: "Aggregator sikli ishga tushirildi" });
+  try {
+    const result = await runAggregatorCycle({ force: true, maxPerCycle });
+    if (result.skipped) {
+      return res.json({ ok: false, published: 0, message: SKIP_MESSAGES[result.skipped] });
+    }
+    res.json({ ok: true, published: result.published, message: `${result.published} ta yangi maqola nashr qilindi` });
+  } catch (error) {
+    console.error("[aggregator] manual run failed:", error);
+    res.status(500).json({ ok: false, published: 0, message: "Aggregator sikli xato bilan tugadi" });
+  }
 });
 
 aggregatorRouter.post("/sources", async (req, res) => {

@@ -8,6 +8,19 @@ const CACHE_TTL_MS = 12 * 60 * 1000; // 10-15 min, per spec
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 const alertsCache = new Map<string, { data: unknown; expiresAt: number }>();
 
+// Both Maps are keyed by rounded lat/lon, so distinct visitor locations accumulate entries
+// forever with no eviction otherwise -- sweep out anything past its TTL periodically instead.
+function sweepExpired(map: Map<string, { expiresAt: number }>) {
+  const now = Date.now();
+  for (const [key, value] of map) {
+    if (value.expiresAt <= now) map.delete(key);
+  }
+}
+setInterval(() => {
+  sweepExpired(cache);
+  sweepExpired(alertsCache);
+}, CACHE_TTL_MS).unref();
+
 const querySchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lon: z.coerce.number().min(-180).max(180)

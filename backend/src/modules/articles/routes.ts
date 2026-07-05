@@ -1,6 +1,7 @@
 import { ArticleStatus } from "@prisma/client";
 import crypto from "crypto";
 import { Router, type Request } from "express";
+import rateLimit from "express-rate-limit";
 import slugify from "slugify";
 import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
@@ -165,6 +166,42 @@ articleRouter.get("/articles/:slug", async (req, res) => {
   res.json(applyTranslation({ ...article, viewsCount }, lang));
 });
 
+// Public comments -- only APPROVED ones are visible; new submissions land as PENDING and wait
+// for admin moderation via the existing /api/admin/comments panel.
+const commentCreateSchema = z.object({
+  name: z.string().trim().min(2, "Ism kamida 2 ta belgidan iborat bo'lsin").max(60),
+  body: z.string().trim().min(3, "Izoh kamida 3 ta belgidan iborat bo'lsin").max(1000)
+});
+
+const commentRateLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Juda ko'p izoh yuborildi, birozdan keyin qayta urinib ko'ring" }
+});
+
+articleRouter.get("/articles/:id/comments", async (req, res) => {
+  const comments = await prisma.comment.findMany({
+    where: { articleId: req.params.id, status: "APPROVED" },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: { id: true, name: true, body: true, createdAt: true }
+  });
+  res.json({ items: comments });
+});
+
+articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) => {
+  const data = commentCreateSchema.parse(req.body);
+  const article = await prisma.article.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
+  if (!article || article.deletedAt) return res.status(404).json({ message: "Maqola topilmadi" });
+
+  const comment = await prisma.comment.create({
+    data: { articleId: article.id, name: data.name, body: data.body, status: "PENDING" }
+  });
+  res.status(201).json({ id: comment.id, message: "Izohingiz yuborildi, moderatsiyadan so'ng ko'rinadi" });
+});
+
 articleRouter.get("/search", async (req, res) => {
   const q = req.query.q?.toString() ?? "";
   const lang = req.query.lang?.toString();
@@ -281,10 +318,19 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
 });
 
 articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.publish"), async (req, res) => {
-  const { status } = z.object({ status: z.nativeEnum(ArticleStatus) }).parse(req.body);
+  const { status, scheduledAt } = z
+    .object({ status: z.nativeEnum(ArticleStatus), scheduledAt: z.coerce.date().optional() })
+    .parse(req.body);
+  if (status === "SCHEDULED" && (!scheduledAt || scheduledAt <= new Date())) {
+    return res.status(400).json({ message: "Rejalashtirish uchun kelajakdagi sana kerak" });
+  }
   const article = await prisma.article.update({
     where: { id: req.params.id },
-    data: { status, publishedAt: status === "PUBLISHED" ? new Date() : undefined }
+    data: {
+      status,
+      publishedAt: status === "PUBLISHED" ? new Date() : undefined,
+      scheduledAt: status === "SCHEDULED" ? scheduledAt : null
+    }
   });
   await audit(req, "ARTICLE_STATUS", "Article", article.id, { status });
   res.json(article);
@@ -349,6 +395,22 @@ articleRouter.post("/admin/articles/:id/translations/:lang/regenerate", requireA
   if (!isLang(lang)) return res.status(400).json({ message: "Noto'g'ri til" });
   await regenerateTranslation(req.params.id, lang);
   const translation = await prisma.articleTranslation.findUnique({ where: { articleId_lang: { articleId: req.params.id, lang } } });
+  if (!translation) return res.status(404).json({ message: "Tarjima topilmadi" });
   await audit(req, "ARTICLE_TRANSLATION_REGENERATE", "Article", req.params.id, { lang });
   res.json(translation);
 });
+
+// Promotes SCHEDULED articles whose scheduledAt has passed to PUBLISHED -- called from a
+// periodic sweep in server.ts, mirroring the aggregator's own interval pattern.
+export async function publishScheduledArticles() {
+  const due = await prisma.article.findMany({
+    where: { status: "SCHEDULED", scheduledAt: { lte: new Date() } },
+    select: { id: true }
+  });
+  if (!due.length) return;
+  await prisma.article.updateMany({
+    where: { id: { in: due.map((item) => item.id) } },
+    data: { status: "PUBLISHED", publishedAt: new Date(), scheduledAt: null }
+  });
+  console.log(`[scheduler] ${due.length} ta rejalashtirilgan maqola nashr qilindi`);
+}

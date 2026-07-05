@@ -493,12 +493,14 @@ export type AggregatorRunOptions = {
   maxPerCycle?: number;
 };
 
-export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Promise<{ published: number }> {
-  if (running) return { published: 0 };
-  if (!options.force && !env.NEWS_AGGREGATOR_ENABLED) return { published: 0 };
+export type AggregatorRunResult = { published: number; skipped?: "already_running" | "disabled" | "not_configured" };
+
+export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Promise<AggregatorRunResult> {
+  if (running) return { published: 0, skipped: "already_running" };
+  if (!options.force && !env.NEWS_AGGREGATOR_ENABLED) return { published: 0, skipped: "disabled" };
   if (!client) {
     console.warn("[aggregator] OPENAI_API_KEY sozlanmagan, sikl o'tkazib yuborildi");
-    return { published: 0 };
+    return { published: 0, skipped: "not_configured" };
   }
 
   running = true;

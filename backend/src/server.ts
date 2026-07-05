@@ -1,12 +1,17 @@
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
+// Patches Express 4 so throws/rejections inside async route handlers (e.g. a zod .parse()
+// failure) reach the error middleware below instead of hanging the request unanswered.
+import "express-async-errors";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 import { apiPort, env, frontendOrigins } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
-import { articleRouter } from "./modules/articles/routes.js";
+import { articleRouter, publishScheduledArticles } from "./modules/articles/routes.js";
 import { categoryRouter } from "./modules/categories/routes.js";
 import { dashboardRouter } from "./modules/dashboard/routes.js";
 import { commentRouter } from "./modules/comments/routes.js";
@@ -41,9 +46,27 @@ app.use("/api/admin/users", userRouter);
 app.use("/api/admin/aggregator", aggregatorRouter);
 app.use("/api/weather", weatherRouter);
 
+app.use((req, res) => res.status(404).json({ message: "Topilmadi" }));
+
+// Centralized error handler -- without this, an async route handler that throws (a zod
+// validation failure, a Prisma "not found", anything else) would otherwise leak Express's
+// default HTML error page (with a full stack trace) straight to the client.
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof ZodError) {
+    return res.status(400).json({ message: "Kiritilgan ma'lumotlar noto'g'ri", issues: error.issues });
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+    return res.status(404).json({ message: "Topilmadi" });
+  }
+  console.error("[server] Kutilmagan xatolik:", error);
+  res.status(500).json({ message: "Serverda kutilmagan xatolik yuz berdi" });
+});
+
 app.listen(apiPort, () => {
   console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);
 });
+
+setInterval(() => publishScheduledArticles().catch((error) => console.error("[scheduler] failed:", error)), 60_000);
 
 if (env.NEWS_AGGREGATOR_ENABLED) {
   const intervalMs = env.NEWS_AGGREGATOR_INTERVAL_MINUTES * 60_000;

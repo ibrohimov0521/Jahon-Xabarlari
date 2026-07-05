@@ -124,7 +124,7 @@ export function Header() {
   return (
     <>
       <header className="site-header border-b border-slate-200 bg-white">
-        <div className="container-page flex h-16 items-center gap-3 lg:h-20 lg:gap-7">
+        <div className="container-page flex h-16 min-w-0 items-center gap-2 lg:h-20 lg:gap-7">
           <Link href="/" className="flex shrink-0 items-center" aria-label={SITE_NAME}>
             <Image
               src={SITE_LOGO}
@@ -132,7 +132,7 @@ export function Header() {
               width={166}
               height={64}
               priority
-              className="h-11 w-auto rounded-md object-contain sm:h-12 lg:h-14"
+              className="h-10 w-auto max-w-[92px] rounded-md object-contain sm:h-12 sm:max-w-none lg:h-14"
             />
           </Link>
           <nav className="hidden h-full flex-1 items-center gap-8 pl-5 text-[15px] font-bold lg:flex">
@@ -157,7 +157,7 @@ export function Header() {
             </div>
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 sm:gap-2">
             <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker min-w-[92px] text-left">

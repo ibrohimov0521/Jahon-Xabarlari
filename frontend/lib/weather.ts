@@ -85,6 +85,61 @@ export function conditionGradient(condition: WeatherCondition, isDay: boolean): 
   return (isDay ? day : night)[condition];
 }
 
+const WEATHER_BACKGROUNDS = {
+  clearDay: ["/weather/clear-day-meadow.jpg", "/weather/clear-day-lake.jpg"],
+  clearNight: ["/weather/clear-night-stars.jpg"],
+  partlyCloudyDay: ["/weather/partly-sunset-hills.jpg", "/weather/sunset-sea.jpg"],
+  partlyCloudyNight: ["/weather/clear-night-stars.jpg"],
+  clouds: ["/weather/cloudy-valley.jpg"],
+  fog: ["/weather/fog-valley.jpg", "/weather/mist-road.jpg"],
+  rainDay: ["/weather/rain-valley.jpg", "/weather/rain-promenade.jpg"],
+  rainNight: ["/weather/heavy-rain-night.jpg"],
+  snow: ["/weather/snow-mountain.jpg"],
+  storm: ["/weather/storm-lightning.jpg", "/weather/hail-storm.jpg"],
+  wind: ["/weather/windy-hill.jpg"]
+} as const;
+
+function stableImage(list: readonly string[], seed: string | number) {
+  if (list.length === 1) return list[0];
+  const text = String(seed);
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  return list[hash % list.length];
+}
+
+function isNearSunset(nowIso: string | undefined, sunsetIso: string | undefined) {
+  if (!nowIso || !sunsetIso) return false;
+  const now = new Date(nowIso).getTime();
+  const sunset = new Date(sunsetIso).getTime();
+  if (!Number.isFinite(now) || !Number.isFinite(sunset)) return false;
+  return Math.abs(sunset - now) <= 90 * 60 * 1000;
+}
+
+export function weatherBackgroundImage(weather: Pick<FullWeather, "condition" | "isDay" | "windSpeed" | "precipitation" | "hourly" | "sunset"> | null): string {
+  if (!weather) return WEATHER_BACKGROUNDS.clearDay[0];
+
+  const seed = weather.hourly?.[0]?.time ?? `${weather.condition}-${weather.isDay}`;
+
+  if (weather.windSpeed >= 45 && weather.condition !== "rain" && weather.condition !== "snow" && weather.condition !== "storm") {
+    return WEATHER_BACKGROUNDS.wind[0];
+  }
+
+  if (weather.condition === "storm") {
+    const stormList = weather.precipitation > 0 ? WEATHER_BACKGROUNDS.storm : [WEATHER_BACKGROUNDS.storm[0]];
+    return stableImage(stormList, seed);
+  }
+  if (weather.condition === "snow") return WEATHER_BACKGROUNDS.snow[0];
+  if (weather.condition === "rain") return stableImage(weather.isDay ? WEATHER_BACKGROUNDS.rainDay : WEATHER_BACKGROUNDS.rainNight, seed);
+  if (weather.condition === "fog") return stableImage(WEATHER_BACKGROUNDS.fog, seed);
+  if (weather.condition === "clouds") return WEATHER_BACKGROUNDS.clouds[0];
+  if (weather.condition === "partlyCloudy") {
+    return stableImage(weather.isDay ? WEATHER_BACKGROUNDS.partlyCloudyDay : WEATHER_BACKGROUNDS.partlyCloudyNight, seed);
+  }
+  if (!weather.isDay) return WEATHER_BACKGROUNDS.clearNight[0];
+  if (isNearSunset(weather.hourly?.[0]?.time, weather.sunset)) return "/weather/sunset-sea.jpg";
+  return stableImage(WEATHER_BACKGROUNDS.clearDay, seed);
+}
+
 export type HourPoint = {
   time: string;
   temp: number;

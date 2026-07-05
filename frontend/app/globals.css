@@ -60,12 +60,14 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
   background: var(--page-bg);
   color: var(--text);
   transition: background-color 220ms ease, color 220ms ease;
+  overflow-x: clip;
 }
 
 .site-backdrop {
@@ -318,9 +320,38 @@ button.bg-white {
   box-shadow: 0 8px 22px rgba(23, 103, 245, 0.18);
 }
 
+@media (max-width: 767px) {
+  .site-header .weather-pill {
+    display: none;
+  }
+}
+
 .weather-ticker {
   display: inline-block;
   animation: weather-ticker-in 420ms ease;
+}
+
+.weather-modal-bg {
+  opacity: 0;
+  transform: scale(1.04);
+  animation: weather-bg-in 650ms ease forwards, weather-bg-drift 18s ease-in-out 650ms infinite alternate;
+  will-change: opacity, transform;
+}
+
+@keyframes weather-bg-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes weather-bg-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
 }
 
 @keyframes weather-ticker-in {
@@ -403,6 +434,25 @@ button.bg-white {
 }
 
 @media (max-width: 640px) {
+  .container-page {
+    width: min(100% - 20px, 720px);
+  }
+
+  .site-header .container-page {
+    width: min(100% - 16px, 720px);
+  }
+
+  .site-header .language-trigger {
+    gap: 4px;
+    padding: 6px 7px;
+    font-size: 12px;
+  }
+
+  .site-header .language-trigger svg {
+    width: 13px;
+    height: 13px;
+  }
+
   .topbar {
     background:
       radial-gradient(circle at 14% 10%, rgba(39, 226, 230, 0.34), transparent 9rem),
@@ -490,14 +540,14 @@ button.bg-white {
   }
 
   .icon-button {
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
   }
 
   .theme-toggle.mobile-icon-toggle {
     display: grid;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     place-items: center;
     padding: 0;
     background: var(--surface-soft);
@@ -510,9 +560,19 @@ button.bg-white {
 
   .theme-toggle.mobile-icon-toggle .theme-knob,
   .theme-toggle.mobile-icon-toggle.is-dark .theme-knob {
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     transform: none;
     background: transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  a,
+  button,
+  span {
+    overflow-wrap: anywhere;
   }
 }

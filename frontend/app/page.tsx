@@ -72,14 +72,14 @@ export default async function Home() {
     <main>
       <Header />
       <section className="container-page grid gap-6 py-4 lg:grid-cols-[minmax(0,672px)_380px_354px]">
-        <Link href={`/articles/${hero.slug}`} className="relative block h-[506px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
+        <Link href={`/articles/${hero.slug}`} className="relative block h-[420px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
           <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
-          <div className="relative flex h-full flex-col justify-end p-7">
-            <span className="absolute left-6 top-7 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg">{hero.category?.name}</span>
+          <div className="relative flex h-full flex-col justify-end p-5 sm:p-7">
+            <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{hero.category?.name}</span>
             <p className="text-[15px] font-medium">{formatArticleDateTime(hero.publishedAt)}</p>
-            <h1 className="mt-3 max-w-[610px] text-[34px] font-black leading-[1.2]">{hero.title}</h1>
-            <p className="mt-3 max-w-[620px] text-[17px] leading-7 text-white">{hero.summary}</p>
+            <h1 className="mt-3 max-w-[610px] text-[27px] font-black leading-[1.18] sm:text-[34px] sm:leading-[1.2]">{hero.title}</h1>
+            <p className="mt-3 max-w-[620px] text-[15px] leading-6 text-white sm:text-[17px] sm:leading-7">{hero.summary}</p>
             <span className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
               Batafsil o'qish <ArrowRight size={18} />
             </span>
@@ -90,9 +90,9 @@ export default async function Home() {
             <Link
               key={item.id}
               href={`/articles/${item.slug}`}
-              className={`news-shadow grid h-[157px] gap-4 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[138px_1fr]" : "grid-cols-1"}`}
+              className={`news-shadow grid gap-4 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand sm:h-[157px] ${item.mainImage ? "sm:grid-cols-[138px_1fr]" : "grid-cols-1"}`}
             >
-              <MediaView src={item.mainImage} className="h-[130px] w-[138px] rounded-md object-cover" />
+              <MediaView src={item.mainImage} className="h-44 w-full rounded-md object-cover sm:h-[130px] sm:w-[138px]" />
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
                 <h3 className="mt-3 text-[16px] font-black leading-snug">{item.title}</h3>
@@ -112,14 +112,14 @@ export default async function Home() {
                 <Link
                   key={item.id}
                   href={`/articles/${item.slug}`}
-                  className={`grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
+                  className={`grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[30px_1fr] sm:grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
                 >
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
                     <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount)}</p>
                   </div>
-                  <MediaView src={item.mainImage} className="h-[78px] w-[80px] rounded-md object-cover" />
+                  <MediaView src={item.mainImage} className="hidden h-[78px] w-[80px] rounded-md object-cover sm:block" />
                 </Link>
               ))}
             </div>
@@ -161,7 +161,7 @@ export default async function Home() {
               <div className="grid gap-3">
                 {editorList.map((item) => (
                   <Link key={item.id} href={`/articles/${item.slug}`} className="news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
-                    <MediaView src={item.mainImage} className="h-24 w-28 shrink-0 rounded-md object-cover" />
+                    <MediaView src={item.mainImage} className="h-24 w-24 shrink-0 rounded-md object-cover sm:w-28" />
                     <div className="min-w-0">
                       <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
                       <h3 className="mt-2 line-clamp-2 text-[16px] font-black leading-snug">{item.title}</h3>
@@ -188,10 +188,10 @@ export default async function Home() {
                       key={item.id}
                       href={`/articles/${item.slug}`}
                       className={`grid gap-3 rounded-lg transition hover:bg-white/10 ${
-                        item.mainImage ? (index === 0 ? "sm:grid-cols-[160px_1fr]" : "grid-cols-[92px_1fr]") : "grid-cols-1"
+                        item.mainImage ? (index === 0 ? "sm:grid-cols-[160px_1fr]" : "sm:grid-cols-[92px_1fr]") : "grid-cols-1"
                       }`}
                     >
-                      <MediaView src={item.mainImage} className={`${index === 0 ? "h-32 sm:w-40" : "h-20 w-[92px]"} rounded-md object-cover`} />
+                      <MediaView src={item.mainImage} className={`${index === 0 ? "h-32 sm:w-40" : "h-32 w-full sm:h-20 sm:w-[92px]"} rounded-md object-cover`} />
                       <div className="min-w-0 py-1">
                         <h3 className={`${index === 0 ? "text-[18px]" : "text-[15px]"} line-clamp-2 font-black leading-snug`}>{item.title}</h3>
                         <p className="mt-2 line-clamp-2 text-sm text-slate-500">{item.summary}</p>

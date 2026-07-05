@@ -7,6 +7,7 @@ import {
   conditionLabel,
   fetchFullWeather,
   fetchWeatherAlerts,
+  weatherBackgroundImage,
   UZ_REGIONS,
   type FullWeather,
   type UzRegion,
@@ -105,18 +106,24 @@ export function WeatherModal({
   const condition = weather?.condition ?? "clear";
   const isDay = weather?.isDay ?? true;
   const gradient = conditionGradient(condition, isDay);
+  const backgroundImage = weatherBackgroundImage(weather);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16 sm:items-center sm:pt-4" onClick={onClose}>
-      <div
-        className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`}
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`} onClick={(event) => event.stopPropagation()}>
+        <div
+          key={backgroundImage}
+          className="weather-modal-bg absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/28 to-black/70" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_12%,rgba(255,255,255,0.22),transparent_28rem)]" aria-hidden="true" />
         <button onClick={onClose} aria-label="Yopish" className="absolute right-4 top-4 z-10 rounded-full bg-white/15 p-1.5 backdrop-blur transition hover:bg-white/25">
           <X size={18} />
         </button>
 
-        <div className="relative max-h-[85vh] overflow-y-auto p-6">
+        <div className="relative z-[1] max-h-[85vh] overflow-y-auto p-6">
           <div className="relative inline-block">
             <button onClick={() => setRegionPickerOpen((value) => !value)} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur">
               📍 {region.name} <ChevronDown size={14} />

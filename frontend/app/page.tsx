@@ -258,15 +258,13 @@ export default async function Home() {
       </section>
 
       <footer className="bg-ink py-10 text-white">
-        <div className="container-page grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
+        <div className="container-page grid gap-8 md:grid-cols-[1.1fr_0.7fr_0.9fr_1fr]">
           <div>
             <Image src={SITE_LOGO} alt={SITE_NAME} width={150} height={150} className="h-24 w-24 rounded-md object-cover" />
             <p className="mt-4 text-slate-300">Dunyodagi eng muhim voqealarni tez, ishonchli va xolis ravishda yetkazib beramiz.</p>
           </div>
           <div><h3 className="font-black">Havolalar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/about">Biz haqimizda</Link><Link className="hover:text-white" href="/ads">Reklama</Link><Link className="hover:text-white" href="/contact">Aloqa</Link></div></div>
           <div><h3 className="font-black">Bog'lanish</h3><div className="mt-4 grid gap-2 text-slate-300"><a className="hover:text-white" href="mailto:info@jahonxabarlari.uz">info@jahonxabarlari.uz</a><a className="hover:text-white" href="https://t.me/" target="_blank">Telegram</a><span>Toshkent, O'zbekiston</span></div></div>
-        </div>
-        <div className="container-page mt-8">
           <SubscribeBox />
         </div>
       </footer>

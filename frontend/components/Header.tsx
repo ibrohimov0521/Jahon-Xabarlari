@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SearchModal } from "./SearchModal";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
+import { fetchTemperature, findRegionByName, nearestRegion, UZ_REGIONS, type UzRegion } from "../lib/weather";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -43,6 +44,9 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
+  const [region, setRegion] = useState<UzRegion>(UZ_REGIONS[0]);
+  const [temperature, setTemperature] = useState<number | null>(null);
+  const [regionOpen, setRegionOpen] = useState(false);
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
@@ -71,6 +75,38 @@ export function Header() {
     setCurrentDate(`${weekdays[language][date.getDay()]}, ${date.getDate()} ${months[language][date.getMonth()]} ${date.getFullYear()}`);
   }, [language]);
 
+  useEffect(() => {
+    const savedRegion = localStorage.getItem("weather_region");
+    if (savedRegion) {
+      setRegion(findRegionByName(savedRegion));
+      return;
+    }
+    // No saved preference yet: try to detect the user's own viloyat via geolocation, falling
+    // back to Tashkent (the default state) if permission is denied or unavailable.
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => setRegion(nearestRegion(position.coords.latitude, position.coords.longitude)),
+      () => {},
+      { timeout: 8000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTemperature(region.lat, region.lon).then((temp) => {
+      if (!cancelled) setTemperature(temp);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [region]);
+
+  function selectRegion(next: UzRegion) {
+    setRegion(next);
+    localStorage.setItem("weather_region", next.name);
+    setRegionOpen(false);
+  }
+
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0];
 
   return (
@@ -78,11 +114,27 @@ export function Header() {
       <div className="topbar bg-ink text-white">
         <div className="container-page flex min-h-10 items-center justify-between gap-2 py-1 text-xs sm:h-10 sm:py-0 sm:text-sm">
           <div className="topbar-info flex min-w-0 flex-1 items-center gap-2 sm:gap-8">
-            <span className="topbar-weather flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-              <CloudSun className="h-4 w-4 text-amber-200" />
-              <span>{t.top.city}</span>
-              <span>22C</span>
-            </span>
+            <div className="relative">
+              <button onClick={() => setRegionOpen((value) => !value)} className="topbar-weather flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                <CloudSun className="h-4 w-4 text-amber-200" />
+                <span>{region.name}</span>
+                <span>{temperature === null ? "..." : `${temperature}°C`}</span>
+                <ChevronDown size={12} />
+              </button>
+              {regionOpen && (
+                <div className="absolute left-0 top-8 z-40 max-h-72 w-52 overflow-y-auto rounded-xl border border-white/10 bg-ink/95 p-1 shadow-2xl backdrop-blur">
+                  {UZ_REGIONS.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => selectRegion(item)}
+                      className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/10 ${region.name === item.name ? "text-blue-300" : "text-white"}`}
+                    >
+                      {item.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <span className="topbar-date flex min-w-0 items-center gap-1.5 truncate">
               <CalendarDays className="h-4 w-4 shrink-0 text-blue-200" />
               <span className="truncate capitalize">{currentDate}</span>

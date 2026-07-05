@@ -44,7 +44,8 @@ const dictionaries = {
       body: "Eng muhim xabarlar emailingizga yuboriladi.",
       placeholder: "Email manzilingiz",
       button: "Obuna bo'lish",
-      sent: "Obuna qabul qilindi."
+      sent: "Obuna qabul qilindi.",
+      error: "Xatolik yuz berdi, qayta urinib ko'ring."
     }
   },
   ru: {
@@ -84,7 +85,8 @@ const dictionaries = {
       body: "Главные новости будут приходить на вашу почту.",
       placeholder: "Ваш email",
       button: "Подписаться",
-      sent: "Подписка принята."
+      sent: "Подписка принята.",
+      error: "Произошла ошибка, попробуйте снова."
     }
   },
   en: {
@@ -124,7 +126,8 @@ const dictionaries = {
       body: "The most important stories will be sent to your email.",
       placeholder: "Your email",
       button: "Subscribe",
-      sent: "Subscription received."
+      sent: "Subscription received.",
+      error: "Something went wrong, please try again."
     }
   }
 };

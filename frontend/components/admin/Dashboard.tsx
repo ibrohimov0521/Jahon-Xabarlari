@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, FileText, Newspaper, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Mail, Newspaper, ShieldCheck, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Article, Stats } from "./types";
 import { Empty, Panel } from "./ui";
@@ -30,6 +30,11 @@ export function Dashboard({ stats, articles, onAction }: { stats: Stats | null; 
             <strong className="text-3xl">{value.toLocaleString("uz-UZ")}</strong>
           </button>
         ))}
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <Mail className="text-brand" />
+          <p className="mt-5 text-sm text-slate-500">Obunachilar</p>
+          <strong className="text-3xl">{(stats?.subscribers ?? 0).toLocaleString("uz-UZ")}</strong>
+        </div>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Eng ko'p ko'rilganlar">

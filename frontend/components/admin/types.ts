@@ -48,6 +48,7 @@ export type Stats = {
   draftArticles: number;
   reviewArticles: number;
   users: number;
+  subscribers: number;
   totalViews: number;
   popular: Pick<Article, "id" | "title" | "viewsCount">[];
 };

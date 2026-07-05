@@ -202,6 +202,12 @@ model Advertisement {
   updatedAt DateTime            @updatedAt
 }
 
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
 model Setting {
   key   String @id
   value String

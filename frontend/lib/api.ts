@@ -64,6 +64,16 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
   }
 }
 
+export async function getPopularArticles(lang?: string, limit = 8, days = 4) {
+  try {
+    const res = await fetch(withLang(`${API_URL}/articles/popular?limit=${limit}&days=${days}`, lang), { next: { revalidate: 120 } });
+    if (!res.ok) throw new Error("API error");
+    return (await res.json()).items as Article[];
+  } catch {
+    return [];
+  }
+}
+
 export type Comment = { id: string; name: string; body: string; createdAt: string };
 
 export async function getComments(articleId: string): Promise<Comment[]> {

@@ -5,7 +5,7 @@ import { Header } from "../components/Header";
 import { MediaView } from "../components/MediaView";
 import { NewsCard } from "../components/NewsCard";
 import { SubscribeBox } from "../components/SubscribeBox";
-import { getArticles, getTrendingArticles } from "../lib/api";
+import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
@@ -32,7 +32,7 @@ const categorySections = [
 
 export default async function Home() {
   const lang = await getRequestLang();
-  const [articles, trending] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8)]);
+  const [articles, trending, popular] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8), getPopularArticles(lang, 8, 4)]);
 
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
   const eligible = articles.filter((item) => item.showOnHome !== false);
@@ -57,6 +57,7 @@ export default async function Home() {
   const extraStream = generalPool.slice(15, 27);
 
   const trendingItems = trending;
+  const popularItems = popular;
   const sectionGroups = categorySections
     .map((section) => ({
       ...section,
@@ -241,8 +242,8 @@ export default async function Home() {
               <TrendingUp className="text-brand" />
             </div>
             <div className="grid gap-4">
-              {!trendingItems.length && <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Bugungi ko'p o'qilganlar hali yo'q.</p>}
-              {trendingItems.slice(0, 8).map((item, index) => (
+              {!popularItems.length && <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Oxirgi 4 kunda ko'p o'qilganlar hali yo'q.</p>}
+              {popularItems.map((item, index) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                   <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <span>

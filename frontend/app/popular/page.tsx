@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "../../components/Header";
 import { NewsCard } from "../../components/NewsCard";
-import { getArticles } from "../../lib/api";
+import { getPopularArticles } from "../../lib/api";
 import { getRequestLang } from "../../lib/server-lang";
 import { SITE_NAME, SITE_URL } from "../../lib/site";
 
@@ -13,12 +13,7 @@ export const metadata: Metadata = {
 
 export default async function PopularPage() {
   const lang = await getRequestLang();
-  const all = await getArticles("?limit=36", lang);
-  // showInPopular is opt-in (defaults false), so an un-curated site would show nothing if it
-  // were a hard filter -- prefer the curated subset once it has enough items, otherwise fall
-  // back to ranking everything by views like before.
-  const curated = all.filter((item) => item.showInPopular);
-  const articles = (curated.length >= 6 ? curated : all).sort((a, b) => b.viewsCount - a.viewsCount).slice(0, 12);
+  const articles = await getPopularArticles(lang, 12, 4);
   return (
     <main>
       <Header />

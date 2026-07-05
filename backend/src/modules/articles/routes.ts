@@ -53,6 +53,10 @@ function startOfTashkentDay(date = new Date()) {
   return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - TASHKENT_OFFSET_MS);
 }
 
+function daysAgoFromTashkentDay(days: number) {
+  return new Date(startOfTashkentDay().getTime() - days * 24 * 60 * 60 * 1000);
+}
+
 function applyTranslation<T extends { title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null }>(
   article: T & { translations?: { lang: string; title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null; status: string }[] },
   lang?: string
@@ -108,7 +112,7 @@ articleRouter.get("/articles/trending", async (req, res) => {
     where: { createdAt: { gte: since } },
     _count: { articleId: true },
     orderBy: { _count: { articleId: "desc" } },
-    take: take * 2
+    take: 100
   });
 
   const includeArgs = {
@@ -120,13 +124,32 @@ articleRouter.get("/articles/trending", async (req, res) => {
 
   const ids = grouped.map((item) => item.articleId);
   const articles = await prisma.article.findMany({
-    where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED" },
+    where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED", publishedAt: { gte: since } },
     include: includeArgs
   });
   const order = new Map(ids.map((id, index) => [id, index]));
   const sorted = articles.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).slice(0, take);
 
   res.json({ items: sorted.map((item) => applyTranslation(item, lang)) });
+});
+
+articleRouter.get("/articles/popular", async (req, res) => {
+  const lang = req.query.lang?.toString();
+  const take = Math.min(Number(req.query.limit ?? 8), 20);
+  const days = Math.min(Math.max(Number(req.query.days ?? 4), 1), 30);
+  const since = daysAgoFromTashkentDay(days - 1);
+
+  const items = await prisma.article.findMany({
+    where: { deletedAt: null, status: "PUBLISHED", publishedAt: { gte: since } },
+    include: {
+      category: true,
+      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" as const } } } : {})
+    },
+    orderBy: [{ viewsCount: "desc" }, { publishedAt: "desc" }],
+    take
+  });
+
+  res.json({ items: items.map((item) => applyTranslation(item, lang)) });
 });
 
 articleRouter.get("/articles/:slug", async (req, res) => {

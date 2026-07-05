@@ -39,9 +39,7 @@ export default async function Home() {
   const editorLead = rest[15] ?? rest[4];
   const editorList = rest.slice(16, 20);
   const extraStream = rest.slice(20, 32);
-  // Last 24h view velocity (not just lifetime views), falls back to the fetched list if there's
-  // not enough recent view data yet (e.g. right after launch).
-  const trendingItems = trending.length ? trending : [articles[4], articles[8], articles[9], articles[3], articles[7]].filter(Boolean);
+  const trendingItems = trending;
   const sectionGroups = categorySections
     .map((section) => ({
       ...section,
@@ -108,6 +106,7 @@ export default async function Home() {
               <TrendingUp className="text-brand" />
             </div>
             <div className="grid gap-3">
+              {!trendingItems.length && <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Bugun trend xabarlar hali shakllanmadi.</p>}
               {trendingItems.map((item, index) => (
                 <Link
                   key={item.id}
@@ -208,7 +207,7 @@ export default async function Home() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="section-title text-[27px] font-black">Ko'proq yangiliklar</h2>
                 <Link href="/search" className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
-                  Qidirish <ArrowRight size={16} />
+                  Saralash <ArrowRight size={16} />
                 </Link>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -225,6 +224,7 @@ export default async function Home() {
               <TrendingUp className="text-brand" />
             </div>
             <div className="grid gap-4">
+              {!trendingItems.length && <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Bugungi ko'p o'qilganlar hali yo'q.</p>}
               {trendingItems.slice(0, 8).map((item, index) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                   <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>

@@ -4,7 +4,7 @@ import { ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun, X } from "lucid
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchModal } from "./SearchModal";
 import { WeatherModal } from "./WeatherModal";
 import { Language, useUi } from "../lib/ui-context";
@@ -23,9 +23,9 @@ const navKeys = [
 ] as const;
 
 const moreLinkKeys = [
+  { key: "search", href: "/search" },
   { key: "popular", href: "/popular" },
   { key: "editor", href: "/editor-choice" },
-  { key: "search", href: "/search" },
   { key: "about", href: "/about" },
   { key: "ads", href: "/ads" },
   { key: "contact", href: "/contact" }
@@ -49,6 +49,8 @@ export function Header() {
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const [tickerIndex, setTickerIndex] = useState(0);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const languageMenuRef = useRef<HTMLDivElement | null>(null);
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
@@ -110,6 +112,16 @@ export function Header() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    function closeFloatingMenus(event: PointerEvent) {
+      const target = event.target as Node;
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) setMenuOpen(false);
+      if (languageMenuRef.current && !languageMenuRef.current.contains(target)) setLanguageOpen(false);
+    }
+    document.addEventListener("pointerdown", closeFloatingMenus);
+    return () => document.removeEventListener("pointerdown", closeFloatingMenus);
+  }, []);
+
   function selectRegion(next: UzRegion) {
     setRegion(next);
     localStorage.setItem("weather_region", next.name);
@@ -141,7 +153,7 @@ export function Header() {
                 {t.nav[item.key]}
               </Link>
             ))}
-            <div className="relative h-full">
+            <div ref={moreMenuRef} className="relative h-full">
               <button onClick={() => setMenuOpen((value) => !value)} className={`nav-link flex h-full items-center gap-2 border-b-2 font-bold transition ${moreLinkKeys.some((item) => item.href === activeHref) ? "border-brand text-brand" : "border-transparent hover:text-brand"}`}>
                 {t.nav.more} <Menu size={18} />
               </button>
@@ -169,7 +181,7 @@ export function Header() {
               <CloudSun className="h-4 w-4 shrink-0 text-amber-300" />
               <span>{weather ? `${weather.temperature}°` : "--°"}</span>
             </button>
-            <div className="relative">
+            <div ref={languageMenuRef} className="relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
                 <Globe2 size={15} />
                 {selectedLanguage.label}

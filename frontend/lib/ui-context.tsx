@@ -29,7 +29,7 @@ const dictionaries = {
     more: {
       popular: "Eng ko'p o'qilganlar",
       editor: "Muharrir tanlovi",
-      search: "Qidiruv",
+      search: "Saralash",
       about: "Biz haqimizda",
       ads: "Reklama",
       contact: "Aloqa"
@@ -109,7 +109,7 @@ const dictionaries = {
     more: {
       popular: "Most read",
       editor: "Editor's choice",
-      search: "Search",
+      search: "Filter",
       about: "About",
       ads: "Advertising",
       contact: "Contact"

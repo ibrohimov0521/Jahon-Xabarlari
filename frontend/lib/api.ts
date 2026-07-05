@@ -54,9 +54,9 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
   }
 }
 
-export async function searchArticles(q: string, lang?: string) {
+export async function searchArticles(q: string, lang?: string, params = "") {
   try {
-    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}`, lang), { next: { revalidate: 30 } });
+    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}${params}`, lang), { next: { revalidate: 30 } });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {

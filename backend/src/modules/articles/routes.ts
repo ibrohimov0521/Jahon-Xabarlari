@@ -35,6 +35,7 @@ const articleSchema = z.object({
 
 const idsSchema = z.object({ ids: z.array(z.string()).min(1) });
 const VIEW_WINDOW_MS = 6 * 60 * 60 * 1000;
+const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
 function isLang(value: string | undefined): value is Lang {
   return !!value && (LANGS as readonly string[]).includes(value);
@@ -44,6 +45,11 @@ function viewerHash(req: Request) {
   const ip = req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
   const userAgent = req.headers["user-agent"]?.toString() || "unknown";
   return crypto.createHash("sha256").update(`${ip}:${userAgent}`).digest("hex");
+}
+
+function startOfTashkentDay(date = new Date()) {
+  const shifted = new Date(date.getTime() + TASHKENT_OFFSET_MS);
+  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - TASHKENT_OFFSET_MS);
 }
 
 function applyTranslation<T extends { title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null }>(
@@ -94,7 +100,7 @@ articleRouter.get("/articles", async (req, res) => {
 articleRouter.get("/articles/trending", async (req, res) => {
   const lang = req.query.lang?.toString();
   const take = Math.min(Number(req.query.limit ?? 8), 20);
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since = startOfTashkentDay();
 
   const grouped = await prisma.articleView.groupBy({
     by: ["articleId"],
@@ -109,16 +115,7 @@ articleRouter.get("/articles/trending", async (req, res) => {
     ...(isLang(lang) ? { translations: { where: { lang, status: "READY" as const } } } : {})
   };
 
-  if (!grouped.length) {
-    // Not enough recent view data yet (e.g. right after launch) -- fall back to lifetime views.
-    const fallback = await prisma.article.findMany({
-      where: { deletedAt: null, status: "PUBLISHED" },
-      include: includeArgs,
-      orderBy: { viewsCount: "desc" },
-      take
-    });
-    return res.json({ items: fallback.map((item) => applyTranslation(item, lang)) });
-  }
+  if (!grouped.length) return res.json({ items: [] });
 
   const ids = grouped.map((item) => item.articleId);
   const articles = await prisma.article.findMany({
@@ -171,6 +168,11 @@ articleRouter.get("/articles/:slug", async (req, res) => {
 articleRouter.get("/search", async (req, res) => {
   const q = req.query.q?.toString() ?? "";
   const lang = req.query.lang?.toString();
+  const category = req.query.category?.toString();
+  const sort = req.query.sort?.toString();
+  const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
+  const categoryFilter = categoryRow ? { OR: [{ categoryId: categoryRow.id }, { extraCategoryIds: { has: categoryRow.id } }] } : category ? { category: { slug: category } } : {};
+  const orderBy = sort === "popular" ? { viewsCount: "desc" as const } : { publishedAt: "desc" as const };
   const translatedSearch =
     isLang(lang) && q
       ? {
@@ -191,16 +193,22 @@ articleRouter.get("/search", async (req, res) => {
     where: {
       deletedAt: null,
       status: "PUBLISHED",
-      OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { summary: { contains: q, mode: "insensitive" } },
-        ...(translatedSearch ? [translatedSearch] : [])
+      AND: [
+        categoryFilter,
+        {
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { summary: { contains: q, mode: "insensitive" } },
+            ...(translatedSearch ? [translatedSearch] : [])
+          ]
+        }
       ]
     },
     include: {
       category: true,
       ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
     },
+    orderBy,
     take: 20
   });
   res.json({ items: items.map((item) => applyTranslation(item, lang)) });

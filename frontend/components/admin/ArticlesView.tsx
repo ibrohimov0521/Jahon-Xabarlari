@@ -171,7 +171,12 @@ export function ArticlesView({
         {filtered.map((item) => {
           const nextStatuses = ARTICLE_STATUSES.filter((nextStatus) => nextStatus !== item.status);
           return (
-            <article key={item.id} className="group relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-xl">
+            <article
+              key={item.id}
+              className={`group relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-xl ${
+                openStatusId === item.id ? "z-[140]" : "z-0"
+              }`}
+            >
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
                 <div className="flex min-w-0 flex-1 gap-3">
                   <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggleSelect(item.id)} className="mt-2 size-4 shrink-0 accent-blue-600" />
@@ -237,7 +242,7 @@ export function ArticlesView({
                         <MoreVertical size={16} />
                       </button>
                       {openStatusId === item.id && (
-                        <div className="absolute right-0 top-12 z-[120] w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
+                        <div className="absolute right-0 top-12 z-[160] w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
                           <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Statusni o'zgartirish</div>
                           {nextStatuses.map((nextStatus) => {
                             const meta = STATUS_META[nextStatus];

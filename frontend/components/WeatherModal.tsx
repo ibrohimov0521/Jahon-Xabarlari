@@ -1,16 +1,19 @@
 "use client";
 
-import { ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Sun, Wind, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Sun, Wind, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   conditionGradient,
   conditionLabel,
   fetchFullWeather,
+  fetchWeatherAlerts,
   UZ_REGIONS,
   type FullWeather,
   type UzRegion,
+  type WeatherAlert,
   type WeatherCondition
 } from "../lib/weather";
+import { RadarMap } from "./RadarMap";
 
 const WEEKDAYS_SHORT = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
 
@@ -73,6 +76,7 @@ export function WeatherModal({
   onSelectRegion: (region: UzRegion) => void;
 }) {
   const [weather, setWeather] = useState<FullWeather | null>(null);
+  const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
@@ -87,6 +91,9 @@ export function WeatherModal({
       if (!data) setError("Ob-havo ma'lumotlarini olishda xatolik");
       setWeather(data);
       setLoading(false);
+    });
+    fetchWeatherAlerts(region.lat, region.lon).then((data) => {
+      if (!cancelled) setAlerts(data);
     });
     return () => {
       cancelled = true;
@@ -131,6 +138,20 @@ export function WeatherModal({
               </div>
             )}
           </div>
+
+          {alerts.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {alerts.map((alert, index) => (
+                <div key={index} className="flex items-start gap-2 rounded-2xl border border-red-300/40 bg-red-500/25 p-3 text-sm backdrop-blur-md">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-100" />
+                  <div>
+                    <p className="font-black text-red-50">{alert.event || alert.headline || "Ob-havo ogohlantirishi"}</p>
+                    {alert.desc && <p className="mt-0.5 text-xs text-red-100/90">{alert.desc}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {loading && !weather && <p className="mt-8 text-white/80">Yuklanmoqda...</p>}
           {error && <p className="mt-8 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-bold text-red-100">{error}</p>}
@@ -190,6 +211,8 @@ export function WeatherModal({
                 <span>🌅 Quyosh chiqishi: {formatClock(weather.sunrise)}</span>
                 <span>🌇 Botishi: {formatClock(weather.sunset)}</span>
               </div>
+
+              <RadarMap lat={region.lat} lon={region.lon} />
             </>
           )}
         </div>

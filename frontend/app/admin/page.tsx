@@ -10,8 +10,10 @@ import {
   Megaphone,
   Menu,
   MessageCircle,
+  Moon,
   Newspaper,
   RefreshCcw,
+  Sun,
   Tags,
   Users,
   X
@@ -43,6 +45,7 @@ import {
   type AuthUser
 } from "../../lib/admin-api";
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
+import { useUi } from "../../lib/ui-context";
 
 type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "users" | "auditlog" | "aggregator";
 
@@ -60,6 +63,7 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
 ];
 
 export default function AdminPage() {
+  const { theme, toggleTheme } = useUi();
   const [token, setToken] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [view, setView] = useState<View>("dashboard");
@@ -330,6 +334,14 @@ export default function AdminPage() {
   if (!token || !user) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-100 px-4 text-ink">
+        <button
+          onClick={toggleTheme}
+          className="fixed right-5 top-5 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand"
+          title={theme === "dark" ? "Kunduzgi rejim" : "Tungi rejim"}
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === "dark" ? "Kunduz" : "Tun"}
+        </button>
         <form onSubmit={handleLogin} className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-7 shadow-xl">
           <div className="mb-7">
             <Image src={SITE_LOGO} alt={SITE_NAME} width={76} height={76} priority className="h-16 w-16 rounded-md object-cover" />
@@ -373,6 +385,9 @@ export default function AdminPage() {
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
           <div className="flex items-center gap-1">
+            <button onClick={toggleTheme} className="rounded-md p-2 hover:bg-white/10" title={theme === "dark" ? "Kunduzgi rejim" : "Tungi rejim"}>
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
             <button onClick={handleLogout} className="rounded-md p-2 hover:bg-white/10" title="Chiqish">
               <LogOut size={20} />
             </button>
@@ -413,6 +428,10 @@ export default function AdminPage() {
           </div>
           <button onClick={() => refreshAll(view)} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand">
             <RefreshCcw size={18} /> Yangilash
+          </button>
+          <button onClick={toggleTheme} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand lg:hidden">
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? "Kunduz" : "Tun"}
           </button>
         </header>
 

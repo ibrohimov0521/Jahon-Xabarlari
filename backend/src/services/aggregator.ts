@@ -9,7 +9,16 @@ import { queueTranslations } from "./translate.js";
 
 const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 const MODEL = "gpt-4o-mini";
-const parser = new Parser({ timeout: 15_000 });
+const parser = new Parser<Record<string, unknown>, RawFeedItem>({
+  timeout: 15_000,
+  customFields: {
+    item: [
+      ["media:content", "mediaContent", { keepArray: true }],
+      ["media:thumbnail", "mediaThumbnail", { keepArray: true }],
+      ["content:encoded", "contentEncoded"]
+    ] as any
+  }
+});
 const AGGREGATOR_AUTHOR_EMAIL = "aggregator@jahonxabarlari.uz";
 const DUPLICATE_THRESHOLD = 0.4;
 const DEDUP_WINDOW_MS = 48 * 60 * 60 * 1000;
@@ -62,7 +71,21 @@ type FeedItem = {
   title: string;
   link: string;
   snippet: string;
+  mediaUrl?: string | null;
 };
+
+type RawFeedItem = {
+  title?: string;
+  link?: string;
+  content?: string;
+  contentSnippet?: string;
+  summary?: string;
+  enclosure?: { url?: string; type?: string };
+  mediaContent?: unknown;
+  mediaThumbnail?: unknown;
+  contentEncoded?: string;
+  "content:encoded"?: string;
+} & Record<string, unknown>;
 
 const STOPWORDS = new Set([
   "va",
@@ -101,6 +124,131 @@ function similarity(a: Set<string>, b: Set<string>): number {
   for (const word of a) if (b.has(word)) intersection += 1;
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function firstString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = firstString(item);
+      if (found) return found;
+    }
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : {};
+    return firstString(record.url ?? attrs.url ?? record.href ?? attrs.href);
+  }
+  return null;
+}
+
+function absolutizeMediaUrl(url: string | null, baseUrl: string) {
+  if (!url) return null;
+  const decoded = decodeHtml(url.trim());
+  if (!/^https?:\/\//i.test(decoded) && !decoded.startsWith("//") && !decoded.startsWith("/")) return null;
+  try {
+    return new URL(decoded.startsWith("//") ? `https:${decoded}` : decoded, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+function isHttpUrl(url: string | null) {
+  return Boolean(url && /^https?:\/\//i.test(url));
+}
+
+function looksLikeMedia(url: string | null, mimeType?: string | null) {
+  return Boolean(
+    isHttpUrl(url) &&
+      ((mimeType && /^(image|video)\//i.test(mimeType)) || /\.(jpe?g|png|webp|gif|avif|mp4|webm|mov)(?:[?#].*)?$/i.test(url!))
+  );
+}
+
+function firstMedia(value: unknown): { url: string | null; type: string | null } {
+  if (typeof value === "string" && value.trim()) return { url: value.trim(), type: null };
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = firstMedia(item);
+      if (found.url) return found;
+    }
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : {};
+    return {
+      url: firstString(record.url ?? attrs.url ?? record.href ?? attrs.href),
+      type: firstString(record.type ?? attrs.type ?? record.medium ?? attrs.medium)
+    };
+  }
+  return { url: null, type: null };
+}
+
+function extractHtmlMedia(html: string | undefined, baseUrl: string) {
+  if (!html) return null;
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  const videoMatch = html.match(/<source[^>]+src=["']([^"']+)["']/i) ?? html.match(/<video[^>]+src=["']([^"']+)["']/i);
+  return absolutizeMediaUrl(videoMatch?.[1] ?? imgMatch?.[1] ?? null, baseUrl);
+}
+
+function extractFeedMedia(item: RawFeedItem, baseUrl: string) {
+  const candidates = [
+    firstMedia(item.enclosure),
+    firstMedia(item.mediaContent),
+    firstMedia(item.mediaThumbnail),
+    { url: extractHtmlMedia(item.contentEncoded ?? item["content:encoded"] ?? item.content, baseUrl), type: null }
+  ];
+  for (const candidate of candidates) {
+    const url = absolutizeMediaUrl(candidate.url, baseUrl);
+    if (looksLikeMedia(url, candidate.type)) return url;
+  }
+  return null;
+}
+
+function extractMetaMedia(html: string, baseUrl: string) {
+  const patterns = [
+    /<meta[^>]+property=["']og:video(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+name=["']twitter:player:stream["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+property=["']og:image(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video(?::secure_url|:url)?["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url|:url)?["']/i
+  ];
+  for (const pattern of patterns) {
+    const url = absolutizeMediaUrl(html.match(pattern)?.[1] ?? null, baseUrl);
+    if (isHttpUrl(url)) return url;
+  }
+  const inline = extractHtmlMedia(html, baseUrl);
+  return looksLikeMedia(inline) ? inline : null;
+}
+
+async function resolveArticleMedia(item: FeedItem) {
+  if (item.mediaUrl) return item.mediaUrl;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetch(item.link, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)"
+      }
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+    return extractMetaMedia(html.slice(0, 250_000), item.link);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // The cheap word-overlap check above catches near-identical headlines but misses the same
@@ -162,7 +310,8 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
         sourceName: source.name,
         title: item.title.trim(),
         link: item.link.trim(),
-        snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000)
+        snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000),
+        mediaUrl: extractFeedMedia(item, item.link)
       }));
   } catch (error) {
     console.error(`[aggregator] "${source.name}" feed fetch failed:`, error instanceof Error ? error.message : error);
@@ -226,6 +375,7 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
   const summary = parsed.content.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ").slice(0, 220);
   const slug = await uniqueArticleSlug(parsed.title);
   const status = env.NEWS_AGGREGATOR_STATUS;
+  const mainImage = await resolveArticleMedia(item);
 
   const article = await prisma.article.create({
     data: {
@@ -237,6 +387,7 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
       authorId,
       status,
       isBreaking: Boolean(parsed.isBreaking),
+      mainImage,
       sourceName: item.sourceName,
       sourceUrl: item.link,
       publishedAt: status === "PUBLISHED" ? new Date() : null

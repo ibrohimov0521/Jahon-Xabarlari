@@ -107,12 +107,12 @@ export default async function Home() {
             <h2 className="text-[22px] font-black">Trend bo'layotgan</h2>
               <TrendingUp className="text-brand" />
             </div>
-            <div className="space-y-[22px]">
+            <div className="grid gap-3">
               {trendingItems.map((item, index) => (
                 <Link
                   key={item.id}
                   href={`/articles/${item.slug}`}
-                  className={`grid gap-3 rounded-md transition hover:bg-white/10 ${item.mainImage ? "grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
+                  className={`grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
                 >
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
@@ -226,7 +226,7 @@ export default async function Home() {
             </div>
             <div className="grid gap-4">
               {trendingItems.slice(0, 8).map((item, index) => (
-                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[32px_1fr] gap-3 rounded-lg transition hover:bg-white/10">
+                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                   <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <span>
                     <span className="line-clamp-2 text-[15px] font-black leading-snug">{item.title}</span>

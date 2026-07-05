@@ -18,7 +18,7 @@ export function ArticleModal() {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       if (window.matchMedia("(max-width: 767px)").matches) return;
       if (window.location.pathname.startsWith("/articles/")) return;
-      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/articles/"]');
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="/articles/"], a[href*="/articles/"]');
       if (!link || link.target || link.dataset.fullPage === "true") return;
 
       event.preventDefault();
@@ -35,8 +35,8 @@ export function ArticleModal() {
         .finally(() => setLoading(false));
     }
 
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   useEffect(() => {

@@ -8,6 +8,7 @@ from io import BytesIO
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramRetryAfter
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -89,6 +90,9 @@ async def request_or_error(message: Message, method: str, path: str, **kwargs) -
         return None
 
 
+TELEGRAM_FILE_DOWNLOAD_LIMIT = 20 * 1024 * 1024
+
+
 def is_forwarded(message: Message) -> bool:
     return bool(getattr(message, "forward_origin", None) or getattr(message, "forward_from_chat", None) or getattr(message, "forward_from", None))
 
@@ -105,8 +109,10 @@ async def upload_forward_media(message: Message, bot: Bot) -> dict[str, str]:
         content_type = "image/jpeg"
     elif message.video:
         video = message.video
-        if video.file_size and video.file_size > 100 * 1024 * 1024:
-            return {"url": "", "message": "Media: video 100MB dan katta, saytga avtomatik yuklanmadi."}
+        # Telegram's cloud Bot API caps file downloads (getFile/download) at 20MB regardless of
+        # the video's own size limit in the app, so anything larger fails inside bot.get_file below.
+        if video.file_size and video.file_size > TELEGRAM_FILE_DOWNLOAD_LIMIT:
+            return {"url": "", "message": "Media: video 20MB dan katta, Telegram bot API orqali yuklab bo'lmaydi."}
         media = video
         filename = f"{video.file_unique_id}.mp4"
         content_type = video.mime_type or "video/mp4"
@@ -211,13 +217,24 @@ async def send_articles(message: Message, status: str | None = None, flag: str |
         return
     await message.answer("Topilgan maqolalar. Har bir maqola ostidagi amaldan foydalaning:", reply_markup=reply_menu())
     for item in items[:10]:
-        await message.answer(
-            f"<b>{html.escape(item['title'])}</b>\n"
-            f"Status: {item['status']}\n"
-            f"Kategoriya: {html.escape(item.get('category', {}).get('name', '-'))}\n"
-            f"Ko'rishlar: {item['viewsCount']}",
-            reply_markup=article_actions(item["id"]),
-        )
+        try:
+            await message.answer(
+                f"<b>{html.escape(item['title'])}</b>\n"
+                f"Status: {item['status']}\n"
+                f"Kategoriya: {html.escape(item.get('category', {}).get('name', '-'))}\n"
+                f"Ko'rishlar: {item['viewsCount']}",
+                reply_markup=article_actions(item["id"]),
+            )
+        except TelegramRetryAfter as exc:
+            await asyncio.sleep(exc.retry_after)
+            await message.answer(
+                f"<b>{html.escape(item['title'])}</b>\n"
+                f"Status: {item['status']}\n"
+                f"Kategoriya: {html.escape(item.get('category', {}).get('name', '-'))}\n"
+                f"Ko'rishlar: {item['viewsCount']}",
+                reply_markup=article_actions(item["id"]),
+            )
+        await asyncio.sleep(0.05)
 
 
 @router.message(F.text == MENU_ARTICLES)
@@ -456,6 +473,8 @@ async def set_title(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.summary)
 async def set_summary(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     if not message.text or len(message.text.strip()) < 10:
         await message.answer("Qisqa tavsif kamida 10 ta belgidan iborat bo'lsin.")
         return
@@ -466,6 +485,8 @@ async def set_summary(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.content)
 async def set_content(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     if not message.text or len(message.text.strip()) < 20:
         await message.answer("Asosiy matn kamida 20 ta belgidan iborat bo'lsin.")
         return

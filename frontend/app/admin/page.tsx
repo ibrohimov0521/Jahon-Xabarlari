@@ -231,10 +231,10 @@ export default function AdminPage() {
     }
   }
 
-  async function changeArticleStatus(id: string, status: ArticleStatus) {
+  async function changeArticleStatus(id: string, status: ArticleStatus, scheduledAt?: string) {
     await withErrorHandling(async () => {
-      await adminRequest(`/admin/articles/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      flash(`Maqola statusi ${status} qilindi`);
+      await adminRequest(`/admin/articles/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, scheduledAt }) });
+      flash(status === "SCHEDULED" ? "Maqola rejalashtirildi" : `Maqola statusi ${status} qilindi`);
       await loadArticles();
     });
   }

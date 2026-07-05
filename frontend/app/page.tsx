@@ -33,17 +33,34 @@ const categorySections = [
 export default async function Home() {
   const lang = await getRequestLang();
   const [articles, trending] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8)]);
-  const [hero, ...rest] = articles;
-  const side = rest.slice(0, 3);
-  const latest = rest.slice(3, 15);
-  const editorLead = rest[15] ?? rest[4];
-  const editorList = rest.slice(16, 20);
-  const extraStream = rest.slice(20, 32);
+
+  // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
+  const eligible = articles.filter((item) => item.showOnHome !== false);
+
+  // showInSlider curates the lead story; fall back to the newest eligible article so the
+  // homepage still has a hero before any editor has flagged anything.
+  const sliderPool = eligible.filter((item) => item.showInSlider);
+  const hero = sliderPool[0] ?? eligible[0];
+  const rest = eligible.filter((item) => item.id !== hero?.id);
+
+  // isEditorChoice curates "Muharrir tanlovi"; same graceful fallback to the general pool.
+  const editorPool = rest.filter((item) => item.isEditorChoice);
+  const editorLead = editorPool[0] ?? rest[15] ?? rest[4];
+  const editorList = editorPool.length > 1 ? editorPool.slice(1, 5) : rest.slice(16, 20);
+  const editorIds = new Set([editorLead?.id, ...editorList.map((item) => item.id)].filter(Boolean));
+
+  // showInLatest gates the general recency-based sections; exclude whatever the editor
+  // section already used so the same article isn't repeated twice on the page.
+  const generalPool = rest.filter((item) => item.showInLatest !== false && !editorIds.has(item.id));
+  const side = generalPool.slice(0, 3);
+  const latest = generalPool.slice(3, 15);
+  const extraStream = generalPool.slice(15, 27);
+
   const trendingItems = trending;
   const sectionGroups = categorySections
     .map((section) => ({
       ...section,
-      items: articles.filter((item) => item.category?.slug === section.slug).slice(0, 4)
+      items: eligible.filter((item) => item.category?.slug === section.slug).slice(0, 4)
     }))
     .filter((section) => section.items.length >= 2);
 

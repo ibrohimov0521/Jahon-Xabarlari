@@ -66,7 +66,7 @@ export function ArticlesView({
   articles: Article[];
   trashed: boolean;
   onTrashedChange: (trashed: boolean) => void;
-  onStatus: (id: string, status: ArticleStatus) => void;
+  onStatus: (id: string, status: ArticleStatus, scheduledAt?: string) => void;
   onTrash: (id: string) => void;
   onRestore: (id: string) => void;
   onPermanentDelete: (id: string) => void;
@@ -82,11 +82,14 @@ export function ArticlesView({
   const [status, setStatus] = useState<ArticleStatus | "">(initialStatus);
   const [selected, setSelected] = useState<string[]>([]);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [scheduleTargetId, setScheduleTargetId] = useState<string | null>(null);
+  const [scheduleValue, setScheduleValue] = useState("");
 
   useEffect(() => {
     setStatus(initialStatus);
     setSelected([]);
     setOpenStatusId(null);
+    setScheduleTargetId(null);
   }, [initialStatus, onlyToday]);
 
   const filtered = useMemo(() => {
@@ -104,13 +107,27 @@ export function ArticlesView({
     setSelected((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   }
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((item) => selected.includes(item.id));
+
   function toggleSelectAll() {
-    setSelected((prev) => (prev.length === filtered.length ? [] : filtered.map((item) => item.id)));
+    setSelected(allFilteredSelected ? [] : filtered.map((item) => item.id));
   }
 
   function changeStatus(id: string, nextStatus: ArticleStatus) {
+    if (nextStatus === "SCHEDULED") {
+      setScheduleTargetId(id);
+      setScheduleValue("");
+      return;
+    }
     setOpenStatusId(null);
     onStatus(id, nextStatus);
+  }
+
+  function confirmSchedule(id: string) {
+    if (!scheduleValue) return;
+    onStatus(id, "SCHEDULED", new Date(scheduleValue).toISOString());
+    setScheduleTargetId(null);
+    setOpenStatusId(null);
   }
 
   return (
@@ -136,7 +153,7 @@ export function ArticlesView({
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
         <label className="inline-flex items-center gap-3 text-sm font-black">
-          <input type="checkbox" checked={selected.length > 0 && selected.length === filtered.length} onChange={toggleSelectAll} className="size-4 accent-blue-600" />
+          <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} className="size-4 accent-blue-600" />
           {filtered.length} ta yangilik
         </label>
         {selected.length > 0 && (
@@ -243,26 +260,56 @@ export function ArticlesView({
                       </button>
                       {openStatusId === item.id && (
                         <div className="absolute right-0 top-12 z-[160] w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
-                          <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Statusni o'zgartirish</div>
-                          {nextStatuses.map((nextStatus) => {
-                            const meta = STATUS_META[nextStatus];
-                            const Icon = meta.icon;
-                            return (
-                              <button
-                                key={nextStatus}
-                                onClick={() => changeStatus(item.id, nextStatus)}
-                                className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
-                              >
-                                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
-                                  <Icon size={16} />
-                                </span>
-                                <span>
-                                  <span className="block text-sm font-black">{meta.label}</span>
-                                  <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
-                                </span>
-                              </button>
-                            );
-                          })}
+                          {scheduleTargetId === item.id ? (
+                            <div className="p-2">
+                              <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Nashr sanasini belgilang</div>
+                              <input
+                                type="datetime-local"
+                                value={scheduleValue}
+                                onChange={(event) => setScheduleValue(event.target.value)}
+                                min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
+                              />
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  onClick={() => setScheduleTargetId(null)}
+                                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-black text-slate-500 hover:border-slate-300"
+                                >
+                                  Bekor qilish
+                                </button>
+                                <button
+                                  onClick={() => confirmSchedule(item.id)}
+                                  disabled={!scheduleValue}
+                                  className="flex-1 rounded-lg bg-brand px-3 py-2 text-sm font-black text-white disabled:opacity-50"
+                                >
+                                  Rejalashtirish
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Statusni o'zgartirish</div>
+                              {nextStatuses.map((nextStatus) => {
+                                const meta = STATUS_META[nextStatus];
+                                const Icon = meta.icon;
+                                return (
+                                  <button
+                                    key={nextStatus}
+                                    onClick={() => changeStatus(item.id, nextStatus)}
+                                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
+                                  >
+                                    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
+                                      <Icon size={16} />
+                                    </span>
+                                    <span>
+                                      <span className="block text-sm font-black">{meta.label}</span>
+                                      <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

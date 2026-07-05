@@ -26,6 +26,7 @@ export type Article = ArticleFlags & {
   mainImage?: string | null;
   gallery?: string[];
   status: ArticleStatus;
+  scheduledAt?: string | null;
   viewsCount: number;
   seoTitle?: string | null;
   seoDescription?: string | null;

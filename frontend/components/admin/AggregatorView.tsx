@@ -51,10 +51,15 @@ export function AggregatorView() {
     setError("");
     setMessage("");
     try {
-      await adminRequest("/admin/aggregator/run", { method: "POST", body: JSON.stringify({ limit: Number(limit) || undefined }) });
-      setMessage(
-        `Aggregator ishga tushirildi (limit: ${limit}). Bu fonda bir necha daqiqa davom etishi mumkin -- yangi maqolalarni "Yangiliklar" bo'limida ko'rasiz.`
-      );
+      const result = await adminRequest<{ ok: boolean; published: number; message: string }>("/admin/aggregator/run", {
+        method: "POST",
+        body: JSON.stringify({ limit: Number(limit) || undefined })
+      });
+      if (result.ok) {
+        setMessage(result.message);
+      } else {
+        setError(result.message);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ishga tushirib bo'lmadi");
     } finally {

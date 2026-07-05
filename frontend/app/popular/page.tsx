@@ -13,7 +13,12 @@ export const metadata: Metadata = {
 
 export default async function PopularPage() {
   const lang = await getRequestLang();
-  const articles = (await getArticles("?limit=12", lang)).sort((a, b) => b.viewsCount - a.viewsCount);
+  const all = await getArticles("?limit=36", lang);
+  // showInPopular is opt-in (defaults false), so an un-curated site would show nothing if it
+  // were a hard filter -- prefer the curated subset once it has enough items, otherwise fall
+  // back to ranking everything by views like before.
+  const curated = all.filter((item) => item.showInPopular);
+  const articles = (curated.length >= 6 ? curated : all).sort((a, b) => b.viewsCount - a.viewsCount).slice(0, 12);
   return (
     <main>
       <Header />

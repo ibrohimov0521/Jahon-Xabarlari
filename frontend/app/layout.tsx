@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ArticleModal } from "../components/ArticleModal";
 import { UiProvider } from "../lib/ui-context";
-import { SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_URL } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_URL } from "../lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
       { url: "/icon.png", sizes: "512x512", type: "image/png" },
       { url: SITE_ICON_192, sizes: "192x192", type: "image/png" },
       { url: SITE_ICON_512, sizes: "512x512", type: "image/png" }
@@ -91,9 +94,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "NewsMediaOrganization",
+              "@id": `${SITE_URL}/#organization`,
               name: SITE_NAME,
+              alternateName: SITE_ALTERNATE_NAME,
               url: SITE_URL,
-              logo: `${SITE_URL}${SITE_LOGO}`,
+              logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}${SITE_ICON_512}`,
+                width: 512,
+                height: 512
+              },
               image: `${SITE_URL}${SITE_OG_IMAGE}`,
               sameAs: SITE_SOCIAL_LINKS
             })
@@ -105,8 +115,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
+              "@id": `${SITE_URL}/#website`,
               name: SITE_NAME,
+              alternateName: SITE_ALTERNATE_NAME,
               url: SITE_URL,
+              publisher: { "@id": `${SITE_URL}/#organization` },
               potentialAction: {
                 "@type": "SearchAction",
                 target: `${SITE_URL}/search?q={search_term_string}`,

@@ -1,0 +1,49 @@
+import { Router } from "express";
+import { z } from "zod";
+
+export const weatherRouter = Router();
+
+const CACHE_TTL_MS = 12 * 60 * 1000; // 10-15 min, per spec
+const cache = new Map<string, { data: unknown; expiresAt: number }>();
+
+const querySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180)
+});
+
+function cacheKey(lat: number, lon: number) {
+  // Round to ~1km precision so nearby requests for the "same" city share a cache entry.
+  return `${lat.toFixed(2)},${lon.toFixed(2)}`;
+}
+
+weatherRouter.get("/", async (req, res) => {
+  const parsed = querySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ message: "lat/lon parametrlari noto'g'ri" });
+  const { lat, lon } = parsed.data;
+
+  const key = cacheKey(lat, lon);
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return res.json(cached.data);
+  }
+
+  try {
+    const url =
+      "https://api.open-meteo.com/v1/forecast" +
+      `?latitude=${lat}&longitude=${lon}` +
+      "&current=temperature_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,relative_humidity_2m,pressure_msl" +
+      "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,relative_humidity_2m,is_day" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max" +
+      "&timezone=auto&forecast_days=16";
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Open-Meteo ${response.status}`);
+    const data = await response.json();
+
+    cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+    res.json(data);
+  } catch (error) {
+    console.error("[weather] Open-Meteo so'rovi muvaffaqiyatsiz:", error instanceof Error ? error.message : error);
+    res.status(502).json({ message: "Ob-havo ma'lumotlarini olishda xatolik" });
+  }
+});

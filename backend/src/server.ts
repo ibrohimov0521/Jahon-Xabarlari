@@ -15,6 +15,7 @@ import { mediaRouter } from "./modules/media/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
 import { userRouter } from "./modules/users/routes.js";
 import { aggregatorRouter } from "./modules/aggregator/routes.js";
+import { weatherRouter } from "./modules/weather/routes.js";
 import { runAggregatorCycle } from "./services/aggregator.js";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/admin/media", mediaRouter);
 app.use("/api/admin/audit-logs", auditRouter);
 app.use("/api/admin/users", userRouter);
 app.use("/api/admin/aggregator", aggregatorRouter);
+app.use("/api/weather", weatherRouter);
 
 app.listen(apiPort, () => {
   console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);

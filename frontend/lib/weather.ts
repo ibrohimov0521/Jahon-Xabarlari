@@ -36,26 +36,13 @@ export function findRegionByName(name: string): UzRegion {
   return UZ_REGIONS.find((region) => region.name === name) ?? UZ_REGIONS[0];
 }
 
-export async function fetchTemperature(lat: number, lon: number): Promise<number | null> {
-  try {
-    const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&timezone=auto`
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const temp = data?.current?.temperature_2m;
-    return typeof temp === "number" ? Math.round(temp) : null;
-  } catch {
-    return null;
-  }
-}
-
-export type WeatherCondition = "clear" | "clouds" | "fog" | "rain" | "snow" | "storm";
+export type WeatherCondition = "clear" | "partlyCloudy" | "clouds" | "fog" | "rain" | "snow" | "storm";
 
 // WMO weather codes, as returned by Open-Meteo. https://open-meteo.com/en/docs
 export function codeToCondition(code: number): WeatherCondition {
-  if (code === 0 || code === 1) return "clear";
-  if (code === 2 || code === 3) return "clouds";
+  if (code === 0) return "clear";
+  if (code === 1 || code === 2) return "partlyCloudy";
+  if (code === 3) return "clouds";
   if (code === 45 || code === 48) return "fog";
   if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "rain";
   if ([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
@@ -63,75 +50,132 @@ export function codeToCondition(code: number): WeatherCondition {
   return "clouds";
 }
 
-// Uzbek description shown under the current temperature (matches the reference design).
 export function conditionLabel(condition: WeatherCondition): string {
   return {
     clear: "Musaffo",
+    partlyCloudy: "Qisman bulutli",
     clouds: "Bulutli",
-    fog: "Tumanli",
-    rain: "Yomg'irli",
-    snow: "Qorli",
-    storm: "Momaqaldiroqli"
+    fog: "Tuman",
+    rain: "Yomg'ir",
+    snow: "Qor",
+    storm: "Momaqaldiroq"
   }[condition];
 }
 
-// Tailwind gradient classes per condition, used as the weather modal's dynamic background.
-export const CONDITION_GRADIENT: Record<WeatherCondition, string> = {
-  clear: "from-sky-400 via-sky-500 to-emerald-400",
-  clouds: "from-slate-400 via-slate-500 to-slate-600",
-  fog: "from-slate-300 via-slate-400 to-slate-500",
-  rain: "from-slate-600 via-slate-700 to-slate-900",
-  snow: "from-sky-100 via-sky-200 to-slate-300",
-  storm: "from-slate-800 via-indigo-900 to-slate-900"
+// Tailwind gradient classes for the weather modal's dynamic background, day vs night variants.
+export function conditionGradient(condition: WeatherCondition, isDay: boolean): string {
+  const day: Record<WeatherCondition, string> = {
+    clear: "from-sky-400 via-sky-500 to-emerald-400",
+    partlyCloudy: "from-sky-300 via-slate-400 to-slate-500",
+    clouds: "from-slate-400 via-slate-500 to-slate-600",
+    fog: "from-slate-300 via-slate-400 to-slate-500",
+    rain: "from-slate-600 via-slate-700 to-slate-900",
+    snow: "from-sky-100 via-sky-200 to-slate-300",
+    storm: "from-slate-800 via-indigo-900 to-slate-900"
+  };
+  const night: Record<WeatherCondition, string> = {
+    clear: "from-indigo-950 via-slate-900 to-black",
+    partlyCloudy: "from-indigo-900 via-slate-800 to-slate-950",
+    clouds: "from-slate-700 via-slate-800 to-slate-950",
+    fog: "from-slate-600 via-slate-700 to-slate-900",
+    rain: "from-slate-800 via-slate-900 to-black",
+    snow: "from-slate-500 via-slate-700 to-slate-900",
+    storm: "from-slate-900 via-indigo-950 to-black"
+  };
+  return (isDay ? day : night)[condition];
+}
+
+export type HourPoint = {
+  time: string;
+  temp: number;
+  feelsLike: number;
+  condition: WeatherCondition;
+  precipitation: number;
+  humidity: number;
+  windSpeed: number;
+  isDay: boolean;
 };
 
-export type HourPoint = { time: string; temp: number; condition: WeatherCondition; precipitation: number };
-export type DayPoint = { date: string; max: number; min: number; condition: WeatherCondition; precipitation: number };
+export type DayPoint = {
+  date: string;
+  max: number;
+  min: number;
+  condition: WeatherCondition;
+  precipitation: number;
+  uvIndex: number;
+  sunrise: string;
+  sunset: string;
+};
 
 export type FullWeather = {
   temperature: number;
   feelsLike: number;
   condition: WeatherCondition;
+  isDay: boolean;
+  humidity: number;
+  windSpeed: number;
+  pressure: number;
+  precipitation: number;
   todayMax: number;
   todayMin: number;
+  todayUvIndex: number;
+  sunrise: string;
+  sunset: string;
   hourly: HourPoint[];
   daily: DayPoint[];
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
+
+// Fetched via our own backend (which proxies + caches Open-Meteo for 10-15 min) rather than
+// calling Open-Meteo directly from the browser, per the requested architecture.
 export async function fetchFullWeather(lat: number, lon: number): Promise<FullWeather | null> {
   try {
-    const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        "&current=temperature_2m,apparent_temperature,weathercode" +
-        "&hourly=temperature_2m,weathercode,precipitation_probability" +
-        "&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max" +
-        "&timezone=auto&forecast_days=8"
-    );
+    const res = await fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`);
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.current || !data?.hourly || !data?.daily) return null;
 
     const startIdx = Math.max(0, data.hourly.time.indexOf(data.current.time));
-    const hourly: HourPoint[] = data.hourly.time.slice(startIdx, startIdx + 12).map((time: string, i: number) => ({
-      time,
-      temp: Math.round(data.hourly.temperature_2m[startIdx + i]),
-      condition: codeToCondition(data.hourly.weathercode[startIdx + i]),
-      precipitation: data.hourly.precipitation_probability?.[startIdx + i] ?? 0
-    }));
+    const hourly: HourPoint[] = data.hourly.time.slice(startIdx, startIdx + 48).map((time: string, i: number) => {
+      const idx = startIdx + i;
+      return {
+        time,
+        temp: Math.round(data.hourly.temperature_2m[idx]),
+        feelsLike: Math.round(data.hourly.apparent_temperature[idx]),
+        condition: codeToCondition(data.hourly.weather_code[idx]),
+        precipitation: data.hourly.precipitation_probability?.[idx] ?? 0,
+        humidity: data.hourly.relative_humidity_2m?.[idx] ?? 0,
+        windSpeed: Math.round(data.hourly.wind_speed_10m?.[idx] ?? 0),
+        isDay: Boolean(data.hourly.is_day?.[idx] ?? 1)
+      };
+    });
+
     const daily: DayPoint[] = data.daily.time.map((date: string, i: number) => ({
       date,
       max: Math.round(data.daily.temperature_2m_max[i]),
       min: Math.round(data.daily.temperature_2m_min[i]),
-      condition: codeToCondition(data.daily.weathercode[i]),
-      precipitation: data.daily.precipitation_probability_max?.[i] ?? 0
+      condition: codeToCondition(data.daily.weather_code[i]),
+      precipitation: data.daily.precipitation_probability_max?.[i] ?? 0,
+      uvIndex: Math.round(data.daily.uv_index_max?.[i] ?? 0),
+      sunrise: data.daily.sunrise?.[i] ?? "",
+      sunset: data.daily.sunset?.[i] ?? ""
     }));
 
     return {
       temperature: Math.round(data.current.temperature_2m),
       feelsLike: Math.round(data.current.apparent_temperature),
-      condition: codeToCondition(data.current.weathercode),
+      condition: codeToCondition(data.current.weather_code),
+      isDay: Boolean(data.current.is_day),
+      humidity: Math.round(data.current.relative_humidity_2m ?? 0),
+      windSpeed: Math.round(data.current.wind_speed_10m ?? 0),
+      pressure: Math.round(data.current.pressure_msl ?? 0),
+      precipitation: data.current.precipitation ?? 0,
       todayMax: daily[0]?.max ?? Math.round(data.current.temperature_2m),
       todayMin: daily[0]?.min ?? Math.round(data.current.temperature_2m),
+      todayUvIndex: daily[0]?.uvIndex ?? 0,
+      sunrise: daily[0]?.sunrise ?? "",
+      sunset: daily[0]?.sunset ?? "",
       hourly,
       daily
     };

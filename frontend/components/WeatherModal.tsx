@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronDown, Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, Sun, X } from "lucide-react";
+import { ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Sun, Wind, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  CONDITION_GRADIENT,
+  conditionGradient,
   conditionLabel,
   fetchFullWeather,
   UZ_REGIONS,
@@ -14,17 +14,20 @@ import {
 
 const WEEKDAYS_SHORT = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
 
-const CONDITION_ICON: Record<WeatherCondition, typeof Sun> = {
-  clear: Sun,
-  clouds: Cloud,
-  fog: CloudFog,
-  rain: CloudRain,
-  snow: CloudSnow,
-  storm: CloudLightning
+// Day/night icon variants per condition (clear/partly-cloudy look meaningfully different at
+// night; the rest read fine either way but a moon-tinted set would be overkill).
+const CONDITION_ICON: Record<WeatherCondition, { day: typeof Sun; night: typeof Sun }> = {
+  clear: { day: Sun, night: Moon },
+  partlyCloudy: { day: CloudSun, night: CloudMoon },
+  clouds: { day: Cloud, night: Cloud },
+  fog: { day: CloudFog, night: CloudFog },
+  rain: { day: CloudRain, night: CloudRain },
+  snow: { day: CloudSnow, night: CloudSnow },
+  storm: { day: CloudLightning, night: CloudLightning }
 };
 
-function ConditionIcon({ condition, className }: { condition: WeatherCondition; className?: string }) {
-  const Icon = CONDITION_ICON[condition];
+function ConditionIcon({ condition, isDay = true, className }: { condition: WeatherCondition; isDay?: boolean; className?: string }) {
+  const Icon = isDay ? CONDITION_ICON[condition].day : CONDITION_ICON[condition].night;
   return <Icon className={className} />;
 }
 
@@ -33,10 +36,27 @@ function formatHour(iso: string) {
   return `${date.getHours().toString().padStart(2, "0")}:00`;
 }
 
+function formatClock(iso: string) {
+  if (!iso) return "--:--";
+  const date = new Date(iso);
+  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+}
+
 function dayLabel(iso: string, index: number) {
   if (index === 0) return "Bugun";
+  if (index === 1) return "Ertaga";
   const date = new Date(iso);
   return WEEKDAYS_SHORT[date.getDay()];
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/12 p-3 text-center backdrop-blur-md">
+      <span className="text-amber-200">{icon}</span>
+      <span className="text-base font-black">{value}</span>
+      <span className="text-[11px] text-white/70">{label}</span>
+    </div>
+  );
 }
 
 export function WeatherModal({
@@ -54,17 +74,19 @@ export function WeatherModal({
 }) {
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
+    setError("");
     fetchFullWeather(region.lat, region.lon).then((data) => {
-      if (!cancelled) {
-        setWeather(data);
-        setLoading(false);
-      }
+      if (cancelled) return;
+      if (!data) setError("Ob-havo ma'lumotlarini olishda xatolik");
+      setWeather(data);
+      setLoading(false);
     });
     return () => {
       cancelled = true;
@@ -74,10 +96,11 @@ export function WeatherModal({
   if (!open) return null;
 
   const condition = weather?.condition ?? "clear";
-  const gradient = CONDITION_GRADIENT[condition];
+  const isDay = weather?.isDay ?? true;
+  const gradient = conditionGradient(condition, isDay);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/50 p-4 pt-20 sm:items-center sm:pt-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16 sm:items-center sm:pt-4" onClick={onClose}>
       <div
         className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`}
         onClick={(event) => event.stopPropagation()}
@@ -86,7 +109,7 @@ export function WeatherModal({
           <X size={18} />
         </button>
 
-        <div className="relative p-6">
+        <div className="relative max-h-[85vh] overflow-y-auto p-6">
           <div className="relative inline-block">
             <button onClick={() => setRegionPickerOpen((value) => !value)} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur">
               📍 {region.name} <ChevronDown size={14} />
@@ -110,11 +133,12 @@ export function WeatherModal({
           </div>
 
           {loading && !weather && <p className="mt-8 text-white/80">Yuklanmoqda...</p>}
+          {error && <p className="mt-8 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-bold text-red-100">{error}</p>}
 
           {weather && (
             <>
               <div className="mt-4 flex items-center gap-4">
-                <ConditionIcon condition={condition} className="h-16 w-16 shrink-0 text-amber-200 drop-shadow" />
+                <ConditionIcon condition={condition} isDay={isDay} className="h-16 w-16 shrink-0 text-amber-200 drop-shadow" />
                 <div>
                   <p className="text-6xl font-black leading-none">{weather.temperature}°</p>
                   <p className="mt-1 text-lg font-bold">{conditionLabel(condition)}</p>
@@ -124,27 +148,47 @@ export function WeatherModal({
                 ↑{weather.todayMax}° / ↓{weather.todayMin}° &nbsp;•&nbsp; His qilinishi: {weather.feelsLike}°
               </p>
 
-              <div className="mt-6 -mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
-                {weather.hourly.map((hour) => (
-                  <div key={hour.time} className="flex shrink-0 flex-col items-center gap-2 text-center">
-                    <span className="text-xs font-bold text-white/75">{formatHour(hour.time)}</span>
-                    <ConditionIcon condition={hour.condition} className="h-6 w-6 text-amber-200" />
-                    <span className="text-sm font-black">{hour.temp}°</span>
-                  </div>
-                ))}
+              {/* Current conditions -- glass stat cards */}
+              <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                <StatCard icon={<Wind size={18} />} label="Shamol" value={`${weather.windSpeed} km/s`} />
+                <StatCard icon={<Droplets size={18} />} label="Namlik" value={`${weather.humidity}%`} />
+                <StatCard icon={<Gauge size={18} />} label="Bosim" value={`${weather.pressure} hPa`} />
+                <StatCard icon={<Sun size={18} />} label="UV indeks" value={`${weather.todayUvIndex}`} />
+                <StatCard icon={<CloudRain size={18} />} label="Yog'ingarchilik" value={`${weather.hourly[0]?.precipitation ?? 0}%`} />
               </div>
 
-              <div className="mt-5 rounded-2xl bg-white/10 p-3 backdrop-blur">
+              {/* 48-hour forecast -- horizontal scroll */}
+              <div className="mt-6">
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/60">48 soatlik prognoz</p>
+                <div className="-mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
+                  {weather.hourly.map((hour) => (
+                    <div key={hour.time} className="flex shrink-0 flex-col items-center gap-2 text-center">
+                      <span className="text-xs font-bold text-white/75">{formatHour(hour.time)}</span>
+                      <ConditionIcon condition={hour.condition} isDay={hour.isDay} className="h-6 w-6 text-amber-200" />
+                      <span className="text-sm font-black">{hour.temp}°</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 15/16-day forecast -- its own separate glass card */}
+              <div className="mt-5 rounded-2xl bg-white/12 p-3 backdrop-blur-md">
+                <p className="mb-1 px-1 text-xs font-black uppercase tracking-wide text-white/60">16 kunlik prognoz</p>
                 {weather.daily.map((day, index) => (
                   <div key={day.date} className={`flex items-center justify-between gap-3 py-2 text-sm ${index > 0 ? "border-t border-white/10" : ""}`}>
                     <span className="w-16 shrink-0 font-bold">{dayLabel(day.date, index)}</span>
-                    {day.precipitation > 0 && <span className="text-xs text-sky-200">💧{day.precipitation}%</span>}
+                    {day.precipitation > 0 ? <span className="w-12 shrink-0 text-xs text-sky-200">💧{day.precipitation}%</span> : <span className="w-12 shrink-0" />}
                     <ConditionIcon condition={day.condition} className="ml-auto h-5 w-5 shrink-0 text-amber-200" />
                     <span className="w-20 shrink-0 text-right font-bold">
                       {day.max}° <span className="text-white/60">{day.min}°</span>
                     </span>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/12 p-3 text-sm backdrop-blur-md">
+                <span>🌅 Quyosh chiqishi: {formatClock(weather.sunrise)}</span>
+                <span>🌇 Botishi: {formatClock(weather.sunset)}</span>
               </div>
             </>
           )}

@@ -189,16 +189,6 @@ export type WeatherAlert = {
   expires: string;
 };
 
-export type MapLayer = "precipitation_new" | "clouds_new" | "temp_new" | "wind_new" | "pressure_new";
-
-export const MAP_LAYERS: { id: MapLayer; label: string }[] = [
-  { id: "precipitation_new", label: "Yog'ingarchilik" },
-  { id: "clouds_new", label: "Bulutlar" },
-  { id: "temp_new", label: "Harorat" },
-  { id: "wind_new", label: "Shamol" },
-  { id: "pressure_new", label: "Bosim" }
-];
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 // Severe weather alerts, proxied through our backend (WeatherAPI). Degrades to an empty list on
@@ -212,12 +202,6 @@ export async function fetchWeatherAlerts(lat: number, lon: number): Promise<Weat
   } catch {
     return [];
   }
-}
-
-// Tile URL template for MapLibre's raster source, pointed at our backend's OpenWeather tile proxy
-// so the API key never reaches the browser.
-export function tileUrlTemplate(layer: MapLayer): string {
-  return `${API_URL}/weather/tile/${layer}/{z}/{x}/{y}`;
 }
 
 // Fetched via our own backend (which proxies + caches Open-Meteo for 10-15 min) rather than

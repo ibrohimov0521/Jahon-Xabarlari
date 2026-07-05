@@ -11,7 +11,6 @@ const schema = z.object({
   API_PORT: z.coerce.number().optional(),
   PORT: z.coerce.number().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  OPENWEATHER_API_KEY: z.string().optional(),
   WEATHERAPI_API_KEY: z.string().optional(),
   NEWS_AGGREGATOR_ENABLED: z
     .string()

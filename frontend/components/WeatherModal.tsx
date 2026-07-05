@@ -14,7 +14,6 @@ import {
   type WeatherAlert,
   type WeatherCondition
 } from "../lib/weather";
-import { RadarMap } from "./RadarMap";
 
 const WEEKDAYS_SHORT = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
 
@@ -218,8 +217,6 @@ export function WeatherModal({
                 <span>🌅 Quyosh chiqishi: {formatClock(weather.sunrise)}</span>
                 <span>🌇 Botishi: {formatClock(weather.sunset)}</span>
               </div>
-
-              <RadarMap lat={region.lat} lon={region.lon} />
             </>
           )}
         </div>

@@ -13,10 +13,6 @@ const querySchema = z.object({
   lon: z.coerce.number().min(-180).max(180)
 });
 
-// Only these OpenWeather map layers are proxyable -- an allowlist so the :layer param can't be
-// used to reach an arbitrary path on OpenWeather's servers (or elsewhere, if ever refactored).
-const TILE_LAYERS = new Set(["precipitation_new", "clouds_new", "temp_new", "wind_new", "pressure_new"]);
-
 function cacheKey(lat: number, lon: number) {
   // Round to ~1km precision so nearby requests for the "same" city share a cache entry.
   return `${lat.toFixed(2)},${lon.toFixed(2)}`;
@@ -86,27 +82,5 @@ weatherRouter.get("/alerts", async (req, res) => {
     // Alerts failing shouldn't break the rest of the panel -- degrade to "no alerts" instead
     // of surfacing an error for a non-critical, supplementary feature.
     res.json({ alerts: [] });
-  }
-});
-
-// Proxies OpenWeather's map tiles (radar/precipitation/clouds/temp/wind overlays) so the API
-// key stays server-side -- the browser only ever talks to our backend, never OpenWeather
-// directly, consistent with how the main forecast is proxied above.
-weatherRouter.get("/tile/:layer/:z/:x/:y", async (req, res) => {
-  const { layer, z: zoom, x, y } = req.params;
-  if (!TILE_LAYERS.has(layer)) return res.status(400).json({ message: "Noto'g'ri xarita qatlami" });
-  if (!env.OPENWEATHER_API_KEY) return res.status(503).json({ message: "Xarita xizmati sozlanmagan" });
-
-  try {
-    const url = `https://tile.openweathermap.org/map/${layer}/${zoom}/${x}/${y}.png?appid=${env.OPENWEATHER_API_KEY}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`OpenWeather tile ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    res.set("Content-Type", "image/png");
-    res.set("Cache-Control", "public, max-age=600");
-    res.send(buffer);
-  } catch (error) {
-    console.error("[weather] Xarita qatlamini olishda xatolik:", error instanceof Error ? error.message : error);
-    res.status(502).end();
   }
 });

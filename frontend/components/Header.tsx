@@ -165,6 +165,10 @@ export function Header() {
               </span>
               <ChevronDown size={13} />
             </button>
+            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="weather-mobile-button md:hidden">
+              <CloudSun className="h-4 w-4 shrink-0 text-amber-300" />
+              <span>{weather ? `${weather.temperature}°` : "--°"}</span>
+            </button>
             <div className="relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
                 <Globe2 size={15} />

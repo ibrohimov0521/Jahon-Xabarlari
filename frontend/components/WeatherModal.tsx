@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Sun, Wind, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useUi } from "../lib/ui-context";
 import {
   conditionGradient,
   conditionLabel,
@@ -14,6 +15,16 @@ import {
   type WeatherAlert,
   type WeatherCondition
 } from "../lib/weather";
+
+const CYRILLIC_PATTERN = /[Ѐ-ӿ]/;
+
+// WeatherAPI issues each regional alert twice -- once in Russian, once in English -- with no
+// language field to tell them apart, so we detect script directly. The site has no Uzbek-
+// language alert source, so Uzbek/English UI both fall back to the English copies.
+function filterAlertsByLanguage(alerts: WeatherAlert[], language: "uz" | "ru" | "en") {
+  const wantsCyrillic = language === "ru";
+  return alerts.filter((alert) => CYRILLIC_PATTERN.test(alert.event || alert.headline || "") === wantsCyrillic);
+}
 
 const WEEKDAYS_SHORT = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
 
@@ -75,11 +86,13 @@ export function WeatherModal({
   regions: UzRegion[];
   onSelectRegion: (region: UzRegion) => void;
 }) {
+  const { language } = useUi();
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
+  const visibleAlerts = useMemo(() => filterAlertsByLanguage(alerts, language), [alerts, language]);
 
   useEffect(() => {
     if (!open) return;
@@ -149,9 +162,9 @@ export function WeatherModal({
             )}
           </div>
 
-          {alerts.length > 0 && (
+          {visibleAlerts.length > 0 && (
             <div className="mt-4 space-y-2">
-              {alerts.map((alert, index) => (
+              {visibleAlerts.map((alert, index) => (
                 <div key={index} className="flex items-start gap-2 rounded-2xl border border-red-300/40 bg-red-500/25 p-3 text-sm backdrop-blur-md">
                   <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-100" />
                   <div>

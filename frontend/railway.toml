@@ -1,3 +1,5 @@
+# Explicit builder pin -- Railway's CLI upload path has intermittently ignored this and
+# defaulted to Railpack (which fails: no start command detected for a Next.js app this way).
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

@@ -330,12 +330,13 @@ button.bg-white {
   display: inline-flex;
   height: 34px;
   min-width: 50px;
+  max-width: 60vw;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0 8px;
+  padding: 0 11px;
   background:
     linear-gradient(145deg, rgba(71, 226, 239, 0.2), rgba(255, 255, 255, 0.08)),
     rgba(4, 17, 31, 0.38);
@@ -353,6 +354,37 @@ button.bg-white {
   border-color: #1767f5;
   color: #1767f5;
   transform: translateY(-1px);
+}
+
+.weather-mobile-button .wm-temp {
+  color: #f4f9ff;
+  font-weight: 900;
+}
+
+.weather-mobile-button .wm-city {
+  color: #dbe9ff;
+  font-weight: 800;
+}
+
+.weather-mobile-button .wm-cond {
+  color: #b9d0ef;
+  font-weight: 600;
+  max-width: 96px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 430px) {
+  .weather-mobile-button .wm-cond {
+    display: none;
+  }
+}
+
+@media (max-width: 344px) {
+  .weather-mobile-button .wm-city {
+    display: none;
+  }
 }
 
 .weather-ticker {
@@ -407,6 +439,969 @@ button.bg-white {
 
 .topbar-info {
   line-height: 1.2;
+}
+
+/* ---- Mobile bottom navigation (app-style dock) ---- */
+/* Floating, glassmorphic premium pill — detached from the screen edges.
+   Sits ABOVE the search overlay (z 120) so the nav is always visible, but
+   below full-content modals (weather 200 / article 220). */
+.bottom-nav {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 130;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(22, 32, 55, 0.44), rgba(9, 15, 29, 0.54));
+  border: 1px solid rgba(120, 170, 255, 0.16);
+  box-shadow:
+    0 16px 40px rgba(0, 10, 30, 0.4),
+    0 0 40px rgba(47, 128, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(30px) saturate(160%);
+}
+
+.bottom-nav-item {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 0;
+  border-radius: 16px;
+  color: #9aa7c0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition: color 160ms ease, transform 140ms ease;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.92);
+}
+
+/* Premium active state — applies to EVERY tab (not only Search). */
+.bottom-nav-item.is-active {
+  color: #2f80ff;
+  transform: scale(1.06);
+}
+
+.bottom-nav-item.is-active .bottom-nav-ico {
+  color: #4f9dff;
+  background: linear-gradient(135deg, rgba(47, 128, 255, 0.24), rgba(0, 198, 255, 0.14));
+  box-shadow: 0 6px 18px rgba(47, 128, 255, 0.34), inset 0 0 0 1px rgba(47, 128, 255, 0.3);
+}
+
+/* Small glowing active indicator (the raised Search circle is its own indicator). */
+.bottom-nav-item.is-active:not(.is-search)::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 999px;
+  background: #2f80ff;
+  box-shadow: 0 0 8px rgba(47, 128, 255, 0.9);
+}
+
+.bottom-nav-ico {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 26px;
+  border-radius: 12px;
+  transition: background 200ms ease, box-shadow 200ms ease, color 180ms ease,
+    width 240ms cubic-bezier(0.22, 1, 0.36, 1), height 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Search tab: a raised, glowing blue circle ONLY when it is the active tab
+   (i.e. the Search overlay is open). Otherwise it's a plain tab like the rest. */
+.bottom-nav-item.is-search.is-active {
+  color: #2f80ff;
+}
+
+.bottom-nav-item.is-search.is-active .bottom-nav-ico {
+  width: 54px;
+  height: 54px;
+  margin-top: -20px;
+  border-radius: 999px;
+  color: #fff;
+  background: radial-gradient(circle at 35% 28%, #59a0ff, #2f80ff 45%, #1a55cc);
+  box-shadow: 0 12px 28px rgba(47, 128, 255, 0.6), 0 0 22px rgba(47, 128, 255, 0.55), 0 0 0 6px rgba(47, 128, 255, 0.14);
+}
+
+.bottom-nav-item.is-search:active .bottom-nav-ico {
+  transform: scale(0.92);
+}
+
+/* Backdrop sits BELOW the floating nav (z 130) so the bar is never dimmed. */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 125;
+  background: rgba(3, 8, 18, 0.55);
+  backdrop-filter: blur(8px);
+  animation: sheet-fade 200ms ease;
+}
+
+/* Glassmorphism sheet. z 128 keeps it under the floating nav (130) — the nav
+   stays visible on top — while a big bottom padding clears the nav. */
+.bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 128;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: 10px 16px calc(104px + env(safe-area-inset-bottom, 0px));
+  border-radius: 28px 28px 0 0;
+  background: rgba(10, 22, 40, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(22px) saturate(150%);
+  animation: sheet-up 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sheet-handle {
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 2px auto 12px;
+}
+
+.sheet-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #eef3ff;
+}
+
+.sheet-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: #9fb0c9;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.sheet-close:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.sheet-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sheet-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 13px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #eaf1ff;
+  font-weight: 700;
+  font-size: 14.5px;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: sheet-item-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+}
+
+.sheet-card:active {
+  transform: scale(0.98);
+}
+
+.sheet-card:hover,
+.sheet-card.is-active {
+  background: rgba(47, 128, 255, 0.12);
+  border-color: rgba(47, 128, 255, 0.3);
+}
+
+.sheet-card.is-active {
+  color: #7db1ff;
+}
+
+.sheet-card-ico {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  flex-shrink: 0;
+  background: rgba(47, 128, 255, 0.16);
+  color: #6ea8ff;
+}
+
+.sheet-card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-card-arrow {
+  color: #5b6b86;
+  flex-shrink: 0;
+}
+
+@keyframes sheet-item-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reserve space so page content isn't hidden behind the fixed bottom bar. */
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Search moved to the bottom bar on mobile (overrides .icon-button grid). */
+  .header-search {
+    display: none !important;
+  }
+
+  /* Language switcher pushed to the far right of the top bar on mobile. */
+  .site-header .language-wrap {
+    order: 5;
+    margin-left: 2px;
+  }
+}
+
+/* ============ Premium Search Experience (mobile full-screen + desktop dashboard) ============ */
+.se-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(4, 8, 18, 0);
+  backdrop-filter: blur(0px);
+  opacity: 0;
+  transition: opacity 0.28s ease, background 0.28s ease, backdrop-filter 0.28s ease;
+}
+
+.se-overlay.is-open {
+  opacity: 1;
+  background: rgba(4, 8, 18, 0.62);
+  backdrop-filter: blur(22px) saturate(120%);
+}
+
+.se-panel {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #eaf1ff;
+  background: linear-gradient(180deg, rgba(16, 22, 38, 0.98), rgba(9, 13, 24, 0.99));
+  transform: translateY(30px) scale(0.99);
+  opacity: 0;
+  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+
+.se-overlay.is-open .se-panel {
+  transform: none;
+  opacity: 1;
+}
+
+.se-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.se-field {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.se-field:focus-within {
+  border-color: rgba(47, 128, 255, 0.6);
+  box-shadow: 0 0 0 4px rgba(47, 128, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.se-field-ico {
+  color: #2f80ff;
+  flex-shrink: 0;
+}
+
+.se-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #eaf1ff;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.se-input::placeholder {
+  color: #6b778f;
+}
+
+.se-field-clear {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #b9c4d8;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.se-field-clear:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.08);
+}
+
+.se-cancel {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #9fb0c9;
+  padding: 0 4px;
+  white-space: nowrap;
+  transition: color 0.18s ease;
+}
+
+.se-cancel:hover {
+  color: #2f80ff;
+}
+
+.se-kbd-hints {
+  display: none;
+  gap: 6px;
+}
+
+.se-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 800;
+  color: #9fb0c9;
+}
+
+.se-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 16px;
+  scrollbar-width: none;
+}
+
+.se-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.se-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #c4cfe3;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  animation: se-pop 0.42s cubic-bezier(0.22, 1.4, 0.36, 1) forwards;
+  transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.se-chip:active {
+  transform: scale(0.93);
+}
+
+.se-chip.is-active {
+  background: linear-gradient(135deg, #2f80ff, #1e5fd6);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 22px rgba(47, 128, 255, 0.42), 0 0 0 1px rgba(47, 128, 255, 0.3);
+}
+
+.se-chip.is-ghost {
+  opacity: 1;
+  animation: none;
+}
+
+.se-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.se-side,
+.se-assistant {
+  display: none;
+}
+
+.se-center {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  /* Extra bottom space so results clear the floating nav that stays visible. */
+  padding: 12px 16px 104px;
+  position: relative;
+}
+
+.se-center-head {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7c89a3;
+  margin-bottom: 12px;
+}
+
+.se-block {
+  margin-bottom: 22px;
+}
+
+.se-block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7c89a3;
+}
+
+.se-clear {
+  margin-left: auto;
+  color: #2f80ff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.se-trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.se-trend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #dbe4f4;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: se-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.16s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.se-trend:hover {
+  transform: translateY(-2px);
+  background: rgba(47, 128, 255, 0.1);
+  border-color: rgba(47, 128, 255, 0.3);
+}
+
+.se-trend-rank {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(47, 128, 255, 0.16);
+  color: #7db1ff;
+  font-size: 12px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.se-trend-term {
+  flex: 1;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.se-trend-arrow {
+  color: #5b6b86;
+  flex-shrink: 0;
+}
+
+.se-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.se-recent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  transition: background 0.18s ease;
+  animation: se-rise 0.4s ease forwards;
+}
+
+.se-recent:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.se-recent-ico {
+  color: #5b6b86;
+  flex-shrink: 0;
+}
+
+.se-recent-term {
+  flex: 1;
+  text-align: left;
+  color: #c4cfe3;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.se-recent-del {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #5b6b86;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.se-recent:hover .se-recent-del {
+  opacity: 1;
+}
+
+.se-recent-del:hover {
+  background: rgba(255, 80, 80, 0.14);
+  color: #ff7a7a;
+}
+
+@media (hover: none) {
+  .se-recent-del {
+    opacity: 0.6;
+  }
+}
+
+.se-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.se-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #eaf1ff;
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+  animation: se-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.se-card:hover,
+.se-card.is-active {
+  transform: translateY(-2px);
+  background: rgba(47, 128, 255, 0.08);
+  border-color: rgba(47, 128, 255, 0.28);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.se-card-img {
+  width: 74px;
+  height: 74px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.se-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.se-card-cat {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2f80ff;
+}
+
+.se-card-title {
+  margin: 3px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #eef3ff;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.se-card-sum {
+  display: none;
+}
+
+.se-card-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #7c89a3;
+}
+
+.se-card-arrow {
+  color: #5b6b86;
+  flex-shrink: 0;
+}
+
+.se-card:hover .se-card-arrow {
+  color: #2f80ff;
+}
+
+.se-mark {
+  background: rgba(47, 128, 255, 0.28);
+  color: #cfe0ff;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.se-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.se-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: left;
+  color: #c4cfe3;
+  transition: background 0.18s ease;
+}
+
+.se-mini:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.se-mini-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #2f80ff;
+  box-shadow: 0 0 10px #2f80ff;
+  flex-shrink: 0;
+}
+
+.se-mini-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.se-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 46px 20px;
+  animation: se-fade 0.4s ease;
+}
+
+.se-empty-badge {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  background: radial-gradient(circle at 30% 30%, rgba(47, 128, 255, 0.3), rgba(47, 128, 255, 0.06));
+  color: #7db1ff;
+  margin-bottom: 18px;
+  box-shadow: 0 0 40px rgba(47, 128, 255, 0.25);
+}
+
+.se-empty-title {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.se-empty-sub {
+  margin: 8px 0 18px;
+  max-width: 320px;
+  color: #8a97b0;
+  font-size: 14px;
+}
+
+.se-empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.se-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #2f80ff, transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: se-scan 1s linear infinite;
+  z-index: 5;
+}
+
+@keyframes se-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes se-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes se-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes se-scan {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+
+/* Desktop: centered floating "Search Dashboard" modal with 3 panes. */
+@media (min-width: 1024px) {
+  .se-overlay {
+    align-items: center;
+    padding: 32px;
+  }
+
+  .se-panel {
+    width: min(1080px, 100%);
+    height: min(760px, 88vh);
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 44px 130px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(47, 128, 255, 0.06);
+    transform: translateY(18px) scale(0.97);
+  }
+
+  .se-cancel {
+    display: none;
+  }
+
+  .se-kbd-hints {
+    display: flex;
+  }
+
+  .se-chips {
+    display: none;
+  }
+
+  .se-body {
+    display: grid;
+    grid-template-columns: 250px 1fr 320px;
+  }
+
+  .se-side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 18px 14px;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    overflow-y: auto;
+  }
+
+  .se-assistant {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 16px;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    overflow-y: auto;
+  }
+
+  .se-center {
+    padding: 20px 24px 28px;
+  }
+
+  .se-side-title {
+    padding: 2px 10px 8px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #7c89a3;
+  }
+
+  .se-side-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 12px;
+    color: #c4cfe3;
+    font-weight: 700;
+    font-size: 14px;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+
+  .se-side-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .se-side-item.is-active {
+    background: rgba(47, 128, 255, 0.14);
+    color: #7db1ff;
+    box-shadow: inset 0 0 0 1px rgba(47, 128, 255, 0.3);
+  }
+
+  .se-side-item.is-active svg {
+    color: #2f80ff;
+  }
+
+  .se-assistant-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #9fb0c9;
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .se-card-img {
+    width: 104px;
+    height: 78px;
+  }
+
+  .se-card-sum {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #9fb0c9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-panel,
+  .se-chip,
+  .se-trend,
+  .se-recent,
+  .se-card {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 .icon-button {
@@ -622,12 +1617,7 @@ button.bg-white {
     }
 
     .site-header .weather-mobile-button {
-      min-width: 34px;
-      padding: 0;
-    }
-
-    .site-header .weather-mobile-button span {
-      display: none;
+      padding: 0 8px;
     }
   }
 

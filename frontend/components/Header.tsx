@@ -1,12 +1,12 @@
 "use client";
 
-import { ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SearchModal } from "./SearchModal";
 import { WeatherModal } from "./WeatherModal";
+import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
 import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, type FullWeather, type UzRegion } from "../lib/weather";
@@ -40,9 +40,8 @@ const languages: Array<{ code: Language; label: string; name: string }> = [
 export function Header() {
   const pathname = usePathname();
   const { language, setLanguage, theme, toggleTheme, t } = useUi();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const { openSearch } = useSearch();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState("");
   const [region, setRegion] = useState<UzRegion>(UZ_REGIONS[0]);
@@ -184,9 +183,11 @@ export function Header() {
             </button>
             <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="weather-mobile-button md:hidden">
               <CloudSun className="h-4 w-4 shrink-0 text-amber-300" />
-              <span>{weather ? `${weather.temperature}°` : "--°"}</span>
+              <span className="wm-city">{region.name}</span>
+              <span className="wm-temp">{weather ? `${weather.temperature}°` : "--°"}</span>
+              <span className="wm-cond">{weather ? conditionLabel(weather.condition) : "..."}</span>
             </button>
-            <div ref={languageMenuRef} className="relative">
+            <div ref={languageMenuRef} className="language-wrap relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
                 <Globe2 size={15} />
                 {selectedLanguage.label}
@@ -210,30 +211,17 @@ export function Header() {
                 </div>
               )}
             </div>
-            <button onClick={() => setSearchOpen(true)} aria-label={t.more.search} className="icon-button">
+            {/* Search lives in the mobile bottom bar; keep the icon on desktop only. */}
+            <button onClick={openSearch} aria-label={t.more.search} className="icon-button header-search">
               <Search className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={2.2} />
             </button>
             <button onClick={toggleTheme} aria-label="Theme" className={`theme-toggle mobile-icon-toggle ${theme === "dark" ? "is-dark" : ""}`}>
               <span className="theme-knob">{theme === "dark" ? <Moon className="h-4 w-4" fill="white" /> : <Sun className="h-4 w-4" />}</span>
             </button>
-            <button onClick={() => setMobileOpen((value) => !value)} aria-label="Menu" className="icon-button lg:hidden">
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
           </div>
         </div>
-
-        {mobileOpen && (
-          <nav className="container-page grid gap-1 border-t border-slate-100 py-3 lg:hidden">
-            {[...navKeys.map((item) => ({ href: item.href, label: t.nav[item.key] })), ...moreLinkKeys.map((item) => ({ href: item.href, label: t.more[item.key] }))].map((item) => (
-              <Link key={item.href} onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-3 font-bold transition hover:bg-slate-50 ${activeHref === item.href ? "bg-blue-50 text-brand" : "text-ink"}`} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
       </header>
 
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <WeatherModal
         open={weatherModalOpen}
         onClose={() => setWeatherModalOpen(false)}

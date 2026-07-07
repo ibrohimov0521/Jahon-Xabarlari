@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { ArticleModal } from "../components/ArticleModal";
+import BottomNav from "../components/BottomNav";
+import SearchExperience from "../components/SearchExperience";
+import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
 import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_URL } from "../lib/site";
 import "./globals.css";
@@ -129,8 +132,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <UiProvider>
-          {children}
-          <ArticleModal />
+          <SearchProvider>
+            {children}
+            <ArticleModal />
+            <BottomNav />
+            <SearchExperience />
+          </SearchProvider>
         </UiProvider>
       </body>
     </html>

@@ -6,7 +6,7 @@ import { MediaView } from "../../../components/MediaView";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { getRequestLang } from "../../../lib/server-lang";
-import { SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
+import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
 type ArticlePageProps = { params: Promise<{ slug: string }> };
 
@@ -79,7 +79,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               url: SITE_URL,
               logo: {
                 "@type": "ImageObject",
-                url: `${SITE_URL}${SITE_LOGO}`
+                url: `${SITE_URL}${SITE_LOGO_SQUARE}`,
+                width: 512,
+                height: 512
               }
             }
           })

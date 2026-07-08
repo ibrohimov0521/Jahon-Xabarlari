@@ -267,6 +267,9 @@ export default async function Home() {
           <div><h3 className="font-black">Bog'lanish</h3><div className="mt-4 grid gap-2 text-slate-300"><a className="hover:text-white" href="mailto:info@jahonxabarlari.uz">info@jahonxabarlari.uz</a><a className="hover:text-white" href="https://t.me/" target="_blank">Telegram</a><span>Toshkent, O'zbekiston</span></div></div>
           <SubscribeBox />
         </div>
+        <div className="container-page mt-8 border-t border-white/10 pt-6 text-sm text-slate-400">
+          © {new Date().getFullYear()} {SITE_NAME}. Barcha huquqlar himoyalangan.
+        </div>
       </footer>
     </main>
   );

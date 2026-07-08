@@ -1739,6 +1739,7 @@ button.bg-white {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  column-gap: 14px;
   height: 58px;
   padding: 0 16px;
   animation: mh-fade 0.5s ease both;
@@ -1768,6 +1769,8 @@ button.bg-white {
   font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
+  max-width: calc(100vw - 176px);
+  overflow: hidden;
   box-shadow: var(--mh-pill-shadow);
   transition: transform 0.2s ease, background 0.28s ease, border-color 0.28s ease, color 0.28s ease;
 }
@@ -1777,7 +1780,7 @@ button.bg-white {
 .mh-sun { color: #f5a524; flex-shrink: 0; animation: mh-spin 26s linear infinite; }
 @keyframes mh-spin { to { transform: rotate(360deg); } }
 
-.mh-city { color: var(--mh-text); font-weight: 600; }
+.mh-city { color: var(--mh-text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .mh-temp { color: var(--mh-text); display: inline-block; font-weight: 600; animation: mh-temp-in 0.45s ease; }
 @keyframes mh-temp-in {
   from { opacity: 0; transform: translateY(2px); }
@@ -1788,12 +1791,12 @@ button.bg-white {
 .mh-lang {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 34px;
-  padding: 0 11px;
+  gap: 3px;
+  height: 32px;
+  padding: 0 8px;
   border-radius: 999px;
   color: var(--mh-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   background: var(--mh-btn-bg);
   border: 1px solid var(--mh-btn-border);

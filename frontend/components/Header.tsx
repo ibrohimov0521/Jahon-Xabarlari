@@ -254,14 +254,18 @@ export function Header() {
           </div>
 
           <div className="mh-right">
+            <button onClick={toggleTheme} aria-label="Kun/tun rejimi" className={`mh-theme ${theme === "dark" ? "is-dark" : ""}`}>
+              <span className="mh-theme-knob">{theme === "dark" ? <Moon size={16} fill="currentColor" /> : <Sun size={16} />}</span>
+            </button>
+
             <div ref={languageMenuRefMobile} className="relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="mh-lang" aria-label="Til">
-                <Globe2 size={14} />
+                <Globe2 size={12} />
                 <span>{selectedLanguage.label}</span>
-                <ChevronDown size={13} className={`mh-chev ${languageOpen ? "is-open" : ""}`} />
+                <ChevronDown size={12} className={`mh-chev ${languageOpen ? "is-open" : ""}`} />
               </button>
               {languageOpen && (
-                <div className="menu-popover mh-pop absolute right-0 top-[52px] z-[110] w-40 overflow-hidden rounded-2xl p-1">
+                <div className="menu-popover mh-pop absolute right-0 top-[46px] z-[110] w-40 overflow-hidden rounded-2xl p-1">
                   {languages.map((item) => (
                     <button
                       key={item.code}
@@ -278,10 +282,6 @@ export function Header() {
                 </div>
               )}
             </div>
-
-            <button onClick={toggleTheme} aria-label="Kun/tun rejimi" className={`mh-theme ${theme === "dark" ? "is-dark" : ""}`}>
-              <span className="mh-theme-knob">{theme === "dark" ? <Moon size={16} fill="currentColor" /> : <Sun size={16} />}</span>
-            </button>
           </div>
         </div>
       </header>

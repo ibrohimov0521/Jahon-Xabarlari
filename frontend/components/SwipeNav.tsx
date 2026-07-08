@@ -2,22 +2,11 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-
-// Ordered top-level sections (matches the header nav). A horizontal swipe on
-// mobile moves to the previous / next section.
-const SECTIONS = [
-  "/",
-  "/category/ozbekiston",
-  "/category/dunyo",
-  "/category/siyosat",
-  "/category/iqtisodiyot",
-  "/category/texnologiya",
-  "/category/sport",
-  "/category/madaniyat"
-];
+import { useNav } from "../lib/nav-context";
+import { useSearch } from "../lib/search-context";
 
 // Walk up from the touch target: if any ancestor can actually scroll
-// horizontally (chips row, carousels), let it scroll instead of navigating.
+// horizontally (chips rows, carousels), let it scroll instead of switching tab.
 function inHorizontalScroller(node: EventTarget | null) {
   let el = node instanceof Element ? (node as HTMLElement) : null;
   while (el && el !== document.body) {
@@ -31,24 +20,65 @@ function inHorizontalScroller(node: EventTarget | null) {
 }
 
 /**
- * Mobile-only: swipe left/right anywhere on a section page to move between the
- * top-level sections. Ignores vertical scrolls, horizontal scrollers, and any
- * time an overlay (search / bottom sheet) is open.
+ * Mobile-only: horizontal swipe moves between the FIVE bottom-bar tabs
+ * (Home · News · Search · Saved · Menu) — NOT into their sub-sections.
+ * Each tab triggers the same action the bar button would (route, sheet, or the
+ * search overlay), so their own slide/fade animations play the transition.
  */
 export default function SwipeNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { sheet, setSheet } = useNav();
+  const { open: searchOpen, openSearch, closeSearch } = useSearch();
 
   useEffect(() => {
-    const index = SECTIONS.indexOf(pathname);
-    if (index === -1) return; // only on the section pages themselves
+    // Current tab (0..4) from the shared nav state.
+    const currentTab = searchOpen
+      ? 2
+      : sheet === "categories"
+        ? 1
+        : sheet === "saved"
+          ? 3
+          : sheet === "more"
+            ? 4
+            : 0;
+
+    const goToTab = (i: number) => {
+      switch (i) {
+        case 0:
+          closeSearch();
+          setSheet(null);
+          if (pathname !== "/") {
+            document.documentElement.dataset.swipeDir = "prev";
+            router.push("/");
+          }
+          break;
+        case 1:
+          closeSearch();
+          setSheet("categories");
+          break;
+        case 2:
+          setSheet(null);
+          openSearch();
+          break;
+        case 3:
+          closeSearch();
+          setSheet("saved");
+          break;
+        case 4:
+          closeSearch();
+          setSheet("more");
+          break;
+      }
+    };
 
     let startX = 0;
     let startY = 0;
     let tracking = false;
 
     const onStart = (e: TouchEvent) => {
-      if (document.querySelector(".se-overlay, .bottom-sheet") || inHorizontalScroller(e.target)) {
+      // Ignore swipes inside horizontal scrollers or over a full modal.
+      if (inHorizontalScroller(e.target) || document.querySelector('[class*="z-[200]"], [class*="z-[220]"]')) {
         tracking = false;
         return;
       }
@@ -65,10 +95,9 @@ export default function SwipeNav() {
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
-      // Clearly-horizontal swipe past the threshold only.
-      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
-      const next = dx < 0 ? index + 1 : index - 1; // swipe left -> next
-      if (next >= 0 && next < SECTIONS.length) router.push(SECTIONS[next]);
+      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return; // clearly horizontal only
+      const next = Math.max(0, Math.min(4, currentTab + (dx < 0 ? 1 : -1))); // swipe left -> next tab
+      if (next !== currentTab) goToTab(next);
     };
 
     window.addEventListener("touchstart", onStart, { passive: true });
@@ -77,7 +106,7 @@ export default function SwipeNav() {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [pathname, router]);
+  }, [pathname, router, sheet, setSheet, searchOpen, openSearch, closeSearch]);
 
   return null;
 }

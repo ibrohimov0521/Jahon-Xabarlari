@@ -3,6 +3,7 @@ import { ArticleModal } from "../components/ArticleModal";
 import BottomNav from "../components/BottomNav";
 import SearchExperience from "../components/SearchExperience";
 import SwipeNav from "../components/SwipeNav";
+import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
 import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_URL } from "../lib/site";
@@ -134,11 +135,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <UiProvider>
           <SearchProvider>
-            {children}
-            <ArticleModal />
-            <BottomNav />
-            <SearchExperience />
-            <SwipeNav />
+            <NavProvider>
+              {children}
+              <ArticleModal />
+              <BottomNav />
+              <SearchExperience />
+              <SwipeNav />
+            </NavProvider>
           </SearchProvider>
         </UiProvider>
       </body>

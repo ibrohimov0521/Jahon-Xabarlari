@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useNav } from "../lib/nav-context";
 import { useSearch } from "../lib/search-context";
 import { useUi } from "../lib/ui-context";
 
@@ -56,7 +57,6 @@ const LABELS = {
 } as const;
 
 type Lang = "uz" | "ru" | "en";
-type Sheet = "categories" | "more" | "saved" | null;
 
 const pick = (map: { uz: string; ru: string; en: string }, lang: string) => map[(lang as Lang)] ?? map.uz;
 
@@ -68,7 +68,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { t, language } = useUi();
   const { openSearch, closeSearch, open: searchOpen } = useSearch();
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const { sheet, setSheet } = useNav();
 
   useEffect(() => {
     if (!sheet) return;

@@ -1641,3 +1641,61 @@ button.bg-white {
     overflow-wrap: anywhere;
   }
 }
+
+/* ---- Route transition (SwipeNav / navigation) ---- */
+.pt-next,
+.pt-prev,
+.pt-fade {
+  will-change: transform, opacity;
+}
+
+.pt-next {
+  animation: pt-in-next 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pt-prev {
+  animation: pt-in-prev 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pt-fade {
+  animation: pt-in-fade 0.26s ease;
+}
+
+@keyframes pt-in-next {
+  from {
+    opacity: 0.2;
+    transform: translateX(9%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pt-in-prev {
+  from {
+    opacity: 0.2;
+    transform: translateX(-9%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pt-in-fade {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-next,
+  .pt-prev,
+  .pt-fade {
+    animation: none;
+  }
+}

@@ -48,8 +48,10 @@ export function Header() {
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const [tickerIndex, setTickerIndex] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
+  const languageMenuRefMobile = useRef<HTMLDivElement | null>(null);
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
@@ -120,10 +122,23 @@ export function Header() {
     function closeFloatingMenus(event: PointerEvent) {
       const target = event.target as Node;
       if (moreMenuRef.current && !moreMenuRef.current.contains(target)) setMenuOpen(false);
-      if (languageMenuRef.current && !languageMenuRef.current.contains(target)) setLanguageOpen(false);
+      if (
+        (!languageMenuRef.current || !languageMenuRef.current.contains(target)) &&
+        (!languageMenuRefMobile.current || !languageMenuRefMobile.current.contains(target))
+      ) {
+        setLanguageOpen(false);
+      }
     }
     document.addEventListener("pointerdown", closeFloatingMenus);
     return () => document.removeEventListener("pointerdown", closeFloatingMenus);
+  }, []);
+
+  // Shrink the sticky header on scroll (72px -> 60px, stronger blur).
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   function selectRegion(next: UzRegion) {
@@ -139,8 +154,9 @@ export function Header() {
 
   return (
     <>
-      <header className="site-header border-b border-slate-200 bg-white">
-        <div className="container-page flex h-16 min-w-0 items-center gap-2 lg:h-20 lg:gap-7">
+      <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
+        {/* ---- Desktop header (unchanged) ---- */}
+        <div className="container-page hidden h-20 min-w-0 items-center gap-7 lg:flex">
           <Link href="/" className="flex shrink-0 items-center" aria-label={SITE_NAME}>
             <Image
               src={SITE_LOGO}
@@ -217,6 +233,54 @@ export function Header() {
             </button>
             <button onClick={toggleTheme} aria-label="Theme" className={`theme-toggle mobile-icon-toggle ${theme === "dark" ? "is-dark" : ""}`}>
               <span className="theme-knob">{theme === "dark" ? <Moon className="h-4 w-4" fill="white" /> : <Sun className="h-4 w-4" />}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ---- Mobile header (redesigned, premium) ---- */}
+        <div className="mobile-header lg:hidden">
+          <div className="mh-left">
+            <Link href="/" aria-label={SITE_NAME} className="mh-logo">
+              <Image src={SITE_LOGO} alt={SITE_NAME} width={166} height={64} priority className="h-7 w-auto max-w-[92px] object-contain" />
+            </Link>
+          </div>
+
+          <div className="mh-center">
+            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="mh-weather">
+              <Sun className="mh-sun" size={16} />
+              <span className="mh-city">{region.name}</span>
+              <span key={weather ? weather.temperature : "x"} className="mh-temp">{weather ? `${weather.temperature}°` : "--°"}</span>
+            </button>
+          </div>
+
+          <div className="mh-right">
+            <div ref={languageMenuRefMobile} className="relative">
+              <button onClick={() => setLanguageOpen((value) => !value)} className="mh-lang" aria-label="Til">
+                <Globe2 size={14} />
+                <span>{selectedLanguage.label}</span>
+                <ChevronDown size={13} className={`mh-chev ${languageOpen ? "is-open" : ""}`} />
+              </button>
+              {languageOpen && (
+                <div className="menu-popover mh-pop absolute right-0 top-[52px] z-[110] w-40 overflow-hidden rounded-2xl p-1">
+                  {languages.map((item) => (
+                    <button
+                      key={item.code}
+                      onClick={() => {
+                        setLanguage(item.code);
+                        setLanguageOpen(false);
+                      }}
+                      className={`mh-pop-item flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold ${language === item.code ? "is-active" : ""}`}
+                    >
+                      <span>{item.name}</span>
+                      <span className="font-black opacity-70">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={toggleTheme} aria-label="Kun/tun rejimi" className={`mh-theme ${theme === "dark" ? "is-dark" : ""}`}>
+              <span className="mh-theme-knob">{theme === "dark" ? <Moon size={16} fill="currentColor" /> : <Sun size={16} />}</span>
             </button>
           </div>
         </div>

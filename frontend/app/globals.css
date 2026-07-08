@@ -466,6 +466,16 @@ button.bg-white {
   backdrop-filter: blur(30px) saturate(160%);
 }
 
+/* Mobile/tablet only: .bottom-nav's own display:flex would otherwise beat the
+   Tailwind `lg:hidden` utility (later cascade), so hide it explicitly on desktop. */
+@media (min-width: 1024px) {
+  .bottom-nav,
+  .bottom-sheet,
+  .bottom-sheet-overlay {
+    display: none !important;
+  }
+}
+
 .bottom-nav-item {
   position: relative;
   flex: 1 1 0;

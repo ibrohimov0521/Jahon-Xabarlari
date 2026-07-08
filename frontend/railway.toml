@@ -1,5 +1,20 @@
 # Explicit builder pin -- Railway's CLI upload path has intermittently ignored this and
 # defaulted to Railpack (which fails: no start command detected for a Next.js app this way).
+#
+# ROOT CAUSE of the "keeps building with RAILPACK / no start command" failures: the
+# railway CLI link was on the REPO ROOT (D:\codex\jahon-xabarlari), so `railway up`
+# uploaded the monorepo root as the build context -- this file was therefore NOT at the
+# context root, Railway couldn't see the builder pin, and fell back to Railpack (which
+# then saw the root package.json with no "start" script and failed).
+#
+# FIX / correct way to deploy the frontend: link THIS directory directly to the
+# frontend service and deploy from here, so the upload context is `frontend/` with this
+# railway.toml at its root:
+#     cd frontend
+#     railway link -p <projectId> -s <frontendServiceId> -e production
+#     railway up --service frontend
+# Verify the resulting deployment shows builder=DOCKERFILE:
+#     railway deployment list --json  ->  meta.serviceManifest.build.builder
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

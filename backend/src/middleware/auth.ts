@@ -41,7 +41,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
 export function permit(...keys: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const allowed = req.user?.role === "SUPER_ADMIN" || keys.every((key) => req.user?.permissions.includes(key));
+    const rolePrefix = req.user?.role.toLowerCase();
+    const allowed =
+      req.user?.role === "SUPER_ADMIN" ||
+      keys.every((key) => req.user?.permissions.includes(key) || req.user?.permissions.includes(`${rolePrefix}.${key}`));
     if (!allowed) return res.status(403).json({ message: "Ruxsat yo'q" });
     next();
   };

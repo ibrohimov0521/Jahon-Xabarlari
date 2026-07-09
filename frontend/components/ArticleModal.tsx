@@ -4,11 +4,13 @@ import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import type { Article } from "../lib/api";
+import { useUi } from "../lib/ui-context";
 import { MediaView } from "./MediaView";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 export function ArticleModal() {
+  const { language } = useUi();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(false);
   // Guards against out-of-order responses: if the user opens article B before article A's
@@ -29,7 +31,8 @@ export function ArticleModal() {
 
       const requestId = ++requestIdRef.current;
       setLoading(true);
-      fetch(`${API_URL}/articles/${slug}`)
+      const langQuery = language === "uz" ? "" : `?lang=${encodeURIComponent(language)}`;
+      fetch(`${API_URL}/articles/${slug}${langQuery}`)
         .then((res) => {
           if (!res.ok) throw new Error("Maqola topilmadi");
           return res.json();
@@ -38,6 +41,9 @@ export function ArticleModal() {
           if (requestIdRef.current !== requestId) return;
           setArticle(data);
         })
+        .catch(() => {
+          if (requestIdRef.current === requestId) setArticle(null);
+        })
         .finally(() => {
           if (requestIdRef.current === requestId) setLoading(false);
         });
@@ -45,7 +51,7 @@ export function ArticleModal() {
 
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     if (!article && !loading) return;

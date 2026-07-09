@@ -65,8 +65,8 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { email: "editor@jahonxabarlari.uz" },
-    update: { passwordHash, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] },
-    create: { name: "Muharrir", email: "editor@jahonxabarlari.uz", passwordHash, roleId: role.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] }
+    update: { passwordHash, roleId: editorRole.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] },
+    create: { name: "Muharrir", email: "editor@jahonxabarlari.uz", passwordHash, roleId: editorRole.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] }
   });
 
   const categoryRows = [];

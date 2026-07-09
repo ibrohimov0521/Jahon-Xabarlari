@@ -20,7 +20,13 @@ export function getStoredRefreshToken() {
 export function getStoredUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(USER_KEY);
-  return raw ? (JSON.parse(raw) as AuthUser) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    clearSession();
+    return null;
+  }
 }
 
 export function storeSession(user: AuthUser, accessToken: string, refreshToken: string) {

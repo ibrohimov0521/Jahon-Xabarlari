@@ -33,7 +33,11 @@ adRouter.put("/:id", async (req, res) => {
   const data = adSchema.partial().parse(req.body);
   const item = await prisma.advertisement.update({
     where: { id: req.params.id },
-    data: { ...data, imageUrl: data.imageUrl || undefined, targetUrl: data.targetUrl || undefined }
+    data: {
+      ...data,
+      ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl || null } : {}),
+      ...(data.targetUrl !== undefined ? { targetUrl: data.targetUrl || null } : {})
+    }
   });
   await audit(req, "ADVERTISEMENT_UPDATE", "Advertisement", item.id, data);
   res.json(item);

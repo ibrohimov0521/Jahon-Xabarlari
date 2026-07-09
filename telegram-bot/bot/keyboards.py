@@ -18,7 +18,6 @@ STATUS_LABELS = {
     "Draft": "DRAFT",
     "Review": "REVIEW",
     "Published": "PUBLISHED",
-    "Scheduled": "SCHEDULED",
 }
 
 VISIBILITY_LABELS = {
@@ -56,7 +55,7 @@ def status_reply_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Draft"), KeyboardButton(text="Review")],
-            [KeyboardButton(text="Published"), KeyboardButton(text="Scheduled")],
+            [KeyboardButton(text="Published")],
             [KeyboardButton(text=MENU_CANCEL)],
         ],
         resize_keyboard=True,

@@ -216,8 +216,8 @@ articleRouter.get("/articles/:id/comments", async (req, res) => {
 
 articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) => {
   const data = commentCreateSchema.parse(req.body);
-  const article = await prisma.article.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true } });
-  if (!article || article.deletedAt) return res.status(404).json({ message: "Maqola topilmadi" });
+  const article = await prisma.article.findUnique({ where: { id: req.params.id }, select: { id: true, deletedAt: true, status: true } });
+  if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Maqola topilmadi" });
 
   const comment = await prisma.comment.create({
     data: { articleId: article.id, name: data.name, body: data.body, status: "PENDING" }
@@ -306,6 +306,9 @@ articleRouter.get("/admin/articles/:id", requireAuth, permit("articles.read"), a
 
 articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), async (req, res) => {
   const data = articleSchema.parse(req.body);
+  if (data.status === "SCHEDULED") {
+    return res.status(400).json({ message: "Rejalashtirish uchun maqolalar ro'yxatidagi status menyusidan sana tanlang" });
+  }
   const article = await prisma.article.create({
     data: {
       ...data,
@@ -324,10 +327,19 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
 
 articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"), async (req, res) => {
   const data = articleSchema.partial().parse(req.body);
+  if (data.status === "SCHEDULED") {
+    return res.status(400).json({ message: "Rejalashtirish uchun maqolalar ro'yxatidagi status menyusidan sana tanlang" });
+  }
+  const statusChangedToPublished = data.status === "PUBLISHED";
+  const statusChangedAwayFromPublished = data.status && data.status !== "PUBLISHED";
   const article = await prisma.article.update({
     where: { id: req.params.id },
     data: {
       ...data,
+      ...(data.mainImage !== undefined ? { mainImage: data.mainImage || null } : {}),
+      ...(data.gallery !== undefined ? { gallery: data.gallery } : {}),
+      ...(statusChangedToPublished ? { publishedAt: new Date(), scheduledAt: null } : {}),
+      ...(statusChangedAwayFromPublished ? { publishedAt: null, scheduledAt: null } : {}),
       ...(data.extraCategoryIds || data.categoryId
         ? { extraCategoryIds: (data.extraCategoryIds ?? []).filter((id) => id !== (data.categoryId ?? undefined)) }
         : {})
@@ -351,7 +363,7 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
     where: { id: req.params.id },
     data: {
       status,
-      publishedAt: status === "PUBLISHED" ? new Date() : undefined,
+      publishedAt: status === "PUBLISHED" ? new Date() : null,
       scheduledAt: status === "SCHEDULED" ? scheduledAt : null
     }
   });

@@ -5,6 +5,8 @@ import { adminRequest, uploadAdminMedia } from "../../lib/admin-api";
 import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
 import { ErrorBanner, Input, Panel, Toggle } from "./ui";
 
+const EDITOR_STATUSES = ARTICLE_STATUSES.filter((status) => status !== "SCHEDULED");
+
 function toFormState(article: Article): ArticleFormState {
   return {
     title: article.title,
@@ -193,7 +195,7 @@ export function ArticleEditor({
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as ArticleFormState["status"] })}
             >
-              {ARTICLE_STATUSES.map((status) => (
+              {EDITOR_STATUSES.map((status) => (
                 <option key={status}>{status}</option>
               ))}
             </select>

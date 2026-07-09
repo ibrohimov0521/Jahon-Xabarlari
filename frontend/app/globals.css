@@ -701,12 +701,9 @@ button.bg-white {
   }
 }
 
-/* Reserve space so page content isn't hidden behind the fixed bottom bar. */
+/* Mobile content should end naturally; the floating dock sits above content without adding
+   an artificial blank strip at the end of every page. */
 @media (max-width: 1023px) {
-  body {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  }
-
   /* Search moved to the bottom bar on mobile (overrides .icon-button grid). */
   .header-search {
     display: none !important;
@@ -716,6 +713,92 @@ button.bg-white {
   .site-header .language-wrap {
     order: 5;
     margin-left: 2px;
+  }
+}
+
+/* Desktop footer: compact bottom information bar. Mobile hides it completely so no extra
+   blank footer area appears under the feed. */
+footer {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  footer {
+    display: block;
+    padding: 0 !important;
+    border-top: 1px solid rgba(166, 246, 255, 0.16);
+  }
+
+  footer > .container-page:first-child {
+    display: flex !important;
+    min-height: 82px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  footer > .container-page:first-child > div {
+    min-width: 0;
+  }
+
+  footer > .container-page:first-child > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  footer > .container-page:first-child > div:first-child img {
+    width: 42px;
+    height: 42px;
+  }
+
+  footer > .container-page:first-child > div:first-child p {
+    max-width: 360px;
+    margin-top: 0 !important;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  footer > .container-page:first-child > div:nth-child(2),
+  footer > .container-page:first-child > div:nth-child(3) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  footer > .container-page:first-child > div:nth-child(2) h3,
+  footer > .container-page:first-child > div:nth-child(3) h3 {
+    margin: 0;
+    color: #f8fdff;
+    white-space: nowrap;
+  }
+
+  footer > .container-page:first-child > div:nth-child(2) > div,
+  footer > .container-page:first-child > div:nth-child(3) > div {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0 !important;
+  }
+
+  footer > .container-page:first-child a,
+  footer > .container-page:first-child span {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+
+  footer > .container-page:first-child a:hover {
+    border-color: #1767f5;
+  }
+
+  footer .subscribe-box,
+  footer > .container-page:last-child {
+    display: none !important;
   }
 }
 

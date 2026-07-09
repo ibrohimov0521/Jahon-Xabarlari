@@ -117,7 +117,7 @@ export default async function Home() {
             </Link>
           ))}
         </div>
-        <div className="row-span-2 flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+        <div className="row-span-2 hidden flex-col gap-4 lg:sticky lg:top-24 lg:flex lg:self-start">
           <aside className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
             <h2 className="text-[22px] font-black">Trend bo'layotgan</h2>
@@ -235,7 +235,7 @@ export default async function Home() {
           )}
         </div>
 
-        <aside className="grid content-start gap-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="hidden content-start gap-4 lg:sticky lg:top-24 lg:grid lg:self-start">
           <section className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-[22px] font-black">Eng ko'p o'qilganlar</h2>

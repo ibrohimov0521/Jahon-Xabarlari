@@ -4,7 +4,7 @@ import { CommentSection } from "../../../components/CommentSection";
 import { Header } from "../../../components/Header";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
-import { isVideoUrl } from "../../../lib/media";
+import { isVideoUrl, toOptimizedImageSrc } from "../../../lib/media";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
@@ -19,7 +19,9 @@ function ArticleMedia({ src, alt, className = "" }: { src?: string | null; alt: 
       </video>
     );
   }
-  return <img src={src} alt={alt} className={className} loading="eager" decoding="async" />;
+  // Serve the photo through our origin's optimizer so readers whose network can't reach the
+  // source CDN directly (regional blocks) still load it -- same reason the homepage feed does.
+  return <img src={toOptimizedImageSrc(src)} alt={alt} className={className} loading="eager" decoding="async" />;
 }
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {

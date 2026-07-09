@@ -1,7 +1,7 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
-import { isVideoUrl } from "../lib/media";
+import { isVideoUrl, toOptimizedImageSrc } from "../lib/media";
 
 // Re-exported for existing importers of MediaView.
 export { isVideoUrl };
@@ -14,18 +14,6 @@ type MediaViewProps = {
   priority?: boolean;
   avoidUpscale?: boolean;
 };
-
-// Serve remote photos through this site's own Next image optimizer instead of hotlinking the
-// third-party CDN directly. Visitors whose network can't reach the source CDN (regional blocks,
-// hotlink protection) still get the image because their browser only ever talks to our origin,
-// and the bytes arrive resized/optimized. Local, relative and data URLs are already same-origin.
-// Deterministic (no browser APIs) so server and client render the same src -- no hydration drift.
-function toImageSrc(src: string) {
-  if (/^https?:\/\//i.test(src)) {
-    return `/_next/image?url=${encodeURIComponent(src)}&w=1200&q=75`;
-  }
-  return src;
-}
 
 export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
@@ -59,7 +47,7 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
   if (priority) {
     style.minHeight = "240px";
   }
-  const optimizedSrc = toImageSrc(src);
+  const optimizedSrc = toOptimizedImageSrc(src);
   const isRemoteImage = /^https?:\/\//i.test(src);
   const finalSrc = useDirectSrc ? src : optimizedSrc;
   return (

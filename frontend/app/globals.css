@@ -208,6 +208,10 @@ body > main {
 .article-gallery-frame {
   width: 100%;
   overflow: hidden;
+  /* Floor only (not a forced aspect ratio): keeps the dark frame from collapsing to a
+     0-height gap that flashes the page backdrop while the photo is still downloading.
+     Landscape photos are taller than this, so it never letterboxes a loaded image. */
+  min-height: 200px;
 }
 
 .article-main-media,

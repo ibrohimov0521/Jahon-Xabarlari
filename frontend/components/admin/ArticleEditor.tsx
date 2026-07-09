@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest, uploadAdminMedia } from "../../lib/admin-api";
 import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
-import { ErrorBanner, Input, Panel, Toggle } from "./ui";
+import { Button, ErrorBanner, Input, Panel, Select, Textarea, Toggle } from "./ui";
 
 const EDITOR_STATUSES = ARTICLE_STATUSES.filter((status) => status !== "SCHEDULED");
 
@@ -154,15 +154,7 @@ export function ArticleEditor({
               {aiGenerating ? "Yaratilmoqda..." : "Qisqa izoh yaratish"}
             </button>
           </div>
-          <label className="text-sm font-bold">
-            Asosiy matn
-            <textarea
-              className="mt-2 min-h-52 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand"
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              required
-            />
-          </label>
+          <Textarea label="Asosiy matn" value={form.content} onChange={(value) => setForm({ ...form, content: value })} rows={12} />
           <div className="grid gap-2">
             <Input label="Rasm/video URL" value={form.mainImage} onChange={(value) => setForm({ ...form, mainImage: value })} required={false} />
             <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-black transition hover:border-brand hover:text-brand">
@@ -182,21 +174,12 @@ export function ArticleEditor({
       </Panel>
       <Panel title="Ko'rinishi">
         <div className="grid gap-4">
-          <label className="text-sm font-bold">
-            Asosiy kategoriya
-            <select
-              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal"
-              value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              required
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Asosiy kategoriya"
+            value={form.categoryId}
+            onChange={(categoryId) => setForm({ ...form, categoryId })}
+            options={categories.map((category) => ({ value: category.id, label: category.name }))}
+          />
           <div className="grid gap-2">
             <p className="text-sm font-bold">Qo'shimcha kategoriyalar</p>
             <div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
@@ -223,28 +206,22 @@ export function ArticleEditor({
             </div>
             <p className="text-xs font-semibold text-slate-500">Asosiy menyuda bitta kategoriya ko'rinadi, qo'shimcha kategoriyalar faqat tegishli bo'limlarda topilishi uchun.</p>
           </div>
-          <label className="text-sm font-bold">
-            Status
-            <select
-              className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as ArticleFormState["status"] })}
-            >
-              {EDITOR_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={(status) => setForm({ ...form, status: status as ArticleFormState["status"] })}
+            options={EDITOR_STATUSES.map((status) => ({ value: status, label: status }))}
+          />
           {FLAG_LABELS.map(([key, label]) => (
             <Toggle key={key} label={label} checked={form[key as keyof ArticleFlags]} onChange={(checked) => setForm({ ...form, [key]: checked })} />
           ))}
           <div className="flex gap-2">
-            <button type="button" onClick={() => onPreview(form)} className="flex-1 rounded-md border border-slate-200 px-4 py-3 font-black hover:border-brand">
+            <Button type="button" variant="secondary" size="lg" className="flex-1" onClick={() => onPreview(form)}>
               Ko'rib chiqish
-            </button>
-            <button disabled={saving} className="flex-1 rounded-md bg-brand px-4 py-3 font-black text-white hover:bg-blue-700 disabled:opacity-60">
+            </Button>
+            <Button type="submit" size="lg" className="flex-1" disabled={saving}>
               {saving ? "Saqlanmoqda..." : "Saqlash"}
-            </button>
+            </Button>
           </div>
         </div>
       </Panel>

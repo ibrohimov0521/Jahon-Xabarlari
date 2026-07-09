@@ -5,8 +5,15 @@ import { useEffect, useMemo, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { formatArticleDateTime } from "../../lib/format";
 import { ARTICLE_STATUSES, type Article, type ArticleStatus } from "./types";
-import { Badge, ConfirmButton, Empty, Panel, SearchInput, SelectFilter } from "./ui";
+import { Badge, Button, ConfirmButton, Empty, Panel, SearchInput, SelectFilter } from "./ui";
 import { MediaView } from "../MediaView";
+
+// datetime-local expects a LOCAL wall-clock string; toISOString() is UTC, so slicing it directly
+// would offset the minimum bound by the timezone. Shift by the offset first.
+function localDateTimeValue(ms: number) {
+  const date = new Date(ms);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 
 const TRANSLATION_TONE: Record<string, "green" | "amber" | "red"> = { READY: "green", PENDING: "amber", FAILED: "red" };
 
@@ -91,6 +98,27 @@ export function ArticlesView({
     setOpenStatusId(null);
     setScheduleTargetId(null);
   }, [initialStatus, onlyToday]);
+
+  // Dismiss the status dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!openStatusId) return;
+    function close() {
+      setOpenStatusId(null);
+      setScheduleTargetId(null);
+    }
+    function onDown(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest("[data-status-menu]")) close();
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [openStatusId]);
 
   const filtered = useMemo(() => {
     const today = new Date();
@@ -248,7 +276,7 @@ export function ArticlesView({
                   </button>
 
                   {!trashed && (
-                    <div className="relative">
+                    <div className="relative" data-status-menu>
                       <button
                         onClick={() => setOpenStatusId((current) => (current === item.id ? null : item.id))}
                         className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-black transition hover:border-brand hover:text-brand"
@@ -267,23 +295,16 @@ export function ArticlesView({
                                 type="datetime-local"
                                 value={scheduleValue}
                                 onChange={(event) => setScheduleValue(event.target.value)}
-                                min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                                min={localDateTimeValue(Date.now() + 60_000)}
                                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
                               />
                               <div className="mt-2 flex gap-2">
-                                <button
-                                  onClick={() => setScheduleTargetId(null)}
-                                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-black text-slate-500 hover:border-slate-300"
-                                >
+                                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
                                   Bekor qilish
-                                </button>
-                                <button
-                                  onClick={() => confirmSchedule(item.id)}
-                                  disabled={!scheduleValue}
-                                  className="flex-1 rounded-lg bg-brand px-3 py-2 text-sm font-black text-white disabled:opacity-50"
-                                >
+                                </Button>
+                                <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={() => confirmSchedule(item.id)}>
                                   Rejalashtirish
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           ) : (

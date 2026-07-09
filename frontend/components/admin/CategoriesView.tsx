@@ -4,7 +4,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import type { Category } from "./types";
-import { ConfirmButton, Empty, ErrorBanner, Panel } from "./ui";
+import { Button, ConfirmButton, Empty, ErrorBanner, IconButton, Panel } from "./ui";
 
 export function CategoriesView({ categories, onChanged }: { categories: Category[]; onChanged: () => void }) {
   const [name, setName] = useState("");
@@ -52,17 +52,17 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
   return (
     <Panel title="Kategoriyalar">
       <ErrorBanner message={error} />
-      <form onSubmit={create} className="mb-4 flex flex-wrap gap-2">
+      <form onSubmit={create} className="mb-4 flex flex-wrap items-stretch gap-2">
         <input
-          className="flex-1 rounded-md border border-slate-200 bg-white px-4 py-2.5 outline-none focus:border-brand"
+          className="h-10 flex-1 rounded-md border border-slate-200 bg-white px-4 outline-none focus:border-brand"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Yangi kategoriya nomi"
           required
         />
-        <button disabled={busy} className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2.5 font-black text-white disabled:opacity-60">
-          <Plus size={16} /> Qo'shish
-        </button>
+        <Button type="submit" disabled={busy} icon={<Plus size={16} />}>
+          Qo'shish
+        </Button>
       </form>
       <div className="grid gap-3 md:grid-cols-3">
         {categories.map((category) => (
@@ -75,12 +75,12 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
                   onChange={(e) => setEditingName(e.target.value)}
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => save(category.id)} className="flex-1 rounded-md bg-brand px-3 py-1.5 text-sm font-black text-white">
+                  <Button size="sm" className="flex-1" onClick={() => save(category.id)}>
                     Saqlash
-                  </button>
-                  <button onClick={() => setEditingId(null)} className="flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-bold">
+                  </Button>
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={() => setEditingId(null)}>
                     Bekor
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -91,15 +91,15 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
                     <p className="text-sm text-slate-500">/{category.slug}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button
+                    <IconButton
+                      icon={<Pencil size={14} />}
+                      label="Tahrirlash"
+                      size="sm"
                       onClick={() => {
                         setEditingId(category.id);
                         setEditingName(category.name);
                       }}
-                      className="rounded-md border border-slate-200 bg-white p-1.5 hover:border-brand"
-                    >
-                      <Pencil size={14} />
-                    </button>
+                    />
                     <ConfirmButton label={<Trash2 size={14} />} onConfirm={() => remove(category.id)} />
                   </div>
                 </div>

@@ -3,15 +3,15 @@
 import { ArrowLeft } from "lucide-react";
 import { MediaView } from "../MediaView";
 import type { ArticleFormState, Category } from "./types";
-import { Badge, Panel } from "./ui";
+import { Badge, Button, Panel } from "./ui";
 
 export function ArticlePreview({ form, categories, onBack }: { form: ArticleFormState; categories: Category[]; onBack: () => void }) {
   const category = categories.find((item) => item.id === form.categoryId);
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold hover:border-brand">
-        <ArrowLeft size={16} /> Tahrirlashga qaytish
-      </button>
+      <Button variant="secondary" size="sm" onClick={onBack} icon={<ArrowLeft size={16} />}>
+        Tahrirlashga qaytish
+      </Button>
       <Panel title="Nashr ko'rinishi (preview)">
         <article className="mx-auto max-w-2xl">
           <div className="flex flex-wrap items-center gap-2">

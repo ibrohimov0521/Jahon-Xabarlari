@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BarChart3,
   Bot,
   FilePlus2,
   History,
@@ -32,11 +31,10 @@ import { CommentsView } from "../../components/admin/CommentsView";
 import { Dashboard } from "../../components/admin/Dashboard";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
-import { ErrorBanner, LoadingBlock, Toast } from "../../components/admin/ui";
+import { Button, ErrorBanner, Input, LoadingBlock, Toast } from "../../components/admin/ui";
 import {
   AdminApiError,
   adminRequest,
-  API_URL,
   getStoredToken,
   getStoredUser,
   login as apiLogin,
@@ -56,7 +54,6 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "categories", label: "Kategoriyalar", icon: Tags },
   { id: "ads", label: "Reklama", icon: Megaphone },
   { id: "comments", label: "Izohlar", icon: MessageCircle },
-  { id: "stats", label: "Statistika", icon: BarChart3 },
   { id: "users", label: "Foydalanuvchilar", icon: Users },
   { id: "auditlog", label: "Audit log", icon: History },
   { id: "aggregator", label: "Agregator", icon: Bot }
@@ -213,8 +210,8 @@ export default function AdminPage() {
       await loadUsers();
       return;
     }
-    setView("stats");
-    await refreshAll("stats");
+    setView("dashboard");
+    await refreshAll("dashboard");
   }
 
   function flash(text: string) {
@@ -335,14 +332,14 @@ export default function AdminPage() {
   if (!token || !user) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-100 px-4 text-ink">
-        <button
+        <Button
+          variant="secondary"
           onClick={toggleTheme}
-          className="fixed right-5 top-5 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand"
-          title={theme === "dark" ? "Kunduzgi rejim" : "Tungi rejim"}
+          className="fixed right-5 top-5"
+          icon={theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           {theme === "dark" ? "Kunduz" : "Tun"}
-        </button>
+        </Button>
         <form onSubmit={handleLogin} className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-7 shadow-xl">
           <div className="mb-7">
             <Image src={SITE_LOGO} alt={SITE_NAME} width={76} height={76} priority className="h-16 w-16 rounded-md object-cover" />
@@ -350,26 +347,14 @@ export default function AdminPage() {
             <p className="mt-2 text-sm text-slate-500">Backend API orqali real ma&apos;lumotlarni boshqarish uchun kiring.</p>
           </div>
           {sessionNotice && <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">{sessionNotice}</div>}
-          <label className="block text-sm font-bold">Email</label>
-          <input
-            className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand"
-            value={loginForm.email}
-            onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-            type="email"
-            required
-          />
-          <label className="mt-4 block text-sm font-bold">Parol</label>
-          <input
-            className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand"
-            value={loginForm.password}
-            onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-            type="password"
-            required
-          />
+          <div className="grid gap-4">
+            <Input label="Email" type="email" value={loginForm.email} onChange={(email) => setLoginForm({ ...loginForm, email })} placeholder="admin@..." />
+            <Input label="Parol" type="password" value={loginForm.password} onChange={(password) => setLoginForm({ ...loginForm, password })} placeholder="••••••••" />
+          </div>
           <ErrorBanner message={loginError} />
-          <button disabled={loginBusy} className="mt-6 w-full rounded-md bg-brand px-4 py-3 font-black text-white transition hover:bg-blue-700 disabled:opacity-60">
+          <Button type="submit" size="lg" disabled={loginBusy} className="mt-6 w-full">
             {loginBusy ? "Tekshirilmoqda..." : "Kirish"}
-          </button>
+          </Button>
         </form>
       </main>
     );
@@ -419,21 +404,29 @@ export default function AdminPage() {
       <section className="flex-1">
         <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMobileMenuOpen(true)} className="rounded-md border border-slate-200 p-2 lg:hidden">
+            <button onClick={() => setMobileMenuOpen(true)} className="rounded-md border border-slate-200 p-2 lg:hidden" aria-label="Menyuni ochish">
               <Menu size={20} />
             </button>
             <div>
               <h2 className="text-xl font-black sm:text-2xl">{currentTitle}</h2>
-              <p className="hidden text-sm text-slate-500 sm:block">{API_URL}</p>
+              <p className="hidden text-sm text-slate-500 sm:block">
+                {user.name} · {user.role}
+              </p>
             </div>
           </div>
-          <button onClick={() => refreshAll(view)} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand">
-            <RefreshCcw size={18} /> Yangilash
-          </button>
-          <button onClick={toggleTheme} className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 font-bold hover:border-brand lg:hidden">
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            {theme === "dark" ? "Kunduz" : "Tun"}
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => refreshAll(view)} icon={<RefreshCcw size={18} />}>
+              Yangilash
+            </Button>
+            <Button
+              variant="secondary"
+              className="lg:hidden"
+              onClick={toggleTheme}
+              icon={theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            >
+              {theme === "dark" ? "Kunduz" : "Tun"}
+            </Button>
+          </div>
         </header>
 
         <div className="p-4 sm:p-5">
@@ -441,8 +434,7 @@ export default function AdminPage() {
           <Toast message={message} onClose={() => setMessage("")} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}
 
-          {view === "dashboard" && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}
-          {view === "stats" && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}
+          {(view === "dashboard" || view === "stats") && <Dashboard stats={stats} articles={articles} onAction={handleDashboardAction} />}
           {view === "articles" && (
             <ArticlesView
               articles={articles}
@@ -484,9 +476,9 @@ export default function AdminPage() {
             />
           )}
           {view === "categories" && <CategoriesView categories={categories} onChanged={loadCategories} />}
-          {view === "comments" && <CommentsView comments={comments} onStatus={changeCommentStatus} />}
-          {view === "ads" && <AdsView ads={ads} onChanged={loadAds} />}
-          {view === "users" && <UsersView users={users} />}
+          {view === "comments" && !(loading && !comments.length) && <CommentsView comments={comments} onStatus={changeCommentStatus} />}
+          {view === "ads" && !(loading && !ads.length) && <AdsView ads={ads} onChanged={loadAds} />}
+          {view === "users" && !(loading && !users.length) && <UsersView users={users} />}
           {view === "auditlog" && <AuditLogView />}
           {view === "aggregator" && <AggregatorView />}
         </div>

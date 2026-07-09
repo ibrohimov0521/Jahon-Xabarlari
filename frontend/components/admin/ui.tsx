@@ -1,8 +1,81 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { useState } from "react";
+
+// ---------------------------------------------------------------------------
+// Shared form/action primitives. Every admin button and field should come from
+// here so the panel stays visually consistent (one radius, one padding scale,
+// one hover/disabled/focus treatment) instead of ad-hoc per-view Tailwind.
+// ---------------------------------------------------------------------------
+
+type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonSize = "sm" | "md" | "lg";
+
+const buttonVariants: Record<ButtonVariant, string> = {
+  primary: "bg-brand text-white hover:bg-blue-700",
+  secondary: "border border-slate-200 bg-white text-ink hover:border-brand hover:text-brand",
+  danger: "bg-red-600 text-white hover:bg-red-700",
+  ghost: "text-slate-600 hover:bg-slate-100"
+};
+
+const buttonSizes: Record<ButtonSize, string> = {
+  sm: "h-8 gap-1.5 px-3 text-xs",
+  md: "h-10 gap-2 px-4 text-sm",
+  lg: "h-12 gap-2 px-5 text-base"
+};
+
+export function Button({
+  children,
+  variant = "primary",
+  size = "md",
+  icon,
+  className = "",
+  type = "button",
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize; icon?: ReactNode }) {
+  return (
+    <button
+      type={type}
+      className={`inline-flex items-center justify-center rounded-md font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-60 ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
+      {...rest}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+const iconButtonSizes: Record<"sm" | "md", string> = { sm: "size-8", md: "size-10" };
+
+// Icon-only button. `label` is required and becomes the accessible name + tooltip.
+export function IconButton({
+  icon,
+  label,
+  variant = "secondary",
+  size = "md",
+  className = "",
+  type = "button",
+  ...rest
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+  icon: ReactNode;
+  label: string;
+  variant?: ButtonVariant;
+  size?: "sm" | "md";
+}) {
+  return (
+    <button
+      type={type}
+      aria-label={label}
+      title={label}
+      className={`inline-flex items-center justify-center rounded-md font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50 ${buttonVariants[variant]} ${iconButtonSizes[size]} ${className}`}
+      {...rest}
+    >
+      {icon}
+    </button>
+  );
+}
 
 export function Panel({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
   return (
@@ -104,6 +177,68 @@ export function Input({
   );
 }
 
+export function Textarea({
+  label,
+  value,
+  onChange,
+  rows = 4,
+  required = true,
+  placeholder,
+  ...rest
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-bold">
+      {label}
+      <textarea
+        className="rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        required={required}
+        placeholder={placeholder}
+        {...rest}
+      />
+    </label>
+  );
+}
+
+// Labelled form select (distinct from the compact SelectFilter used in toolbars).
+export function Select<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+  required = true
+}: {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: readonly { value: T; label: string }[];
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-bold">
+      {label}
+      <select
+        className="rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand"
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        required={required}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function SearchInput({ value, onChange, placeholder = "Qidirish..." }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
   return (
     <input
@@ -172,33 +307,31 @@ export function ConfirmButton({
   icon?: ReactNode;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const toneClasses = tone === "red" ? "bg-red-600 hover:bg-red-700" : "bg-brand hover:bg-blue-700";
 
   if (confirming) {
     return (
       <span className="inline-flex items-center gap-1">
-        <button
-          type="button"
+        <Button
+          variant={tone === "red" ? "danger" : "primary"}
+          size="sm"
           onClick={() => {
             setConfirming(false);
             onConfirm();
           }}
-          className={`rounded-md px-2 py-1 text-xs font-black text-white ${toneClasses}`}
         >
           {confirmLabel}
-        </button>
-        <button type="button" onClick={() => setConfirming(false)} className="rounded-md border border-slate-200 px-2 py-1 text-xs font-bold">
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => setConfirming(false)}>
           Bekor
-        </button>
+        </Button>
       </span>
     );
   }
 
   return (
-    <button type="button" onClick={() => setConfirming(true)} className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-black text-white ${toneClasses}`}>
-      {icon}
+    <Button variant={tone === "red" ? "danger" : "primary"} size="sm" icon={icon} onClick={() => setConfirming(true)}>
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -206,13 +339,13 @@ export function Pagination({ page, pages, onChange }: { page: number; pages: num
   if (pages <= 1) return null;
   return (
     <div className="mt-4 flex items-center justify-center gap-2 text-sm font-bold">
-      <button disabled={page <= 1} onClick={() => onChange(page - 1)} className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40">
+      <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
         Oldingi
-      </button>
+      </Button>
       <span className="text-slate-500">{page} / {pages}</span>
-      <button disabled={page >= pages} onClick={() => onChange(page + 1)} className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40">
+      <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => onChange(page + 1)}>
         Keyingi
-      </button>
+      </Button>
     </div>
   );
 }

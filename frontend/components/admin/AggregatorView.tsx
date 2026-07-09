@@ -3,7 +3,7 @@
 import { CheckCircle2, Loader2, Plus, PlayCircle, RefreshCcw, Rss, Trash2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
-import { ErrorBanner, Panel, SuccessBanner } from "./ui";
+import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
 
 type AggregatorStatus = {
   enabled: boolean;
@@ -121,13 +121,9 @@ export function AggregatorView() {
     <Panel
       title="Yangiliklar agregatori"
       actions={
-        <button
-          onClick={loadStatus}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold transition hover:border-brand hover:text-brand disabled:opacity-60"
-        >
-          <RefreshCcw size={16} className={loading ? "animate-spin" : ""} /> Yangilash
-        </button>
+        <Button variant="secondary" size="sm" onClick={loadStatus} disabled={loading} icon={<RefreshCcw size={16} className={loading ? "animate-spin" : ""} />}>
+          Yangilash
+        </Button>
       }
     >
       <ErrorBanner message={error} />
@@ -161,13 +157,14 @@ export function AggregatorView() {
                 max={1000}
               />
             </label>
-            <button
+            <Button
               onClick={runNow}
               disabled={running || !status.openaiConfigured}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-2.5 font-black text-white transition hover:bg-blue-500 disabled:opacity-60"
+              className="mt-3 w-full"
+              icon={running ? <Loader2 size={18} className="animate-spin" /> : <PlayCircle size={18} />}
             >
-              {running ? <Loader2 size={18} className="animate-spin" /> : <PlayCircle size={18} />} {running ? "Ishga tushirilmoqda..." : "Hozir ishga tushirish"}
-            </button>
+              {running ? "Ishga tushirilmoqda..." : "Hozir ishga tushirish"}
+            </Button>
             {!status.openaiConfigured && <p className="mt-2 text-xs text-red-600">OPENAI_API_KEY sozlanmagani uchun ishga tushirib bo'lmaydi.</p>}
           </div>
           <div className="rounded-md border border-slate-200 p-4 sm:col-span-2">
@@ -185,13 +182,13 @@ export function AggregatorView() {
                 onChange={(event) => setSourceForm({ ...sourceForm, feedUrl: event.target.value })}
                 placeholder="RSS URL"
               />
-              <button
+              <Button
                 onClick={addSource}
                 disabled={!sourceForm.name || !sourceForm.feedUrl || adding}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 font-black text-white transition hover:bg-blue-500 disabled:opacity-50"
+                icon={adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               >
-                {adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Qo'shish
-              </button>
+                Qo'shish
+              </Button>
             </div>
             <div className="mt-4 grid gap-2">
               {status.sources.map((source) => {
@@ -230,28 +227,23 @@ export function AggregatorView() {
                     </button>
                     {isConfirming ? (
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => confirmDelete(source.id)}
                           disabled={isDeleting}
-                          className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-black text-white transition hover:bg-red-700 disabled:opacity-60"
+                          icon={isDeleting ? <Loader2 size={15} className="animate-spin" /> : undefined}
                         >
-                          {isDeleting ? <Loader2 size={15} className="animate-spin" /> : "Tasdiqlash"}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          disabled={isDeleting}
-                          className="rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-500 transition hover:border-slate-300"
-                        >
+                          Tasdiqlash
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)} disabled={isDeleting}>
                           Bekor
-                        </button>
+                        </Button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmDeleteId(source.id)}
-                        className="inline-flex items-center justify-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-black text-red-600 transition hover:bg-red-600 hover:text-white"
-                      >
-                        <Trash2 size={15} /> O'chirish
-                      </button>
+                      <Button variant="danger" size="sm" onClick={() => setConfirmDeleteId(source.id)} icon={<Trash2 size={15} />}>
+                        O'chirish
+                      </Button>
                     )}
                   </div>
                 );

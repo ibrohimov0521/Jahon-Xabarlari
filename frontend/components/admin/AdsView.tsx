@@ -4,7 +4,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { AD_STATUSES, type AdItem, type AdStatus } from "./types";
-import { Badge, ConfirmButton, Empty, ErrorBanner, Panel } from "./ui";
+import { Badge, Button, ConfirmButton, Empty, ErrorBanner, IconButton, Input, Panel, Select } from "./ui";
 
 const emptyAdForm = { title: "", placement: "header", imageUrl: "", targetUrl: "", status: "DRAFT" as AdStatus };
 
@@ -44,13 +44,23 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
   }
 
   async function changeStatus(id: string, status: AdStatus) {
-    await adminRequest(`/admin/advertisements/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-    onChanged();
+    setError("");
+    try {
+      await adminRequest(`/admin/advertisements/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Status o'zgartirilmadi");
+    }
   }
 
   async function remove(id: string) {
-    await adminRequest(`/admin/advertisements/${id}`, { method: "DELETE" });
-    onChanged();
+    setError("");
+    try {
+      await adminRequest(`/admin/advertisements/${id}`, { method: "DELETE" });
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reklama o'chirilmadi");
+    }
   }
 
   return (
@@ -65,15 +75,19 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
                   {item.placement} · <Badge>{item.status}</Badge>
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {AD_STATUSES.map((status) => (
-                  <button key={status} onClick={() => changeStatus(item.id, status)} className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold hover:border-brand">
+                  <Button
+                    key={status}
+                    variant={item.status === status ? "primary" : "secondary"}
+                    size="sm"
+                    disabled={item.status === status}
+                    onClick={() => changeStatus(item.id, status)}
+                  >
                     {status}
-                  </button>
+                  </Button>
                 ))}
-                <button onClick={() => startEdit(item)} className="rounded-md border border-slate-200 p-2 hover:border-brand">
-                  <Pencil size={14} />
-                </button>
+                <IconButton icon={<Pencil size={14} />} label="Tahrirlash" size="sm" onClick={() => startEdit(item)} />
                 <ConfirmButton label={<Trash2 size={14} />} onConfirm={() => remove(item.id)} />
               </div>
             </div>
@@ -84,24 +98,25 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
       <Panel title={editingId ? "Reklamani tahrirlash" : "Yangi reklama"}>
         <ErrorBanner message={error} />
         <form onSubmit={submit} className="grid gap-3">
-          <input className="rounded-md border border-slate-200 bg-white px-4 py-2.5" placeholder="Sarlavha" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-          <input className="rounded-md border border-slate-200 bg-white px-4 py-2.5" placeholder="Joylashuv (header, sidebar...)" value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} required />
-          <input className="rounded-md border border-slate-200 bg-white px-4 py-2.5" placeholder="Rasm URL" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
-          <input className="rounded-md border border-slate-200 bg-white px-4 py-2.5" placeholder="Havola URL" value={form.targetUrl} onChange={(e) => setForm({ ...form, targetUrl: e.target.value })} />
-          <select className="rounded-md border border-slate-200 bg-white px-4 py-2.5" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AdStatus })}>
-            {AD_STATUSES.map((status) => (
-              <option key={status}>{status}</option>
-            ))}
-          </select>
+          <Input label="Sarlavha" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="Reklama sarlavhasi" />
+          <Input label="Joylashuv" value={form.placement} onChange={(placement) => setForm({ ...form, placement })} placeholder="header, sidebar..." />
+          <Input label="Rasm URL" value={form.imageUrl} onChange={(imageUrl) => setForm({ ...form, imageUrl })} required={false} placeholder="https://..." />
+          <Input label="Havola URL" value={form.targetUrl} onChange={(targetUrl) => setForm({ ...form, targetUrl })} required={false} placeholder="https://..." />
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={(status) => setForm({ ...form, status })}
+            options={AD_STATUSES.map((status) => ({ value: status, label: status }))}
+          />
           <div className="flex gap-2">
             {editingId && (
-              <button type="button" onClick={cancelEdit} className="flex-1 rounded-md border border-slate-200 px-4 py-2.5 font-bold">
+              <Button type="button" variant="secondary" className="flex-1" onClick={cancelEdit}>
                 Bekor
-              </button>
+              </Button>
             )}
-            <button disabled={busy} className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2.5 font-black text-white disabled:opacity-60">
-              <Plus size={16} /> {editingId ? "Saqlash" : "Qo'shish"}
-            </button>
+            <Button type="submit" className="flex-1" disabled={busy} icon={<Plus size={16} />}>
+              {editingId ? "Saqlash" : "Qo'shish"}
+            </Button>
           </div>
         </form>
       </Panel>

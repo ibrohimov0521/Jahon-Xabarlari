@@ -23,7 +23,38 @@ const loginLimiter = rateLimit({
   message: { message: "Juda ko'p urinish qilindi, 15 daqiqadan so'ng qayta urinib ko'ring" }
 });
 
+// telegram-login is a server-to-server call from the bot; a tighter limit blocks id brute-forcing.
+const telegramLoginLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Juda ko'p urinish qilindi, keyinroq urinib ko'ring" }
+});
+
+// Constant-time compare so a mismatched bot secret can't be recovered by timing the response.
+function safeEqual(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const REFRESH_COOKIE = "refreshToken";
+const isProd = process.env.NODE_ENV === "production";
+
+// The refresh token is long-lived (30d), so it must never be readable by JS. Delivered as an
+// HttpOnly cookie scoped to /api/auth. Cross-site (frontend and API are separate Railway hosts)
+// requires SameSite=None + Secure in production; localhost dev falls back to Lax over http.
+function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? "none" : "lax") as "none" | "lax",
+    path: "/api/auth",
+    maxAge: REFRESH_TTL_MS
+  };
+}
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -48,18 +79,34 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
   if (!user || !(await bcrypt.compare(data.password, user.passwordHash))) {
     return res.status(401).json({ message: "Email yoki parol noto'g'ri" });
   }
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role.name }, ...(await issueTokens(user.id)) });
+  const { accessToken, refreshToken } = await issueTokens(user.id);
+  res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role.name }, accessToken });
 });
 
-authRouter.post("/telegram-login", async (req, res) => {
+authRouter.post("/telegram-login", telegramLoginLimiter, async (req, res) => {
+  // Telegram numeric ids are not secret (they leak via forwarded messages, @userinfobot, group
+  // member lists). Without a shared secret, anyone who submits a linked admin's id would get
+  // tokens. Require the bot's X-Bot-Secret and fail closed if the secret isn't configured.
+  if (!env.BOT_SERVICE_SECRET) {
+    return res.status(503).json({ message: "Telegram login sozlanmagan" });
+  }
+  const provided = req.header("x-bot-secret") ?? "";
+  if (!safeEqual(provided, env.BOT_SERVICE_SECRET)) {
+    return res.status(401).json({ message: "Ruxsat yo'q" });
+  }
   const telegramId = z.object({ telegramId: z.string() }).parse(req.body).telegramId;
   const user = await prisma.user.findUnique({ where: { telegramId }, include: { role: true } });
   if (!user) return res.status(403).json({ message: "Telegram ID ruxsat etilmagan" });
-  res.json({ user: { id: user.id, name: user.name, role: user.role.name }, ...(await issueTokens(user.id)) });
+  const { accessToken, refreshToken } = await issueTokens(user.id);
+  res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+  res.json({ user: { id: user.id, name: user.name, role: user.role.name }, accessToken });
 });
 
 authRouter.post("/refresh", async (req, res) => {
-  const token = z.object({ refreshToken: z.string() }).parse(req.body).refreshToken;
+  // Prefer the HttpOnly cookie; fall back to a body token so any pre-migration client still works.
+  const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
+  if (!token) return res.status(401).json({ message: "Refresh token yaroqsiz" });
   try {
     const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { sub: string };
     const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token) } });
@@ -67,15 +114,18 @@ authRouter.post("/refresh", async (req, res) => {
       return res.status(401).json({ message: "Refresh token yaroqsiz" });
     }
     await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
-    res.json(await issueTokens(payload.sub));
+    const { accessToken, refreshToken } = await issueTokens(payload.sub);
+    res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+    res.json({ accessToken });
   } catch {
     res.status(401).json({ message: "Refresh token yaroqsiz" });
   }
 });
 
 authRouter.post("/logout", async (req, res) => {
-  const token = z.object({ refreshToken: z.string().optional() }).parse(req.body).refreshToken;
+  const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
   if (token) await revokeRefreshToken(token);
+  res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
   res.json({ ok: true });
 });
 

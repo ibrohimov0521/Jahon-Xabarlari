@@ -5,6 +5,7 @@ import Parser from "rss-parser";
 import slugify from "slugify";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { safeFetch } from "./net-guard.js";
 import { queueTranslations } from "./translate.js";
 
 const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
@@ -299,7 +300,7 @@ async function fetchPageMedia(link: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(link, {
+    const response = await safeFetch(link, {
       signal: controller.signal,
       headers: {
         "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)"
@@ -376,8 +377,17 @@ async function aiGroupDuplicates(items: FeedItem[]): Promise<number[][]> {
 }
 
 async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    const feed = await parser.parseURL(source.feedUrl);
+    // Route the feed fetch through safeFetch (SSRF-guarded, redirect-revalidated) instead of
+    // parser.parseURL, which would fetch the editor-supplied URL directly with no host checks.
+    const response = await safeFetch(source.feedUrl, {
+      signal: controller.signal,
+      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)" }
+    });
+    if (!response.ok) return [];
+    const feed = await parser.parseString(await response.text());
     return (feed.items ?? [])
       .filter((item): item is typeof item & { title: string; link: string } => Boolean(item.title && item.link))
       .slice(0, 20)
@@ -392,6 +402,8 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
   } catch (error) {
     console.error(`[aggregator] "${source.name}" feed fetch failed:`, error instanceof Error ? error.message : error);
     return [];
+  } finally {
+    clearTimeout(timer);
   }
 }
 

@@ -17,6 +17,7 @@ class Settings:
     admin_panel_url: str
     openai_api_key: str | None
     forward_concurrency: int
+    service_secret: str | None
 
 
 def load_settings() -> Settings:
@@ -32,4 +33,5 @@ def load_settings() -> Settings:
         admin_panel_url=os.getenv("ADMIN_PANEL_URL", "https://frontend-production-89aa6.up.railway.app/admin"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         forward_concurrency=max(1, int(os.getenv("FORWARD_CONCURRENCY", "5"))),
+        service_secret=os.getenv("BOT_SERVICE_SECRET"),
     )

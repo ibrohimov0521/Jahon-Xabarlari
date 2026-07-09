@@ -4,9 +4,10 @@ import aiohttp
 
 
 class BackendApi:
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, service_secret: str | None = None) -> None:
         self.base_url = base_url
         self.origin = base_url[:-4] if base_url.endswith("/api") else base_url
+        self.service_secret = service_secret
         self._token_by_admin: dict[int, str] = {}
         self._user_by_admin: dict[int, dict] = {}
 
@@ -14,8 +15,11 @@ class BackendApi:
         return self._user_by_admin.get(admin_id)
 
     async def login_telegram(self, telegram_id: int) -> dict:
+        # The backend requires this shared secret (X-Bot-Secret) to prove the request really came
+        # from the bot; without it telegram-login is rejected.
+        headers = {"X-Bot-Secret": self.service_secret} if self.service_secret else {}
         async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.base_url}/auth/telegram-login", json={"telegramId": str(telegram_id)}) as response:
+            async with session.post(f"{self.base_url}/auth/telegram-login", json={"telegramId": str(telegram_id)}, headers=headers) as response:
                 data = await response.json()
                 if response.status >= 400:
                     raise PermissionError(data.get("message", "Ruxsat yo'q"))

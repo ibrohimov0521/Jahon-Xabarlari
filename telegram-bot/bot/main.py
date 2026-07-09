@@ -48,7 +48,7 @@ from .keyboards import (
 from .states import ArticleCreate
 
 settings = load_settings()
-api = BackendApi(settings.api_base)
+api = BackendApi(settings.api_base, settings.service_secret)
 router = Router()
 forward_semaphore = asyncio.Semaphore(settings.forward_concurrency)
 media_group_buffers: dict[str, list[Message]] = defaultdict(list)

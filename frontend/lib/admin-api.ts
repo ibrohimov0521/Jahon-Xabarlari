@@ -1,7 +1,6 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 const TOKEN_KEY = "jh_admin_token";
-const REFRESH_KEY = "jh_admin_refresh";
 const USER_KEY = "jh_admin_user";
 const AUTH_EXPIRED_EVENT = "jh-admin-auth-expired";
 
@@ -10,11 +9,6 @@ export type AuthUser = { id: string; name: string; email?: string; role: string 
 export function getStoredToken() {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(TOKEN_KEY) ?? "";
-}
-
-export function getStoredRefreshToken() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(REFRESH_KEY) ?? "";
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -29,15 +23,15 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
-export function storeSession(user: AuthUser, accessToken: string, refreshToken: string) {
+// The refresh token now lives in an HttpOnly cookie the browser sends automatically, so only the
+// short-lived access token and the user profile are kept client-side.
+export function storeSession(user: AuthUser, accessToken: string) {
   localStorage.setItem(TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_KEY, refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_KEY);
 }
 
@@ -54,6 +48,8 @@ function announceAuthExpired() {
 async function rawRequest(path: string, options: RequestInit, token: string) {
   return fetch(`${API_URL}${path}`, {
     ...options,
+    // Send the HttpOnly refresh cookie on auth calls; harmless (path-scoped) on others.
+    credentials: "include",
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -63,18 +59,14 @@ async function rawRequest(path: string, options: RequestInit, token: string) {
 }
 
 async function tryRefresh(): Promise<string | null> {
-  const refreshToken = getStoredRefreshToken();
   const user = getStoredUser();
-  if (!refreshToken || !user) return null;
+  if (!user) return null;
   try {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken })
-    });
+    // No body: the refresh token rides along as an HttpOnly cookie.
+    const res = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" });
     if (!res.ok) return null;
-    const data = (await res.json()) as { accessToken: string; refreshToken: string };
-    storeSession(user, data.accessToken, data.refreshToken);
+    const data = (await res.json()) as { accessToken: string };
+    storeSession(user, data.accessToken);
     return data.accessToken;
   } catch {
     return null;
@@ -118,6 +110,7 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
   };
   let res = await fetch(`${API_URL}/admin/media/upload`, {
     method: "POST",
+    credentials: "include",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: createForm()
   });
@@ -128,6 +121,7 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
       token = refreshed;
       res = await fetch(`${API_URL}/admin/media/upload`, {
         method: "POST",
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
         body: createForm()
       });
@@ -143,23 +137,19 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
 }
 
 export async function login(email: string, password: string) {
-  const data = await adminRequest<{ user: AuthUser; accessToken: string; refreshToken: string }>("/auth/login", {
+  const data = await adminRequest<{ user: AuthUser; accessToken: string }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
-  storeSession(data.user, data.accessToken, data.refreshToken);
+  storeSession(data.user, data.accessToken);
   return data.user;
 }
 
 export async function logout() {
-  const refreshToken = getStoredRefreshToken();
   clearSession();
   try {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken })
-    });
+    // The HttpOnly cookie is sent automatically; the server revokes it and clears the cookie.
+    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
   } catch {
     // best-effort server-side revocation; local session is already cleared
   }

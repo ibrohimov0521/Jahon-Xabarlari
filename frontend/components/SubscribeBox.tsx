@@ -2,9 +2,8 @@
 
 import { Send } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 export function SubscribeBox() {
   const [email, setEmail] = useState("");

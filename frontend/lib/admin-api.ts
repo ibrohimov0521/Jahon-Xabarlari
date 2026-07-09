@@ -1,4 +1,6 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
+import { API_URL, API_ORIGIN } from "./config";
+
+export { API_URL };
 
 const TOKEN_KEY = "jh_admin_token";
 const USER_KEY = "jh_admin_user";
@@ -131,7 +133,7 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new AdminApiError(data.message ?? "Fayl yuklanmadi", res.status);
   if (data.url && !data.url.startsWith("http")) {
-    data.url = `${API_URL.replace(/\/api$/, "")}${data.url}`;
+    data.url = `${API_ORIGIN}${data.url}`;
   }
   return data;
 }

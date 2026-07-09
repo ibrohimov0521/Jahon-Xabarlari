@@ -24,7 +24,7 @@ export type Article = {
   showInPopular?: boolean;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
+import { API_URL } from "./config";
 
 // "uz" is the native/default content language already stored on the article, so there's
 // no need to ask the backend for a translation in that case.

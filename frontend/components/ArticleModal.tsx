@@ -4,10 +4,9 @@ import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import type { Article } from "../lib/api";
+import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
 import { MediaView } from "./MediaView";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 export function ArticleModal() {
   const { language } = useUi();

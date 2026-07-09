@@ -189,7 +189,7 @@ export type WeatherAlert = {
   expires: string;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
+import { API_URL } from "./config";
 
 // Severe weather alerts, proxied through our backend (WeatherAPI). Degrades to an empty list on
 // any failure -- alerts are a bonus banner on top of the core forecast, never a blocker.

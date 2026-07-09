@@ -4,14 +4,11 @@ import { CommentSection } from "../../../components/CommentSection";
 import { Header } from "../../../components/Header";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
+import { isVideoUrl } from "../../../lib/media";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
 type ArticlePageProps = { params: Promise<{ slug: string }> };
-
-function isVideoUrl(src?: string | null) {
-  return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
-}
 
 function ArticleMedia({ src, alt, className = "" }: { src?: string | null; alt: string; className?: string }) {
   if (!src) return null;

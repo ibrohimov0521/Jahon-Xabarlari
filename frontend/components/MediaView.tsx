@@ -1,6 +1,10 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
+import { isVideoUrl } from "../lib/media";
+
+// Re-exported for existing importers of MediaView.
+export { isVideoUrl };
 
 type MediaViewProps = {
   src?: string | null;
@@ -10,10 +14,6 @@ type MediaViewProps = {
   priority?: boolean;
   avoidUpscale?: boolean;
 };
-
-export function isVideoUrl(src?: string | null) {
-  return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
-}
 
 // Serve remote photos through this site's own Next image optimizer instead of hotlinking the
 // third-party CDN directly. Visitors whose network can't reach the source CDN (regional blocks,

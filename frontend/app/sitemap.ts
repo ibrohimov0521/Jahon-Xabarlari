@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
+import { API_URL } from "../lib/config";
 import { SITE_URL } from "../lib/site";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://backend-production-8124.up.railway.app/api";
 
 type ApiArticle = { slug: string; updatedAt?: string; publishedAt?: string; category?: { slug: string } };
 

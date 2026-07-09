@@ -754,13 +754,23 @@ footer:not(.site-footer),
     color: #f8fafc;
   }
 
-  /* Upper band: brand block + three link columns. */
+  /* Upper band: brand block + three link columns + subscribe box. */
   .site-footer-top {
     display: grid;
-    grid-template-columns: 2.2fr 1fr 1fr 1fr;
-    gap: 32px;
+    grid-template-columns: 1.5fr 1.7fr 1.2fr;
+    gap: 40px;
     padding-top: 40px;
     padding-bottom: 36px;
+  }
+
+  .site-footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .site-footer-subscribe {
+    min-width: 0;
   }
 
   .site-footer-brand {

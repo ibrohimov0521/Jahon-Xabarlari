@@ -39,7 +39,9 @@ export async function getArticles(params = "", lang?: string) {
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
-    return demoArticles;
+    // A category-filtered request must not fall back to unrelated demo content -- it would render
+    // under the wrong category heading and hide an unknown slug. Only unfiltered lists show demos.
+    return params.includes("category=") ? [] : demoArticles;
   }
 }
 

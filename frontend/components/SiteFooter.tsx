@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_DESCRIPTION, SITE_FULL_NAME, SITE_SOCIAL_LINKS, SITE_TAGLINE } from "../lib/site";
+import { SubscribeBox } from "./SubscribeBox";
 
 const categories = [
   { label: "O'zbekiston", href: "/category/ozbekiston" },
@@ -47,37 +48,43 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="site-footer-col">
-          <h3>Kategoriyalar</h3>
-          <nav aria-label="Kategoriyalar">
-            {categories.map((item) => (
-              <Link key={item.href} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <div className="site-footer-links">
+          <div className="site-footer-col">
+            <h3>Kategoriyalar</h3>
+            <nav aria-label="Kategoriyalar">
+              {categories.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          <div className="site-footer-col">
+            <h3>Bo'limlar</h3>
+            <nav aria-label="Bo'limlar">
+              {sections.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          <div className="site-footer-col">
+            <h3>Ma'lumot</h3>
+            <nav aria-label="Ma'lumot">
+              {info.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
 
-        <div className="site-footer-col">
-          <h3>Bo'limlar</h3>
-          <nav aria-label="Bo'limlar">
-            {sections.map((item) => (
-              <Link key={item.href} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="site-footer-col">
-          <h3>Ma'lumot</h3>
-          <nav aria-label="Ma'lumot">
-            {info.map((item) => (
-              <Link key={item.href} href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+        <div className="site-footer-subscribe">
+          <SubscribeBox />
         </div>
       </div>
 

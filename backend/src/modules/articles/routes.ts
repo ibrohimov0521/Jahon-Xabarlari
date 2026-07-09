@@ -139,8 +139,10 @@ articleRouter.get("/articles/trending", async (req, res) => {
   if (!grouped.length) return res.json({ items: [] });
 
   const ids = grouped.map((item) => item.articleId);
+  // No publishedAt filter: "trending" is driven by today's view counts (the groupBy above already
+  // scopes views to `since`), so an older article being read heavily today must still qualify.
   const articles = await prisma.article.findMany({
-    where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED", publishedAt: { gte: since } },
+    where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED" },
     include: includeArgs
   });
   const order = new Map(ids.map((id, index) => [id, index]));

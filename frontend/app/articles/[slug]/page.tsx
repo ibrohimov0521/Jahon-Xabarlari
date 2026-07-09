@@ -2,13 +2,28 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CommentSection } from "../../../components/CommentSection";
 import { Header } from "../../../components/Header";
-import { MediaView } from "../../../components/MediaView";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
 type ArticlePageProps = { params: Promise<{ slug: string }> };
+
+function isVideoUrl(src?: string | null) {
+  return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
+}
+
+function ArticleMedia({ src, alt, className = "" }: { src?: string | null; alt: string; className?: string }) {
+  if (!src) return null;
+  if (isVideoUrl(src)) {
+    return (
+      <video className={className} controls muted playsInline preload="metadata">
+        <source src={src} />
+      </video>
+    );
+  }
+  return <img src={src} alt={alt} className={className} loading="eager" decoding="async" />;
+}
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -98,11 +113,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
           <p className="article-summary mt-4 text-lg">{articleDescription}</p>
         </div>
-        <MediaView src={article.mainImage} alt={article.title} className="article-main-media mt-7 w-full rounded-lg bg-black/80 object-contain news-shadow" priority />
+        {article.mainImage && (
+          <div className="article-main-frame mt-7 rounded-lg bg-black/80 news-shadow">
+            <ArticleMedia src={article.mainImage} alt={article.title} className="article-main-media" />
+          </div>
+        )}
         {!!article.gallery?.length && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {article.gallery.map((src) => (
-              <MediaView key={src} src={src} alt={article.title} className="article-gallery-media w-full rounded-lg bg-black/80 object-contain news-shadow" />
+              <div key={src} className="article-gallery-frame rounded-lg bg-black/80 news-shadow">
+                <ArticleMedia src={src} alt={article.title} className="article-gallery-media" />
+              </div>
             ))}
           </div>
         )}

@@ -22,6 +22,7 @@ export type Article = ArticleFlags & {
   title: string;
   slug: string;
   summary: string;
+  shortDescription?: string | null;
   content: string;
   mainImage?: string | null;
   gallery?: string[];
@@ -100,6 +101,7 @@ export type UserItem = {
 export type ArticleFormState = {
   title: string;
   summary: string;
+  shortDescription: string;
   content: string;
   mainImage: string;
   gallery: string[];
@@ -113,6 +115,7 @@ export type ArticleFormState = {
 export const emptyArticleForm: ArticleFormState = {
   title: "",
   summary: "",
+  shortDescription: "",
   content: "",
   mainImage: "",
   gallery: [],

@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest, uploadAdminMedia } from "../../lib/admin-api";
 import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
@@ -11,6 +12,7 @@ function toFormState(article: Article): ArticleFormState {
   return {
     title: article.title,
     summary: article.summary,
+    shortDescription: article.shortDescription ?? "",
     content: article.content,
     mainImage: article.mainImage ?? "",
     gallery: article.gallery ?? [],
@@ -44,6 +46,7 @@ export function ArticleEditor({
   const [form, setForm] = useState<ArticleFormState>({ ...emptyArticleForm, categoryId: categories[0]?.id ?? "" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
@@ -104,6 +107,26 @@ export function ArticleEditor({
     }
   }
 
+  async function generateShortDescription() {
+    setAiGenerating(true);
+    setError("");
+    try {
+      const result = await adminRequest<{ shortDescription: string }>("/admin/ai/short-description", {
+        method: "POST",
+        body: JSON.stringify({
+          title: form.title,
+          summary: form.summary,
+          content: form.content
+        })
+      });
+      setForm((current) => ({ ...current, shortDescription: result.shortDescription }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI qisqa izoh yaratilmadi");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
   if (loading) {
     return (
       <Panel title="Maqola">
@@ -119,6 +142,18 @@ export function ArticleEditor({
         <div className="grid gap-4">
           <Input label="Sarlavha" value={form.title} onChange={(value) => setForm({ ...form, title: value })} />
           <Input label="Qisqa tavsif" value={form.summary} onChange={(value) => setForm({ ...form, summary: value })} />
+          <div className="grid gap-2">
+            <Input label="AI qisqa izoh" value={form.shortDescription} onChange={(value) => setForm({ ...form, shortDescription: value })} required={false} />
+            <button
+              type="button"
+              onClick={generateShortDescription}
+              disabled={aiGenerating || form.title.trim().length < 3 || form.content.trim().length < 20}
+              className="inline-flex w-fit items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-black text-brand transition hover:border-brand hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Sparkles size={16} />
+              {aiGenerating ? "Yaratilmoqda..." : "Qisqa izoh yaratish"}
+            </button>
+          </div>
           <label className="text-sm font-bold">
             Asosiy matn
             <textarea

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 
 export const articleRouter = Router();
@@ -15,6 +16,7 @@ const articleSchema = z.object({
   title: z.string().min(3),
   slug: z.string().optional(),
   summary: z.string().min(10),
+  shortDescription: z.string().optional(),
   content: z.string().min(20),
   mainImage: z.string().url().optional().or(z.literal("")),
   gallery: z.array(z.string().url()).optional(),
@@ -35,8 +37,21 @@ const articleSchema = z.object({
 });
 
 const idsSchema = z.object({ ids: z.array(z.string()).min(1) });
+const aiShortDescriptionSchema = z.object({
+  title: z.string().min(3),
+  summary: z.string().optional(),
+  content: z.string().min(20)
+});
 const VIEW_WINDOW_MS = 6 * 60 * 60 * 1000;
 const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+const aiGenerationLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "AI so'rovlari juda ko'p yuborildi, birozdan keyin qayta urinib ko'ring" }
+});
 
 function isLang(value: string | undefined): value is Lang {
   return !!value && (LANGS as readonly string[]).includes(value);
@@ -57,7 +72,7 @@ function daysAgoFromTashkentDay(days: number) {
   return new Date(startOfTashkentDay().getTime() - days * 24 * 60 * 60 * 1000);
 }
 
-function applyTranslation<T extends { title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null }>(
+function applyTranslation<T extends { title: string; summary: string; shortDescription?: string | null; content: string; seoTitle: string | null; seoDescription: string | null }>(
   article: T & { translations?: { lang: string; title: string; summary: string; content: string; seoTitle: string | null; seoDescription: string | null; status: string }[] },
   lang?: string
 ) {
@@ -68,6 +83,7 @@ function applyTranslation<T extends { title: string; summary: string; content: s
     ...article,
     title: translation.title,
     summary: translation.summary,
+    shortDescription: article.shortDescription,
     content: translation.content,
     seoTitle: translation.seoTitle,
     seoDescription: translation.seoDescription
@@ -304,6 +320,18 @@ articleRouter.get("/admin/articles/:id", requireAuth, permit("articles.read"), a
   res.json(article);
 });
 
+articleRouter.post("/admin/ai/short-description", requireAuth, permit("articles.create"), aiGenerationLimit, async (req, res) => {
+  const data = aiShortDescriptionSchema.parse(req.body);
+  try {
+    const shortDescription = await generateArticleShortDescription(data);
+    res.json({ shortDescription });
+  } catch (error) {
+    if (error instanceof AiNotConfiguredError) return res.status(503).json({ message: error.message });
+    const message = error instanceof Error ? error.message : "AI qisqa izoh yarata olmadi";
+    res.status(502).json({ message });
+  }
+});
+
 articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), async (req, res) => {
   const data = articleSchema.parse(req.body);
   if (data.status === "SCHEDULED") {
@@ -346,7 +374,7 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
     }
   });
   await audit(req, "ARTICLE_UPDATE", "Article", article.id, data);
-  if (data.title || data.summary || data.content || data.seoTitle || data.seoDescription) {
+  if (data.title || data.summary || data.shortDescription || data.content || data.seoTitle || data.seoDescription) {
     queueTranslations(article);
   }
   res.json(article);

@@ -21,7 +21,7 @@ export function ArticlePreview({ form, categories, onBack }: { form: ArticleForm
             {form.isEditorChoice && <Badge tone="brand">Editor choice</Badge>}
           </div>
           <h1 className="mt-4 text-3xl font-black leading-tight">{form.title || "Sarlavha kiritilmagan"}</h1>
-          <p className="mt-3 text-lg text-slate-600">{form.summary || "Qisqa tavsif kiritilmagan"}</p>
+          <p className="mt-3 text-lg text-slate-600">{form.shortDescription || form.summary || "Qisqa tavsif kiritilmagan"}</p>
           {form.mainImage && <MediaView src={form.mainImage} alt={form.title} className="mt-5 w-full rounded-lg border border-slate-200 object-cover" />}
           {form.gallery.length > 0 && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">

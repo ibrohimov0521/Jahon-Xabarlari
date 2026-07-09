@@ -304,6 +304,7 @@ export default function AdminPage() {
     setPreviewForm({
       title: article.title,
       summary: article.summary,
+      shortDescription: article.shortDescription ?? "",
       content: article.content,
       mainImage: article.mainImage ?? "",
       gallery: article.gallery ?? [],

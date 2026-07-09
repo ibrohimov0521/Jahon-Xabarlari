@@ -2,11 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { ArticleModal } from "../components/ArticleModal";
 import BottomNav from "../components/BottomNav";
 import SearchExperience from "../components/SearchExperience";
+import { SiteFooter } from "../components/SiteFooter";
 import SwipeNav from "../components/SwipeNav";
 import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
-import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_FULL_NAME, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,10 +18,10 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
-  applicationName: SITE_NAME,
-  authors: [{ name: SITE_NAME, url: SITE_URL }],
-  creator: SITE_NAME,
-  publisher: SITE_NAME,
+  applicationName: SITE_FULL_NAME,
+  authors: [{ name: SITE_FULL_NAME, url: SITE_URL }],
+  creator: SITE_FULL_NAME,
+  publisher: SITE_FULL_NAME,
   referrer: "origin-when-cross-origin",
   formatDetection: {
     email: false,
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: SITE_NAME,
+    title: SITE_FULL_NAME,
     statusBarStyle: "black-translucent"
   },
   alternates: {
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
-    siteName: SITE_NAME,
+    siteName: SITE_FULL_NAME,
     locale: "uz_UZ",
     type: "website",
     images: [
@@ -76,7 +77,7 @@ export const metadata: Metadata = {
         url: SITE_OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: SITE_NAME
+        alt: SITE_FULL_NAME
       }
     ]
   },
@@ -113,8 +114,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "NewsMediaOrganization",
               "@id": `${SITE_URL}/#organization`,
-              name: SITE_NAME,
-              alternateName: SITE_ALTERNATE_NAME,
+              name: SITE_FULL_NAME,
+              alternateName: [SITE_NAME, SITE_ALTERNATE_NAME, "JahonXabarlari.uz"],
               url: SITE_URL,
               logo: {
                 "@type": "ImageObject",
@@ -134,8 +135,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
-              name: SITE_NAME,
-              alternateName: SITE_ALTERNATE_NAME,
+              name: SITE_FULL_NAME,
+              alternateName: [SITE_NAME, SITE_ALTERNATE_NAME, "JahonXabarlari.uz"],
               url: SITE_URL,
               publisher: { "@id": `${SITE_URL}/#organization` },
               potentialAction: {
@@ -150,6 +151,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SearchProvider>
             <NavProvider>
               {children}
+              <SiteFooter />
               <ArticleModal />
               <BottomNav />
               <SearchExperience />

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { WeatherModal } from "./WeatherModal";
 import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
-import { SITE_LOGO, SITE_NAME } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/site";
 import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, type FullWeather, type UzRegion } from "../lib/weather";
 
 const navKeys = [
@@ -157,15 +157,19 @@ export function Header() {
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
         {/* ---- Desktop header (unchanged) ---- */}
         <div className="container-page hidden h-20 min-w-0 items-center gap-7 lg:flex">
-          <Link href="/" className="flex shrink-0 items-center" aria-label={SITE_NAME}>
+          <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
               src={SITE_LOGO}
-              alt={SITE_NAME}
+              alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}
               width={166}
               height={64}
               priority
               className="h-10 w-auto max-w-[92px] rounded-md object-contain sm:h-12 sm:max-w-none lg:h-14"
             />
+            <span className="hidden leading-none xl:block">
+              <span className="block text-2xl font-black tracking-normal text-ink">{SITE_NAME}</span>
+              <span className="mt-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{SITE_ALTERNATE_NAME}</span>
+            </span>
           </Link>
           <nav className="hidden h-full flex-1 items-center gap-8 pl-5 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
@@ -240,8 +244,12 @@ export function Header() {
         {/* ---- Mobile header (redesigned, premium) ---- */}
         <div className="mobile-header lg:hidden">
           <div className="mh-left">
-            <Link href="/" aria-label={SITE_NAME} className="mh-logo">
-              <Image src={SITE_LOGO} alt={SITE_NAME} width={166} height={64} priority className="h-7 w-auto max-w-[92px] object-contain" />
+            <Link href="/" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} className="mh-logo">
+              <Image src={SITE_LOGO} alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} width={166} height={64} priority className="h-7 w-auto max-w-[92px] object-contain" />
+              <span className="mh-brand-text">
+                <span>{SITE_NAME}</span>
+                <small>{SITE_TAGLINE}</small>
+              </span>
             </Link>
           </div>
 

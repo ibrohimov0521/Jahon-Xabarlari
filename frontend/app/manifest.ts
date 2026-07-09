@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { SITE_DESCRIPTION, SITE_ICON_192, SITE_ICON_512, SITE_NAME, SITE_URL } from "../lib/site";
+import { SITE_DESCRIPTION, SITE_FULL_NAME, SITE_ICON_192, SITE_ICON_512, SITE_NAME, SITE_URL } from "../lib/site";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: SITE_NAME,
+    name: SITE_FULL_NAME,
     short_name: "JX",
     description: SITE_DESCRIPTION,
     start_url: SITE_URL,

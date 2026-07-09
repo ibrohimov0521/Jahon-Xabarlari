@@ -16,7 +16,8 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const article = await getArticle(slug, lang);
   if (!article) return {};
   const title = article.seoTitle || article.title;
-  const description = article.seoDescription || article.summary;
+  const articleDescription = article.shortDescription || article.summary;
+  const description = article.seoDescription || articleDescription;
   const url = `${SITE_URL}/articles/${article.slug}`;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
 
@@ -51,6 +52,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const article = await getArticle(slug, lang);
   if (!article) notFound();
   const articleUrl = `${SITE_URL}/articles/${article.slug}`;
+  const articleDescription = article.shortDescription || article.summary;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
   const comments = await getComments(article.id);
 
@@ -64,7 +66,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             "@context": "https://schema.org",
             "@type": "NewsArticle",
             headline: article.title,
-            description: article.summary,
+            description: articleDescription,
             image: images.length ? images : undefined,
             datePublished: article.publishedAt,
             dateModified: article.updatedAt ?? article.publishedAt,
@@ -94,13 +96,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             {formatArticleDateTime(article.publishedAt)} &nbsp;•&nbsp; {formatViews(article.viewsCount)}
           </p>
           <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
-          <p className="article-summary mt-4 text-lg">{article.summary}</p>
+          <p className="article-summary mt-4 text-lg">{articleDescription}</p>
         </div>
-        <MediaView src={article.mainImage} alt={article.title} className="mt-7 max-h-[82vh] w-full rounded-lg bg-black/80 object-contain news-shadow" priority />
+        <MediaView src={article.mainImage} alt={article.title} className="article-main-media mt-7 w-full rounded-lg bg-black/80 object-contain news-shadow" priority />
         {!!article.gallery?.length && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {article.gallery.map((src) => (
-              <MediaView key={src} src={src} alt={article.title} className="max-h-[70vh] w-full rounded-lg bg-black/80 object-contain news-shadow" />
+              <MediaView key={src} src={src} alt={article.title} className="article-gallery-media w-full rounded-lg bg-black/80 object-contain news-shadow" />
             ))}
           </div>
         )}

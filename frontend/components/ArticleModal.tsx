@@ -94,7 +94,7 @@ export function ArticleModal() {
                 {formatArticleDateTime(article.publishedAt)} · {formatViews(article.viewsCount)}
               </p>
               <h1 className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
-              <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.summary}</p>
+              <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.shortDescription || article.summary}</p>
               <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
               <a data-full-page="true" href={`/articles/${article.slug}`} onClick={close} className="mt-7 inline-flex h-11 items-center gap-3 rounded-md bg-brand px-5 font-black text-white">
                 To'liq sahifada ochish <ArrowRight size={17} />

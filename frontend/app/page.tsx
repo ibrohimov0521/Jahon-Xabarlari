@@ -95,7 +95,7 @@ export default async function Home() {
             <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{hero.category?.name}</span>
             <p className="text-[15px] font-medium">{formatArticleDateTime(hero.publishedAt)}</p>
             <h1 className="mt-3 max-w-[610px] text-[27px] font-black leading-[1.18] sm:text-[34px] sm:leading-[1.2]">{hero.title}</h1>
-            <p className="mt-3 max-w-[620px] text-[15px] leading-6 text-white sm:text-[17px] sm:leading-7">{hero.summary}</p>
+            <p className="mt-3 max-w-[620px] text-[15px] leading-6 text-white sm:text-[17px] sm:leading-7">{hero.shortDescription || hero.summary}</p>
             <span className="mt-6 flex h-[46px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink">
               Batafsil o'qish <ArrowRight size={18} />
             </span>
@@ -169,7 +169,7 @@ export default async function Home() {
                 <div className="relative flex min-h-[360px] flex-col justify-end p-7">
                   <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{editorLead.category?.name}</span>
                   <h2 className="max-w-2xl text-[30px] font-black leading-tight">Muharrir tanlovi: {editorLead.title}</h2>
-                  <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/90">{editorLead.summary}</p>
+                  <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/90">{editorLead.shortDescription || editorLead.summary}</p>
                   <span className="mt-5 flex h-11 w-fit items-center gap-3 rounded-md border border-white/45 px-5 text-sm font-black transition hover:bg-white hover:text-ink">
                     Batafsil o'qish <ArrowRight size={17} />
                   </span>
@@ -211,7 +211,7 @@ export default async function Home() {
                       <MediaView src={item.mainImage} className={`${index === 0 ? "h-32 sm:w-40" : "h-32 w-full sm:h-20 sm:w-[92px]"} rounded-md object-cover`} />
                       <div className="min-w-0 py-1">
                         <h3 className={`${index === 0 ? "text-[18px]" : "text-[15px]"} line-clamp-2 font-black leading-snug`}>{item.title}</h3>
-                        <p className="mt-2 line-clamp-2 text-sm text-slate-500">{item.summary}</p>
+                        <p className="mt-2 line-clamp-2 text-sm text-slate-500">{item.shortDescription || item.summary}</p>
                       </div>
                     </Link>
                   ))}

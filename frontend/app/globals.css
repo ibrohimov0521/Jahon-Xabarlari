@@ -204,6 +204,32 @@ body > main {
   color: #cbd5e1;
 }
 
+.article-main-media,
+.article-gallery-media {
+  display: block;
+  width: 100%;
+  object-fit: contain;
+}
+
+.article-main-media {
+  aspect-ratio: 16 / 9;
+  min-height: clamp(220px, 48vw, 520px);
+  max-height: 82vh;
+}
+
+.article-gallery-media {
+  aspect-ratio: 16 / 10;
+  min-height: 180px;
+  max-height: 70vh;
+}
+
+@media (max-width: 640px) {
+  .article-main-media {
+    min-height: 220px;
+    max-height: 58vh;
+  }
+}
+
 .text-slate-500,
 .text-slate-600 {
   color: var(--muted) !important;
@@ -718,86 +744,65 @@ button.bg-white {
 
 /* Desktop footer: compact bottom information bar. Mobile hides it completely so no extra
    blank footer area appears under the feed. */
-footer {
+footer:not(.site-footer),
+.site-footer {
   display: none;
 }
 
 @media (min-width: 1024px) {
-  footer {
+  .site-footer {
     display: block;
-    padding: 0 !important;
+    margin-top: 24px;
     border-top: 1px solid rgba(166, 246, 255, 0.16);
+    background: rgba(5, 11, 18, 0.96);
+    color: #f8fafc;
   }
 
-  footer > .container-page:first-child {
-    display: flex !important;
-    min-height: 82px;
+  .site-footer-inner {
+    display: flex;
+    min-height: 54px;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
+    gap: 16px;
   }
 
-  footer > .container-page:first-child > div {
-    min-width: 0;
-  }
-
-  footer > .container-page:first-child > div:first-child {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  footer > .container-page:first-child > div:first-child img {
-    width: 42px;
-    height: 42px;
-  }
-
-  footer > .container-page:first-child > div:first-child p {
-    max-width: 360px;
-    margin-top: 0 !important;
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  footer > .container-page:first-child > div:nth-child(2),
-  footer > .container-page:first-child > div:nth-child(3) {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  footer > .container-page:first-child > div:nth-child(2) h3,
-  footer > .container-page:first-child > div:nth-child(3) h3 {
+  .site-footer p {
     margin: 0;
-    color: #f8fdff;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
   }
 
-  footer > .container-page:first-child > div:nth-child(2) > div,
-  footer > .container-page:first-child > div:nth-child(3) > div {
-    display: flex !important;
+  .site-footer nav {
+    display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 0 !important;
   }
 
-  footer > .container-page:first-child a,
-  footer > .container-page:first-child span {
+  .site-footer a {
     display: inline-flex;
-    min-height: 36px;
+    min-height: 34px;
     align-items: center;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 999px;
-    padding: 0 14px;
+    padding: 0 13px;
     white-space: nowrap;
+    font-size: 13px;
+    font-weight: 800;
+    color: #e2e8f0;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
   }
 
-  footer > .container-page:first-child a:hover {
+  .site-footer a:hover {
+    background: rgba(255, 255, 255, 0.05);
     border-color: #1767f5;
+    color: #ffffff;
   }
 
-  footer .subscribe-box,
-  footer > .container-page:last-child {
+  footer:not(.site-footer) {
     display: none !important;
   }
 }
@@ -1842,7 +1847,38 @@ footer {
 .mh-left { justify-self: start; min-width: 0; }
 .mh-center { justify-self: center; }
 .mh-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
-.mh-logo img { transform-origin: left center; }
+.mh-logo {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+.mh-logo img { flex: 0 0 auto; transform-origin: left center; }
+.mh-brand-text {
+  display: none;
+  min-width: 0;
+  line-height: 1;
+}
+.mh-brand-text span {
+  display: block;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--mh-text);
+}
+.mh-brand-text small {
+  display: block;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--mh-muted);
+}
+
+@media (min-width: 430px) {
+  .mh-brand-text { display: block; }
+}
 
 /* Weather pill — thin, subtle, theme-aware */
 .mh-weather {

@@ -30,11 +30,13 @@ function toImageSrc(src: string) {
 export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
   const [retried, setRetried] = useState(false);
+  const [useDirectSrc, setUseDirectSrc] = useState(false);
   // Reset before the new src's own onLoad recalculates it -- otherwise a reused instance (e.g.
   // ArticleModal swapping between articles) briefly keeps the previous image's styling.
   useEffect(() => {
     setIsSmallImage(false);
     setRetried(false);
+    setUseDirectSrc(false);
   }, [src]);
   if (!src) return null;
   if (isVideoUrl(src)) {
@@ -57,7 +59,9 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
   if (priority) {
     style.minHeight = "240px";
   }
-  const finalSrc = toImageSrc(src);
+  const optimizedSrc = toImageSrc(src);
+  const isRemoteImage = /^https?:\/\//i.test(src);
+  const finalSrc = useDirectSrc ? src : optimizedSrc;
   return (
     <img
       src={finalSrc}
@@ -73,6 +77,11 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
         setIsSmallImage(tooNarrow || tooShort);
       }}
       onError={(event) => {
+        // If Next's optimizer cannot fetch a remote source, fall back to the original CDN URL.
+        if (isRemoteImage && !useDirectSrc) {
+          setUseDirectSrc(true);
+          return;
+        }
         // One-shot recovery from a transient/aborted load: force a fresh request for the same URL.
         if (retried) return;
         setRetried(true);

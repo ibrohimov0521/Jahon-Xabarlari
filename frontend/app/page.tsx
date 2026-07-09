@@ -117,7 +117,7 @@ export default async function Home() {
             </Link>
           ))}
         </div>
-        <div className="row-span-2 flex flex-col gap-4">
+        <div className="row-span-2 flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
           <aside className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
             <h2 className="text-[22px] font-black">Trend bo'layotgan</h2>
@@ -235,7 +235,7 @@ export default async function Home() {
           )}
         </div>
 
-        <aside className="grid content-start gap-4">
+        <aside className="grid content-start gap-4 lg:sticky lg:top-24 lg:self-start">
           <section className="news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-[22px] font-black">Eng ko'p o'qilganlar</h2>
@@ -257,17 +257,17 @@ export default async function Home() {
         </aside>
       </section>
 
-      <footer className="bg-ink py-10 text-white">
-        <div className="container-page grid gap-8 md:grid-cols-[1.1fr_0.7fr_0.9fr_1fr]">
+      <footer className="bg-ink py-7 text-white">
+        <div className="container-page grid gap-6 md:grid-cols-[1.2fr_0.7fr_0.9fr_1fr]">
           <div>
-            <Image src={SITE_LOGO} alt={SITE_NAME} width={150} height={150} className="h-24 w-24 rounded-md object-cover" />
-            <p className="mt-4 text-slate-300">Dunyodagi eng muhim voqealarni tez, ishonchli va xolis ravishda yetkazib beramiz.</p>
+            <Image src={SITE_LOGO} alt={SITE_NAME} width={120} height={120} className="h-14 w-14 rounded-md object-cover" />
+            <p className="mt-3 text-sm leading-6 text-slate-300">Dunyodagi eng muhim voqealarni tez, ishonchli va xolis ravishda yetkazib beramiz.</p>
           </div>
-          <div><h3 className="font-black">Havolalar</h3><div className="mt-4 grid gap-2 text-slate-300"><Link className="hover:text-white" href="/about">Biz haqimizda</Link><Link className="hover:text-white" href="/ads">Reklama</Link><Link className="hover:text-white" href="/contact">Aloqa</Link></div></div>
-          <div><h3 className="font-black">Bog'lanish</h3><div className="mt-4 grid gap-2 text-slate-300"><a className="hover:text-white" href="mailto:info@jahonxabarlari.uz">info@jahonxabarlari.uz</a><a className="hover:text-white" href="https://t.me/" target="_blank">Telegram</a><span>Toshkent, O'zbekiston</span></div></div>
+          <div><h3 className="text-sm font-black">Havolalar</h3><div className="mt-3 grid gap-2 text-sm text-slate-300"><Link className="hover:text-white" href="/about">Biz haqimizda</Link><Link className="hover:text-white" href="/ads">Reklama</Link><Link className="hover:text-white" href="/contact">Aloqa</Link></div></div>
+          <div><h3 className="text-sm font-black">Bog'lanish</h3><div className="mt-3 grid gap-2 text-sm text-slate-300"><a className="hover:text-white" href="mailto:info@jahonxabarlari.uz">info@jahonxabarlari.uz</a><a className="hover:text-white" href="https://t.me/" target="_blank">Telegram</a><span>Toshkent, O'zbekiston</span></div></div>
           <SubscribeBox />
         </div>
-        <div className="container-page mt-8 border-t border-white/10 pt-6 text-sm text-slate-400">
+        <div className="container-page mt-6 border-t border-white/10 pt-5 text-sm text-slate-400">
           © {new Date().getFullYear()} {SITE_NAME}. Barcha huquqlar himoyalangan.
         </div>
       </footer>

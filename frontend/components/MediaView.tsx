@@ -15,6 +15,18 @@ export function isVideoUrl(src?: string | null) {
   return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
 }
 
+// Serve remote photos through this site's own Next image optimizer instead of hotlinking the
+// third-party CDN directly. Visitors whose network can't reach the source CDN (regional blocks,
+// hotlink protection) still get the image because their browser only ever talks to our origin,
+// and the bytes arrive resized/optimized. Local, relative and data URLs are already same-origin.
+// Deterministic (no browser APIs) so server and client render the same src -- no hydration drift.
+function toImageSrc(src: string) {
+  if (/^https?:\/\//i.test(src)) {
+    return `/_next/image?url=${encodeURIComponent(src)}&w=1200&q=75`;
+  }
+  return src;
+}
+
 export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
   const [retried, setRetried] = useState(false);
@@ -45,9 +57,10 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
   if (priority) {
     style.minHeight = "240px";
   }
+  const finalSrc = toImageSrc(src);
   return (
     <img
-      src={src}
+      src={finalSrc}
       alt={alt}
       className={className}
       loading={priority ? "eager" : "lazy"}
@@ -64,9 +77,8 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
         if (retried) return;
         setRetried(true);
         const image = event.currentTarget;
-        const url = src;
         image.src = "";
-        image.src = url;
+        image.src = finalSrc;
       }}
       style={Object.keys(style).length ? style : undefined}
     />

@@ -2,18 +2,17 @@
 
 Bu fayl istalgan qurilmada `git pull` qilib davom ettirish uchun. O'qib/bajarib bo'lgach o'chirish mumkin.
 
-## ⚠️ AVVAL: Railway env sozlamalari (bularsiz backend ishga tushmaydi / bot login qilmaydi)
+## Railway env sozlamalari — HOLAT (2026-07-10)
 
-Xavfsizlik commit'idan (`fe45d9b`) keyin quyidagilar SHART:
+Xavfsizlik commit'idan (`fe45d9b`) keyingi env talablari **allaqachon bajarilgan**:
 
-1. **`JWT_ACCESS_SECRET`** va **`JWT_REFRESH_SECRET`** — har biri kamida 32 belgi, alohida qiymat.
-   `openssl rand -hex 32` bilan yarating. Eski `change_*` yoki qisqa qiymatlar endi rad etiladi
-   (backend boot bo'lmaydi).
-2. **`BOT_SERVICE_SECRET`** — bir xil qiymatni **ham backend, ham telegram-bot** servisiga qo'ying.
-   `openssl rand -hex 24`. Bo'lmasa `/auth/telegram-login` 503/401 qaytaradi va botning admin
-   amallari ishlamaydi.
+1. ✅ **`JWT_ACCESS_SECRET`** va **`JWT_REFRESH_SECRET`** — Railway'da tekshirildi, har biri 64 belgi,
+   placeholder emas → yangi validatsiyadan o'tadi.
+2. ✅ **`BOT_SERVICE_SECRET`** — CLI orqali backend va telegram-bot servislariga bir xil tasodifiy
+   qiymat (48 belgi) o'rnatildi. Botning admin-login'i ishlaydi.
 
-Backend + telegram-bot servislarini env qo'ygandan keyin qayta deploy qiling.
+Qo'shimcha qo'lda env qo'yish SHART emas. Xohlasangiz kelajakda `BOT_SERVICE_SECRET`ni
+rotatsiya qilishingiz mumkin (ikkala servisda bir xil bo'lishi kerak).
 
 ## Bu sessiyada BAJARILDI (main'ga push qilingan)
 

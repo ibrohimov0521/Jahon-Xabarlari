@@ -72,7 +72,13 @@ body {
 
 .site-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Fixed to the LARGEST viewport height so the mobile URL bar showing/hiding
+     on scroll doesn't resize the element and rescale the cover image. */
+  height: 100vh;
+  height: 100lvh;
   z-index: 0;
   pointer-events: none;
   background:

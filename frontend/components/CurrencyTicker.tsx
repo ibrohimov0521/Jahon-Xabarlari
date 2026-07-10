@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CurrencyRate } from "../app/api/rates/route";
+import { Flag } from "./currency/Flag";
 
-const SYMBOL: Record<string, string> = { USD: "$", EUR: "€", RUB: "₽" };
+const SYMBOL: Record<string, string> = { USD: "$", EUR: "€", RUB: "₽", CNY: "¥", GBP: "£", JPY: "¥" };
+const COUNTRY: Record<string, string> = { USD: "US", EUR: "EU", RUB: "RU", CNY: "CN", GBP: "GB", JPY: "JP", SAR: "SA", UZS: "UZ" };
 
 const nf = new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 2 });
 const nf0 = new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0 });
@@ -12,11 +14,14 @@ function num(value: string) {
   const n = parseFloat(value.replace(/\s/g, "").replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 }
+function pctOf(r: CurrencyRate) {
+  const prev = r.rate - r.diff;
+  return prev ? (r.diff / prev) * 100 : 0;
+}
 
 export function CurrencyTicker() {
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [open, setOpen] = useState<string | null>(null);
-  // Bidirectional converter: one field holds the foreign amount, the other UZS.
   const [amount, setAmount] = useState("1");
   const [uzs, setUzs] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -31,14 +36,13 @@ export function CurrencyTicker() {
         })
         .catch(() => {});
     load();
-    const id = setInterval(load, 3_600_000); // refresh hourly
+    const id = setInterval(load, 3_600_000);
     return () => {
       alive = false;
       clearInterval(id);
     };
   }, []);
 
-  // Close the calculator on outside click / Escape.
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -61,7 +65,6 @@ export function CurrencyTicker() {
     setAmount("1");
     setUzs(r ? nf0.format(r.rate) : "");
   }
-
   function onAmount(value: string) {
     setAmount(value);
     if (active) setUzs(value === "" ? "" : nf0.format(num(value) * active.rate));
@@ -74,7 +77,7 @@ export function CurrencyTicker() {
   if (!rates.length) return null;
 
   return (
-    <div ref={ref} className="currency-ticker">
+    <div ref={ref} className="cx-ticker">
       {rates.map((r) => {
         const dir = r.diff > 0 ? "up" : r.diff < 0 ? "down" : "flat";
         return (
@@ -82,14 +85,16 @@ export function CurrencyTicker() {
             key={r.code}
             type="button"
             onClick={() => selectCurrency(r.code)}
-            className={`currency-chip is-${dir} ${open === r.code ? "is-active" : ""}`}
-            aria-label={`${r.code} kursi va kalkulyator`}
+            className={`cx-item is-${dir} ${open === r.code ? "is-active" : ""}`}
+            aria-label={`${r.code}: ${nf.format(r.rate)} so'm, kalkulyator`}
           >
-            <span className="cc-code">{r.code}</span>
-            <span className="cc-rate">{nf.format(r.rate)}</span>
-            <span className="cc-diff">
-              <span className="cc-arrow">{dir === "up" ? "▲" : dir === "down" ? "▼" : "•"}</span>
-              {nf.format(Math.abs(r.diff))}
+            <span className="cx-top">
+              <Flag country={COUNTRY[r.code] ?? r.code} size={15} />
+              <span className="cx-code">{r.code}</span>
+            </span>
+            <span className="cx-bot" title={`${nf.format(r.rate)} so'm • ${r.diff >= 0 ? "+" : ""}${nf.format(r.diff)} (${pctOf(r).toFixed(2)}%)`}>
+              <span className="cx-rate">{nf0.format(r.rate)}</span>
+              <span className="cx-chg">{dir === "up" ? "▲" : dir === "down" ? "▼" : "•"}</span>
             </span>
           </button>
         );
@@ -103,7 +108,6 @@ export function CurrencyTicker() {
             </span>
             <span className="cp-rate">1 {active.code} = {nf.format(active.rate)} so'm</span>
           </div>
-
           <div className="cp-calc">
             <label className="cp-field">
               <span className="cp-unit">{active.code}</span>
@@ -115,7 +119,6 @@ export function CurrencyTicker() {
               <input inputMode="decimal" value={uzs} onChange={(e) => onUzs(e.target.value)} placeholder="0" />
             </label>
           </div>
-
           <p className="cp-foot">
             <span className={`cp-trend is-${active.diff > 0 ? "up" : active.diff < 0 ? "down" : "flat"}`}>
               {active.diff > 0 ? "▲" : active.diff < 0 ? "▼" : "•"} {nf.format(Math.abs(active.diff))} so'm

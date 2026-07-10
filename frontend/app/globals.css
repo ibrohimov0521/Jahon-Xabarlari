@@ -2063,43 +2063,71 @@ footer:not(.site-footer),
   .mobile-header, .mh-weather, .mh-sun, .mh-temp, .mh-pop, .mh-theme-knob { animation: none !important; }
 }
 
-/* ============ Currency ticker (desktop top-bar utility strip) ============ */
-.currency-strip {
-  border-bottom: 1px solid var(--border);
-  background: var(--glass-bg-soft);
+/* ============ Currency ticker (compact, in the desktop header row) ============ */
+.cx-ticker-wrap { display: none; }
+/* The header is content-dense; only surface the currency widget when there is real room. */
+@media (min-width: 1440px) {
+  .cx-ticker-wrap { display: block; }
 }
-.currency-ticker {
+.cx-ticker {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-}
-.currency-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
+  align-items: stretch;
+  height: 44px;
+  max-width: 244px;
   border: 1px solid var(--border);
+  border-radius: 12px;
   background: var(--glass-bg-soft);
-  font-size: 12.5px;
-  font-weight: 800;
-  color: var(--text);
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
-.currency-chip:hover { transform: translateY(-1px); border-color: #1767f5; }
-.currency-chip.is-active { border-color: #1767f5; box-shadow: 0 4px 14px rgba(23, 103, 245, 0.2); }
-.cc-code { font-weight: 900; letter-spacing: 0.02em; }
-.cc-diff { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 800; }
-.currency-chip.is-up .cc-diff { color: #16a34a; }
-.currency-chip.is-down .cc-diff { color: #ef4444; }
-.currency-chip.is-flat .cc-diff { color: #94a3b8; }
-.cc-arrow { font-size: 9px; }
-.currency-chip.is-up .cc-arrow,
-.currency-chip.is-down .cc-arrow { animation: cc-pulse 2.4s ease-in-out infinite; }
-@keyframes cc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.cx-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 60px;
+  max-width: 84px;
+  padding: 0 9px;
+  cursor: pointer;
+  background: transparent;
+  border-left: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+.cx-item:first-child { border-left: none; border-radius: 11px 0 0 11px; }
+.cx-item:last-child { border-radius: 0 11px 11px 0; }
+.cx-item:hover { background: rgba(127, 145, 175, 0.14); }
+.cx-item.is-active { background: rgba(23, 103, 245, 0.16); }
+.cx-top { display: flex; align-items: center; gap: 5px; line-height: 1; }
+.cx-code { font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; color: var(--text); }
+.cx-bot { display: flex; align-items: baseline; gap: 4px; line-height: 1; margin-top: 4px; }
+.cx-rate { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.cx-chg { font-size: 10px; font-weight: 700; white-space: nowrap; }
+.cx-item.is-up .cx-chg { color: #16a34a; }
+.cx-item.is-down .cx-chg { color: #ef4444; }
+.cx-item.is-flat .cx-chg { color: #94a3b8; }
+.cx-flag {
+  display: inline-flex;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+.cx-flag svg { display: block; }
+.cx-flag-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 7px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #1767f5, #27e2e6);
+}
+@media (max-width: 1280px) {
+  .cx-ticker { max-width: 214px; }
+  .cx-item { min-width: 54px; padding: 0 7px; }
+  .cx-rate { font-size: 12px; }
+}
 
 .currency-pop {
   position: absolute;

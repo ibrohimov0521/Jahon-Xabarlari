@@ -160,14 +160,8 @@ export function Header() {
   return (
     <>
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
-        {/* ---- Desktop currency utility strip (top bar) ---- */}
-        <div className="currency-strip hidden lg:block">
-          <div className="container-page flex items-center justify-end">
-            <CurrencyTicker />
-          </div>
-        </div>
-        {/* ---- Desktop header (unchanged) ---- */}
-        <div className="container-page hidden h-20 min-w-0 items-center gap-7 lg:flex">
+        {/* ---- Desktop header ---- */}
+        <div className="container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
           <Link href="/" className="flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
               src="/brand/logo-jx.png"
@@ -206,7 +200,10 @@ export function Header() {
             </div>
           </nav>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 sm:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2">
+            <div className="cx-ticker-wrap">
+              <CurrencyTicker />
+            </div>
             <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker">

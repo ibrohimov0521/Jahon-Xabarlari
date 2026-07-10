@@ -130,8 +130,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <div className="article-body prose prose-lg mt-8 max-w-none rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-7">
           <p>{article.content}</p>
           {article.sourceName && <p className="mt-6 text-xs text-slate-400">Manba: {article.sourceName}</p>}
+          <CommentSection articleId={article.id} initialComments={comments} />
         </div>
-        <CommentSection articleId={article.id} initialComments={comments} />
       </article>
     </main>
   );

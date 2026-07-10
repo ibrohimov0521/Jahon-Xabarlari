@@ -435,6 +435,12 @@ button.bg-white {
 
 .weather-ticker {
   display: inline-block;
+  /* Fixed width so cycling weather text never resizes the pill and shifts the buttons next to it. */
+  width: 132px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   animation: weather-ticker-in 420ms ease;
 }
 

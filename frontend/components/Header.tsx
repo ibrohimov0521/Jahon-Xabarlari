@@ -16,9 +16,13 @@ const navKeys = [
   { key: "uzbekistan", href: "/category/ozbekiston" },
   { key: "world", href: "/category/dunyo" },
   { key: "politics", href: "/category/siyosat" },
+  { key: "sport", href: "/category/sport" }
+] as const;
+
+// Categories moved out of the top nav to keep it compact -- surfaced in the "Ko'proq" menu.
+const moreCategoryKeys = [
   { key: "economy", href: "/category/iqtisodiyot" },
   { key: "technology", href: "/category/texnologiya" },
-  { key: "sport", href: "/category/sport" },
   { key: "culture", href: "/category/madaniyat" }
 ] as const;
 
@@ -55,13 +59,13 @@ export function Header() {
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";
-    const category = navKeys.find((item) => item.href !== "/" && pathname.startsWith(item.href));
+    const category = [...navKeys, ...moreCategoryKeys].find((item) => item.href !== "/" && pathname.startsWith(item.href));
     if (category) return category.href;
     return moreLinkKeys.find((item) => pathname.startsWith(item.href))?.href ?? "";
   }, [pathname]);
 
   const navLinkClass = (href: string) =>
-    `nav-link flex h-full items-center border-b-2 transition-all duration-200 ${
+    `nav-link flex h-full items-center whitespace-nowrap border-b-2 transition-all duration-200 ${
       activeHref === href ? "border-brand text-brand" : "border-transparent text-ink hover:border-brand/40 hover:text-brand"
     }`;
 
@@ -147,7 +151,7 @@ export function Header() {
   }
 
   const tickerSlides = weather
-    ? [`${region.name} ${weather.temperature}°C`, `His qilinishi: ${weather.feelsLike}°C`, conditionLabel(weather.condition)]
+    ? [`${region.name} ${weather.temperature}°C`, `His: ${weather.feelsLike}°C`, conditionLabel(weather.condition)]
     : [region.name, "...", currentDate];
 
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0];
@@ -174,11 +178,17 @@ export function Header() {
               </Link>
             ))}
             <div ref={moreMenuRef} className="relative h-full">
-              <button onClick={() => setMenuOpen((value) => !value)} className={`nav-link flex h-full items-center gap-2 border-b-2 font-bold transition ${moreLinkKeys.some((item) => item.href === activeHref) ? "border-brand text-brand" : "border-transparent hover:text-brand"}`}>
+              <button onClick={() => setMenuOpen((value) => !value)} className={`nav-link flex h-full items-center gap-2 whitespace-nowrap border-b-2 font-bold transition ${[...moreLinkKeys, ...moreCategoryKeys].some((item) => item.href === activeHref) ? "border-brand text-brand" : "border-transparent hover:text-brand"}`}>
                 {t.nav.more} <Menu size={18} />
               </button>
               {menuOpen && (
                 <div className="menu-popover absolute right-0 top-[72px] z-40 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+                  {moreCategoryKeys.map((item) => (
+                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`block rounded-xl px-4 py-3 text-sm transition hover:bg-slate-50 hover:text-brand ${activeHref === item.href ? "text-brand" : "text-ink"}`} href={item.href}>
+                      {t.nav[item.key]}
+                    </Link>
+                  ))}
+                  <div className="my-1 border-t border-slate-200" />
                   {moreLinkKeys.map((item) => (
                     <Link key={item.href} onClick={() => setMenuOpen(false)} className={`block rounded-xl px-4 py-3 text-sm transition hover:bg-slate-50 hover:text-brand ${activeHref === item.href ? "text-brand" : "text-ink"}`} href={item.href}>
                       {t.more[item.key]}
@@ -192,7 +202,7 @@ export function Header() {
           <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1 sm:gap-2">
             <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
-              <span key={tickerIndex} className="weather-ticker min-w-[92px] text-left">
+              <span key={tickerIndex} className="weather-ticker">
                 {tickerSlides[tickerIndex]}
               </span>
               <ChevronDown size={13} />

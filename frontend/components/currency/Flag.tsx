@@ -76,6 +76,51 @@ const FLAGS: Record<string, ReactNode> = {
       <circle cx="5.2" cy="4" r="2.2" fill="#fff" />
       <circle cx="6.3" cy="4" r="2.2" fill="#0099b5" />
     </>
+  ),
+  KZ: (
+    <>
+      <rect width="24" height="24" fill="#00afca" />
+      <circle cx="12" cy="11" r="4" fill="#fec50c" />
+      <rect x="4" y="18" width="16" height="1.4" fill="#fec50c" />
+    </>
+  ),
+  TR: (
+    <>
+      <rect width="24" height="24" fill="#e30a17" />
+      <circle cx="10" cy="12" r="4.4" fill="#fff" />
+      <circle cx="11.4" cy="12" r="3.5" fill="#e30a17" />
+      <path d="M15 12l3.2-1-2 2.7v-3.4l2 2.7z" fill="#fff" />
+    </>
+  ),
+  AE: (
+    <>
+      <rect width="7" height="24" fill="#ff0000" />
+      <rect x="7" width="17" height="8" fill="#00732f" />
+      <rect x="7" y="8" width="17" height="8" fill="#fff" />
+      <rect x="7" y="16" width="17" height="8" fill="#000" />
+    </>
+  ),
+  KR: (
+    <>
+      <rect width="24" height="24" fill="#fff" />
+      <path d="M12 8a4 4 0 010 8 4 4 0 000-8z" fill="#cd2e3a" />
+      <path d="M12 8a4 4 0 000 8 4 4 0 010-8z" fill="#0047a0" />
+    </>
+  ),
+  IN: (
+    <>
+      <rect width="24" height="8" fill="#ff9933" />
+      <rect y="8" width="24" height="8" fill="#fff" />
+      <rect y="16" width="24" height="8" fill="#138808" />
+      <circle cx="12" cy="12" r="2.6" fill="none" stroke="#000080" strokeWidth="0.8" />
+    </>
+  ),
+  CH: (
+    <>
+      <rect width="24" height="24" fill="#d52b1e" />
+      <rect x="10.5" y="6" width="3" height="12" fill="#fff" />
+      <rect x="6" y="10.5" width="12" height="3" fill="#fff" />
+    </>
   )
 };
 

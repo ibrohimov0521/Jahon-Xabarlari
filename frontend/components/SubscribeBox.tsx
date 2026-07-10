@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
 
-export function SubscribeBox() {
+export function SubscribeBox({ variant = "card" }: { variant?: "card" | "inline" }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const { t } = useUi();
@@ -25,6 +25,25 @@ export function SubscribeBox() {
     } catch {
       setStatus("error");
     }
+  }
+
+  // Compact single-row form for the slim footer bar: email field + button side by side.
+  if (variant === "inline") {
+    return (
+      <form onSubmit={submit} className="site-footer-subscribe-form" aria-label={t.subscribe.title}>
+        <input
+          required
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder={t.subscribe.placeholder}
+          aria-label={t.subscribe.placeholder}
+        />
+        <button disabled={status === "loading"}>{t.subscribe.button}</button>
+        {status === "sent" && <span className="site-footer-subscribe-msg is-ok">{t.subscribe.sent}</span>}
+        {status === "error" && <span className="site-footer-subscribe-msg is-err">{t.subscribe.error}</span>}
+      </form>
+    );
   }
 
   return (

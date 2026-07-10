@@ -1,64 +1,33 @@
+import Image from "next/image";
 import Link from "next/link";
-import { SITE_DESCRIPTION, SITE_FULL_NAME, SITE_SOCIAL_LINKS, SITE_TAGLINE } from "../lib/site";
+import { SITE_LOGO, SITE_NAME } from "../lib/site";
 import { SubscribeBox } from "./SubscribeBox";
 
-const sections = [
-  { label: "Ommabop", href: "/popular" },
-  { label: "Muharrir tanlovi", href: "/editor-choice" },
-  { label: "Qidiruv", href: "/search" }
-];
-
-const socials = [
-  { label: "Telegram", href: SITE_SOCIAL_LINKS[0] },
-  { label: "Facebook", href: SITE_SOCIAL_LINKS[1] },
-  { label: "Instagram", href: SITE_SOCIAL_LINKS[2] },
-  { label: "YouTube", href: SITE_SOCIAL_LINKS[3] }
+const info = [
+  { label: "Sayt haqida", href: "/about" },
+  { label: "Reklama", href: "/ads" },
+  { label: "Aloqa", href: "/contact" }
 ];
 
 export function SiteFooter() {
   return (
     <footer className="site-footer">
-      <div className="container-page site-footer-top">
-        <div className="site-footer-brand">
-          <p className="site-footer-name">{SITE_FULL_NAME}</p>
-          <p className="site-footer-tagline">{SITE_TAGLINE}</p>
-          <p className="site-footer-desc">{SITE_DESCRIPTION}</p>
-          <div className="site-footer-social">
-            {socials.map((item) => (
-              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
-                {item.label}
-              </a>
-            ))}
-          </div>
-        </div>
+      <div className="container-page site-footer-bar">
+        <Link href="/" className="site-footer-logo" aria-label={SITE_NAME}>
+          <Image src={SITE_LOGO} alt={SITE_NAME} width={166} height={64} className="site-footer-logo-img" />
+        </Link>
 
-        <div className="site-footer-links">
-          <div className="site-footer-col">
-            <h3>Bo'limlar</h3>
-            <nav aria-label="Bo'limlar">
-              {sections.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        <div className="site-footer-subscribe">
-          <SubscribeBox />
-        </div>
-      </div>
-
-      <div className="container-page site-footer-bottom">
-        <p>
-          © {new Date().getFullYear()} {SITE_FULL_NAME}. {SITE_TAGLINE}
-        </p>
-        <nav aria-label="Sayt pastki havolalari">
-          <Link href="/about">Sayt haqida</Link>
-          <Link href="/ads">Reklama</Link>
-          <Link href="/contact">Aloqa</Link>
+        <nav className="site-footer-nav" aria-label="Sayt havolalari">
+          {info.map((item) => (
+            <Link key={item.href} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
         </nav>
+
+        <span className="site-footer-copy">© {new Date().getFullYear()} {SITE_NAME}</span>
+
+        <SubscribeBox variant="inline" />
       </div>
     </footer>
   );

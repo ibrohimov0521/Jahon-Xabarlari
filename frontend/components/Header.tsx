@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CurrencyTicker } from "./CurrencyTicker";
 import { WeatherModal } from "./WeatherModal";
 import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
@@ -159,6 +160,12 @@ export function Header() {
   return (
     <>
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
+        {/* ---- Desktop currency utility strip (top bar) ---- */}
+        <div className="currency-strip hidden lg:block">
+          <div className="container-page flex items-center justify-end">
+            <CurrencyTicker />
+          </div>
+        </div>
         {/* ---- Desktop header (unchanged) ---- */}
         <div className="container-page hidden h-20 min-w-0 items-center gap-7 lg:flex">
           <Link href="/" className="flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>

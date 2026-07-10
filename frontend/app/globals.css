@@ -2065,16 +2065,17 @@ footer:not(.site-footer),
 
 /* ============ Currency ticker (compact, in the desktop header row) ============ */
 .cx-ticker-wrap { display: none; }
-/* The header is content-dense; only surface the currency widget when there is real room. */
+/* Sits centered between the nav and the weather widget; only shown when the wide header has room. */
 @media (min-width: 1440px) {
-  .cx-ticker-wrap { display: block; }
+  .cx-ticker-wrap { display: block; flex: 1; min-width: 0; max-width: 420px; }
 }
 .cx-ticker {
   position: relative;
   display: flex;
   align-items: stretch;
   height: 52px;
-  max-width: 292px;
+  width: 100%;
+  max-width: 440px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--glass-bg-soft);
@@ -2089,7 +2090,7 @@ footer:not(.site-footer),
   gap: 3px;
   flex: 1 1 0;
   min-width: 66px;
-  max-width: 98px;
+  max-width: 140px;
   padding: 0 10px;
   cursor: pointer;
   background: transparent;

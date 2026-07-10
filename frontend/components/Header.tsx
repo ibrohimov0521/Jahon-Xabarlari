@@ -172,7 +172,7 @@ export function Header() {
               className="h-14 w-auto object-contain"
             />
           </Link>
-          <nav className="hidden h-full flex-1 items-center gap-8 pl-5 text-[15px] font-bold lg:flex">
+          <nav className="hidden h-full items-center gap-6 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
               <Link key={item.href} className={navLinkClass(item.href)} href={item.href}>
                 {t.nav[item.key]}
@@ -200,10 +200,13 @@ export function Header() {
             </div>
           </nav>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-center px-2">
             <div className="cx-ticker-wrap">
               <CurrencyTicker />
             </div>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker">

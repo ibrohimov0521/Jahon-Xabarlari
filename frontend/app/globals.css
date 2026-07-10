@@ -96,7 +96,11 @@ body {
     var(--page-bg);
 }
 
-body > main {
+/* Lift page content above the fixed .site-backdrop. `main` is wrapped by the route-transition
+   template (`body > .page-transition > main`), so the old `body > main` selector no longer
+   matched and left un-positioned media (e.g. the article photo) painting *behind* the backdrop. */
+body > main,
+body > .page-transition {
   position: relative;
   z-index: 1;
 }

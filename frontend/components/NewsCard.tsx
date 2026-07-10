@@ -1,20 +1,41 @@
 import type { Article } from "../lib/api";
-import { formatArticleDateTime, formatViews } from "../lib/format";
+import { formatDateCompact, formatViewsCompact } from "../lib/format";
+import { Clock, Eye } from "lucide-react";
 import Link from "next/link";
 import { MediaView } from "./MediaView";
 
 export function NewsCard({ article }: { article: Article }) {
-  const description = article.shortDescription || article.summary;
-
   return (
-    <Link href={`/articles/${article.slug}`} className="news-shadow overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:-translate-y-0.5">
-      <MediaView src={article.mainImage} className="h-[152px] w-full object-cover" />
-      <div className="p-4">
-        <span className="text-[12px] font-black uppercase text-brand">{article.category?.name}</span>
-        <h3 className="mt-2 min-h-[52px] text-[17px] font-black leading-snug">{article.title}</h3>
-        {description && <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-500">{description}</p>}
-        <p className="mt-5 text-[14px] text-slate-500">
-          {formatArticleDateTime(article.publishedAt)}&nbsp;&nbsp; 👁 &nbsp;{formatViews(article.viewsCount)}
+    <Link
+      href={`/articles/${article.slug}`}
+      className="news-shadow flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:-translate-y-0.5"
+    >
+      <MediaView src={article.mainImage} className="h-[130px] w-full object-cover sm:h-[152px]" />
+      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+        {article.category?.name && (
+          <span className="w-fit rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand">
+            {article.category.name}
+          </span>
+        )}
+        <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-black leading-tight sm:mt-2 sm:text-[16px] sm:leading-snug">{article.title}</h3>
+
+        {/* Mobile: original summary only (no AI). Desktop: AI short description when available. */}
+        {article.summary && (
+          <p className="mt-1.5 line-clamp-2 text-[12.5px] font-medium leading-snug text-slate-500 lg:hidden">{article.summary}</p>
+        )}
+        {(article.shortDescription || article.summary) && (
+          <p className="mt-2 line-clamp-2 hidden text-sm font-semibold leading-5 text-slate-500 lg:block">
+            {article.shortDescription || article.summary}
+          </p>
+        )}
+
+        <p className="mt-auto flex items-center gap-3 pt-2 text-[11px] font-bold text-slate-500">
+          <span className="inline-flex items-center gap-1">
+            <Clock size={12} /> {formatDateCompact(article.publishedAt)}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Eye size={12} /> {formatViewsCompact(article.viewsCount)}
+          </span>
         </p>
       </div>
     </Link>

@@ -84,7 +84,7 @@ export default async function Home() {
   return (
     <main>
       <Header />
-      <section className="container-page grid gap-6 py-4 lg:grid-cols-[minmax(0,672px)_380px_354px]">
+      <section className="container-page grid gap-4 py-4 lg:gap-6 lg:grid-cols-[minmax(0,672px)_380px_354px]">
         <Link href={`/articles/${hero.slug}`} className="relative block h-[420px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
           <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
@@ -150,14 +150,14 @@ export default async function Home() {
               <Link key={item} href={href} className={`flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
             ))}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {latest.map((item) => <NewsCard key={item.id} article={item} />)}
           </div>
         </div>
       </section>
 
-      <section className="container-page grid gap-6 pb-8 lg:grid-cols-[minmax(0,1fr)_354px]">
-        <div className="grid gap-6">
+      <section className="container-page grid gap-4 pb-8 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_354px]">
+        <div className="grid gap-4 lg:gap-6">
           {editorLead && (
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
               <Link href={`/articles/${editorLead.slug}`} className="relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
@@ -225,7 +225,7 @@ export default async function Home() {
                   Saralash <ArrowRight size={16} />
                 </Link>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {extraStream.map((item) => <NewsCard key={item.id} article={item} />)}
               </div>
             </section>

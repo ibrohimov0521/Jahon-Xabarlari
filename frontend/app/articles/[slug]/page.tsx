@@ -110,7 +110,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             {formatArticleDateTime(article.publishedAt)} &nbsp;•&nbsp; {formatViews(article.viewsCount)}
           </p>
           <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
-          <p className="article-summary mt-4 text-lg">{articleDescription}</p>
+          {/* Mobile: original summary only (no AI short description). Desktop: AI description when present. */}
+          {article.summary && <p className="article-summary mt-4 text-lg lg:hidden">{article.summary}</p>}
+          <p className="article-summary mt-4 hidden text-lg lg:block">{articleDescription}</p>
         </div>
         {article.mainImage && (
           <div className="article-main-frame mt-7 rounded-lg bg-black/80 news-shadow">

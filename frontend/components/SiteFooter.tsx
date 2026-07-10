@@ -2,26 +2,10 @@ import Link from "next/link";
 import { SITE_DESCRIPTION, SITE_FULL_NAME, SITE_SOCIAL_LINKS, SITE_TAGLINE } from "../lib/site";
 import { SubscribeBox } from "./SubscribeBox";
 
-const categories = [
-  { label: "O'zbekiston", href: "/category/ozbekiston" },
-  { label: "Dunyo", href: "/category/dunyo" },
-  { label: "Siyosat", href: "/category/siyosat" },
-  { label: "Iqtisodiyot", href: "/category/iqtisodiyot" },
-  { label: "Texnologiya", href: "/category/texnologiya" },
-  { label: "Sport", href: "/category/sport" },
-  { label: "Madaniyat", href: "/category/madaniyat" }
-];
-
 const sections = [
   { label: "Ommabop", href: "/popular" },
   { label: "Muharrir tanlovi", href: "/editor-choice" },
   { label: "Qidiruv", href: "/search" }
-];
-
-const info = [
-  { label: "Sayt haqida", href: "/about" },
-  { label: "Reklama", href: "/ads" },
-  { label: "Aloqa", href: "/contact" }
 ];
 
 const socials = [
@@ -50,31 +34,9 @@ export function SiteFooter() {
 
         <div className="site-footer-links">
           <div className="site-footer-col">
-            <h3>Kategoriyalar</h3>
-            <nav aria-label="Kategoriyalar">
-              {categories.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <div className="site-footer-col">
             <h3>Bo'limlar</h3>
             <nav aria-label="Bo'limlar">
               {sections.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <div className="site-footer-col">
-            <h3>Ma'lumot</h3>
-            <nav aria-label="Ma'lumot">
-              {info.map((item) => (
                 <Link key={item.href} href={item.href}>
                   {item.label}
                 </Link>

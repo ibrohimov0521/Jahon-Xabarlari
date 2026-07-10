@@ -70,6 +70,14 @@ body {
   overflow-x: clip;
 }
 
+/* Reserve space for the floating bottom nav (mobile/tablet only) so it never covers the last
+   content -- comments, the "load more" message at the very bottom, etc. Desktop hides the nav. */
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .site-backdrop {
   position: fixed;
   top: 0;
@@ -97,10 +105,12 @@ body {
 }
 
 /* Lift page content above the fixed .site-backdrop. `main` is wrapped by the route-transition
-   template (`body > .page-transition > main`), so the old `body > main` selector no longer
-   matched and left un-positioned media (e.g. the article photo) painting *behind* the backdrop. */
+   template (`body > .page-transition > main`), and the footer is a separate top-level element,
+   so the old `body > main` selector left un-positioned content (the article photo, the whole
+   footer) painting *behind* the backdrop. Cover every top-level content wrapper. */
 body > main,
-body > .page-transition {
+body > .page-transition,
+body > footer {
   position: relative;
   z-index: 1;
 }
@@ -756,24 +766,24 @@ footer:not(.site-footer),
 @media (min-width: 1024px) {
   .site-footer {
     display: block;
-    margin-top: 40px;
+    margin-top: 28px;
     border-top: 1px solid rgba(166, 246, 255, 0.16);
     background: rgba(5, 11, 18, 0.96);
     color: #f8fafc;
   }
 
-  /* Upper band: brand block + three link columns + subscribe box. */
+  /* Upper band: brand block + sections links + subscribe box. */
   .site-footer-top {
     display: grid;
-    grid-template-columns: 1.5fr 1.7fr 1.2fr;
-    gap: 40px;
-    padding-top: 40px;
-    padding-bottom: 36px;
+    grid-template-columns: 1.7fr 1fr 1.3fr;
+    gap: 32px;
+    padding-top: 26px;
+    padding-bottom: 22px;
   }
 
   .site-footer-links {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: auto;
     gap: 24px;
   }
 
@@ -864,7 +874,7 @@ footer:not(.site-footer),
   /* Lower band: copyright + compact legal links. */
   .site-footer-bottom {
     display: flex;
-    min-height: 54px;
+    min-height: 46px;
     align-items: center;
     justify-content: space-between;
     gap: 16px;

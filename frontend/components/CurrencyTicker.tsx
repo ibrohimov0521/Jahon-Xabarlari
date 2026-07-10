@@ -52,7 +52,7 @@ export function CurrencyTicker() {
           aria-label={`${r.code}: ${fmt0(r.rate)} so'm, konvertor`}
         >
           <span className="cx-top">
-            <Flag country={r.country} size={17} />
+            <Flag country={r.country} size={18} />
             <span className="cx-code">{r.code}</span>
           </span>
           <span className="cx-bot" title={`${r.rate} so'm • ${r.diff >= 0 ? "+" : ""}${r.diff} (${r.percent.toFixed(2)}%)`}>

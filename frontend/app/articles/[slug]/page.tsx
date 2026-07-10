@@ -109,9 +109,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <p className="mt-3 text-sm font-bold text-slate-500">
             {formatArticleDateTime(article.publishedAt)} &nbsp;•&nbsp; {formatViews(article.viewsCount)}
           </p>
-          <h1 className="article-title mt-3 text-4xl font-black leading-tight">{article.title}</h1>
-          {/* Mobile: original summary only (no AI short description). Desktop: AI description when present. */}
-          {article.summary && <p className="article-summary mt-4 text-lg lg:hidden">{article.summary}</p>}
+          <h1 className="article-title mt-3 text-[25px] font-black leading-tight sm:text-3xl lg:text-4xl">{article.title}</h1>
+          {/* The AI/summary block is desktop-only; mobile goes straight from the title to the photo & content. */}
           <p className="article-summary mt-4 hidden text-lg lg:block">{articleDescription}</p>
         </div>
         {article.mainImage && (

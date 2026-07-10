@@ -157,19 +157,15 @@ export function Header() {
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
         {/* ---- Desktop header (unchanged) ---- */}
         <div className="container-page hidden h-20 min-w-0 items-center gap-7 lg:flex">
-          <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
+          <Link href="/" className="flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
-              src={SITE_LOGO}
+              src="/brand/logo-jx.png"
               alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}
-              width={166}
-              height={64}
+              width={398}
+              height={234}
               priority
-              className="h-10 w-auto max-w-[92px] rounded-md object-contain sm:h-12 sm:max-w-none lg:h-14"
+              className="h-14 w-auto object-contain"
             />
-            <span className="hidden leading-none xl:block">
-              <span className="block text-2xl font-black tracking-normal text-ink">{SITE_NAME}</span>
-              <span className="mt-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{SITE_ALTERNATE_NAME}</span>
-            </span>
           </Link>
           <nav className="hidden h-full flex-1 items-center gap-8 pl-5 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (

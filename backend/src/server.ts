@@ -22,6 +22,7 @@ import { userRouter } from "./modules/users/routes.js";
 import { aggregatorRouter } from "./modules/aggregator/routes.js";
 import { weatherRouter } from "./modules/weather/routes.js";
 import { subscriberRouter } from "./modules/subscribers/routes.js";
+import { pushRouter } from "./modules/push/routes.js";
 import { runAggregatorCycle } from "./services/aggregator.js";
 
 const app = express();
@@ -47,6 +48,7 @@ app.use("/api/admin/users", userRouter);
 app.use("/api/admin/aggregator", aggregatorRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/subscribe", subscriberRouter);
+app.use("/api/push", pushRouter);
 
 app.use((req, res) => res.status(404).json({ message: "Topilmadi" }));
 

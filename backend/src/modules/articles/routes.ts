@@ -8,6 +8,7 @@ import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
 import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
+import { queueArticlePush } from "../../services/push.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 
 export const articleRouter = Router();
@@ -352,6 +353,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
   });
   await audit(req, "ARTICLE_CREATE", "Article", article.id, { title: article.title, status: article.status });
   queueTranslations(article);
+  queueArticlePush(article.id);
   res.status(201).json(article);
 });
 
@@ -379,6 +381,7 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
   if (data.title || data.summary || data.shortDescription || data.content || data.seoTitle || data.seoDescription) {
     queueTranslations(article);
   }
+  queueArticlePush(article.id);
   res.json(article);
 });
 
@@ -398,6 +401,7 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
     }
   });
   await audit(req, "ARTICLE_STATUS", "Article", article.id, { status });
+  queueArticlePush(article.id);
   res.json(article);
 });
 
@@ -417,6 +421,7 @@ articleRouter.patch("/admin/articles/:id/flags", requireAuth, permit("articles.u
   const data = flagsSchema.parse(req.body);
   const article = await prisma.article.update({ where: { id: req.params.id }, data });
   await audit(req, "ARTICLE_FLAGS", "Article", article.id, data);
+  queueArticlePush(article.id);
   res.json(article);
 });
 
@@ -477,5 +482,6 @@ export async function publishScheduledArticles() {
     where: { id: { in: due.map((item) => item.id) } },
     data: { status: "PUBLISHED", publishedAt: new Date(), scheduledAt: null }
   });
+  due.forEach((item) => queueArticlePush(item.id));
   console.log(`[scheduler] ${due.length} ta rejalashtirilgan maqola nashr qilindi`);
 }

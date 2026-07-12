@@ -4,6 +4,7 @@ import BottomNav from "../components/BottomNav";
 import SearchExperience from "../components/SearchExperience";
 import { SiteFooter } from "../components/SiteFooter";
 import SwipeNav from "../components/SwipeNav";
+import { PushNotifications } from "../components/PushNotifications";
 import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
@@ -152,6 +153,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SiteFooter />
               <ArticleModal />
               <BottomNav />
+              <PushNotifications />
               <SearchExperience />
               <SwipeNav />
             </NavProvider>

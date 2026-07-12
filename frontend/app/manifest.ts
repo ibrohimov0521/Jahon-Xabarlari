@@ -3,6 +3,7 @@ import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_FULL_NAME, SITE_ICON_192, S
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: SITE_FULL_NAME,
     short_name: SITE_ALTERNATE_NAME,
     description: SITE_DESCRIPTION,

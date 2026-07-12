@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun } from "lucide-react";
+import { BellRing, ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CurrencyTicker } from "./CurrencyTicker";
 import { WeatherModal } from "./WeatherModal";
+import { openPushSettings } from "./PushNotifications";
 import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/site";
@@ -195,6 +196,17 @@ export function Header() {
                       {t.more[item.key]}
                     </Link>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openPushSettings();
+                    }}
+                    className="desktop-menu-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition"
+                  >
+                    <BellRing size={17} />
+                    {language === "ru" ? "Уведомления" : language === "en" ? "Notifications" : "Bildirishnomalar"}
+                  </button>
                 </div>
               )}
             </div>

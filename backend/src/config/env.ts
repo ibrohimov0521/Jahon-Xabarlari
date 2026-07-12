@@ -26,6 +26,9 @@ const schema = z.object({
   PORT: z.coerce.number().optional(),
   OPENAI_API_KEY: z.string().optional(),
   WEATHERAPI_API_KEY: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().min(40).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(30).optional(),
+  VAPID_SUBJECT: z.string().default("mailto:info@jahonxabarlari.uz"),
   NEWS_AGGREGATOR_ENABLED: z
     .string()
     .optional()

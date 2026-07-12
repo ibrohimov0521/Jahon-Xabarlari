@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ArticleModal } from "../components/ArticleModal";
 import BottomNav from "../components/BottomNav";
+import { MobileCurrencyExperience } from "../components/MobileCurrency";
 import SearchExperience from "../components/SearchExperience";
 import { SiteFooter } from "../components/SiteFooter";
 import SwipeNav from "../components/SwipeNav";
@@ -154,6 +155,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <ArticleModal />
               <BottomNav />
               <PushNotifications />
+              <MobileCurrencyExperience />
               <SearchExperience />
               <SwipeNav />
             </NavProvider>

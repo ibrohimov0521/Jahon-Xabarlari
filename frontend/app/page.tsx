@@ -2,6 +2,7 @@ import { ArrowRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { Header } from "../components/Header";
 import { MediaView } from "../components/MediaView";
+import { MobileCurrencyCard } from "../components/MobileCurrency";
 import { NewsCard } from "../components/NewsCard";
 import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
@@ -118,6 +119,8 @@ export default async function Home() {
               ))}
             </div>
           </section>
+
+          <MobileCurrencyCard />
 
           <section className="news-shadow rounded-lg border border-cyan-300/20 bg-slate-950/35 p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">

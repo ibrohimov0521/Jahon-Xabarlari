@@ -3,6 +3,7 @@
 import {
   Award,
   BellRing,
+  CircleDollarSign,
   ChevronRight,
   Cpu,
   Globe2,
@@ -28,6 +29,7 @@ import { useEffect } from "react";
 import { useNav } from "../lib/nav-context";
 import { useSearch } from "../lib/search-context";
 import { useUi } from "../lib/ui-context";
+import { openMobileCurrency } from "./MobileCurrency";
 import { openPushSettings } from "./PushNotifications";
 
 const categoryKeys: { key: string; href: string; icon: LucideIcon }[] = [
@@ -219,10 +221,25 @@ export default function BottomNav() {
                   type="button"
                   onClick={() => {
                     setSheet(null);
-                    openPushSettings();
+                    openMobileCurrency();
                   }}
                   className="sheet-card"
                   style={{ animationDelay: `${moreKeys.length * 45}ms` }}
+                >
+                  <span className="sheet-card-ico"><CircleDollarSign size={20} /></span>
+                  <span className="sheet-card-title">{language === "en" ? "Currency" : "Valyuta"}</span>
+                  <ChevronRight size={18} className="sheet-card-arrow" />
+                </button>
+              )}
+              {sheet === "more" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSheet(null);
+                    openPushSettings();
+                  }}
+                  className="sheet-card"
+                  style={{ animationDelay: `${(moreKeys.length + 1) * 45}ms` }}
                 >
                   <span className="sheet-card-ico"><BellRing size={20} /></span>
                   <span className="sheet-card-title">{language === "ru" ? "Уведомления" : language === "en" ? "Notifications" : "Bildirishnomalar"}</span>

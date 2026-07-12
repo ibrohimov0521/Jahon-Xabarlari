@@ -1,7 +1,7 @@
 "use client";
 
 import { BellRing, Check, Loader2, Settings2, Smartphone, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL } from "../lib/config";
 import { useUi, type Language } from "../lib/ui-context";
 
@@ -82,6 +82,9 @@ export function PushNotifications() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [justEnabled, setJustEnabled] = useState(false);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const promptHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const syncSubscription = useCallback(async (subscription: PushSubscription, lang: Language) => {
     const json = subscription.toJSON();
@@ -102,12 +105,20 @@ export function PushNotifications() {
 
   useEffect(() => {
     const openSettings = () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+      if (promptHideTimer.current) clearTimeout(promptHideTimer.current);
+      setJustEnabled(false);
       setPromptOpen(false);
       setSettingsOpen(true);
       setMessage("");
     };
     window.addEventListener(SETTINGS_EVENT, openSettings);
     return () => window.removeEventListener(SETTINGS_EVENT, openSettings);
+  }, []);
+
+  useEffect(() => () => {
+    if (successTimer.current) clearTimeout(successTimer.current);
+    if (promptHideTimer.current) clearTimeout(promptHideTimer.current);
   }, []);
 
   useEffect(() => {
@@ -136,7 +147,13 @@ export function PushNotifications() {
         }
         setState("default");
         const snoozedUntil = Number(localStorage.getItem(SNOOZE_KEY) || 0);
-        if (snoozedUntil <= Date.now()) timer = setTimeout(() => setPromptOpen(true), 10_000);
+        if (snoozedUntil <= Date.now()) timer = setTimeout(() => {
+          setPromptOpen(true);
+          promptHideTimer.current = setTimeout(() => {
+            setPromptOpen(false);
+            localStorage.setItem(SNOOZE_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+          }, 6_500);
+        }, 10_000);
       } catch {
         if (!cancelled) setState("unsupported");
       }
@@ -152,6 +169,8 @@ export function PushNotifications() {
   const enable = async () => {
     setBusy(true);
     setMessage("");
+    setPromptOpen(false);
+    if (promptHideTimer.current) clearTimeout(promptHideTimer.current);
     try {
       if (isIos() && !isStandalone()) {
         setMessage(copy.ios);
@@ -163,6 +182,7 @@ export function PushNotifications() {
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "default");
         setMessage(permission === "denied" ? copy.denied : "");
+        setSettingsOpen(permission === "denied");
         return;
       }
       const registration = await navigator.serviceWorker.ready;
@@ -173,13 +193,18 @@ export function PushNotifications() {
       const subscription = existing || (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toUint8Array(publicKey) }));
       await syncSubscription(subscription, language);
       setState("enabled");
-      setPromptOpen(false);
+      setJustEnabled(true);
       setSettingsOpen(true);
       localStorage.removeItem(SNOOZE_KEY);
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => {
+        setSettingsOpen(false);
+        setJustEnabled(false);
+      }, 900);
     } catch {
+      setJustEnabled(false);
       setMessage(copy.error);
       setSettingsOpen(true);
-      setPromptOpen(false);
     } finally {
       setBusy(false);
     }
@@ -200,6 +225,7 @@ export function PushNotifications() {
         await subscription.unsubscribe();
       }
       setState("default");
+      setJustEnabled(false);
       setSettingsOpen(false);
       localStorage.setItem(SNOOZE_KEY, String(Date.now() + 30 * 24 * 60 * 60 * 1000));
     } catch {
@@ -210,6 +236,7 @@ export function PushNotifications() {
   };
 
   const snooze = () => {
+    if (promptHideTimer.current) clearTimeout(promptHideTimer.current);
     setPromptOpen(false);
     localStorage.setItem(SNOOZE_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
   };
@@ -234,16 +261,16 @@ export function PushNotifications() {
       {settingsOpen && (
         <div className="push-settings-layer" role="presentation">
           <button className="push-settings-backdrop" onClick={() => setSettingsOpen(false)} aria-label="Yopish" />
-          <section className="push-settings-card" role="dialog" aria-modal="true" aria-label={copy.settings}>
-            <button className="push-settings-close" onClick={() => setSettingsOpen(false)} aria-label="Yopish"><X size={18} /></button>
+          <section className={`push-settings-card ${justEnabled ? "is-success" : ""}`} role="dialog" aria-modal="true" aria-label={copy.settings}>
+            {!justEnabled && <button className="push-settings-close" onClick={() => setSettingsOpen(false)} aria-label="Yopish"><X size={18} /></button>}
             <span className={`push-settings-icon ${state === "enabled" ? "is-enabled" : ""}`}>
               {state === "enabled" ? <Check size={25} /> : isIos() && !isStandalone() ? <Smartphone size={25} /> : <Settings2 size={25} />}
             </span>
             <h2>{state === "enabled" ? copy.enabled : copy.settings}</h2>
             <p>{message || (state === "enabled" ? copy.enabledBody : state === "denied" ? copy.denied : state === "unsupported" ? (isIos() ? copy.ios : copy.unsupported) : copy.body)}</p>
-            {state === "enabled" ? (
+            {state === "enabled" ? (!justEnabled ? (
               <button className="push-secondary is-danger" onClick={disable} disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : null}{copy.disable}</button>
-            ) : state !== "denied" && state !== "unsupported" ? (
+            ) : null) : state !== "denied" && state !== "unsupported" ? (
               <button className="push-primary" onClick={enable} disabled={busy}>{busy ? <Loader2 className="animate-spin" size={17} /> : <BellRing size={17} />}{copy.enable}</button>
             ) : null}
           </section>

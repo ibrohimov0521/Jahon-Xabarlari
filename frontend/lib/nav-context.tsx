@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
-export type Sheet = "categories" | "saved" | "more" | null;
+export type Sheet = "categories" | "more" | null;
 
 type NavContextValue = {
   sheet: Sheet;
@@ -12,7 +12,7 @@ type NavContextValue = {
 const NavContext = createContext<NavContextValue | null>(null);
 
 /** Shared bottom-nav sheet state so both the BottomNav bar and SwipeNav can
- *  drive which of the 5 tabs is open. */
+ *  drive sheets for category and extra-link tabs. */
 export function NavProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<Sheet>(null);
   return <NavContext.Provider value={{ sheet, setSheet }}>{children}</NavContext.Provider>;

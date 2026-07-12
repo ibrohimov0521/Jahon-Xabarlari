@@ -64,17 +64,33 @@ html {
 }
 
 body {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  flex-direction: column;
   background: var(--page-bg);
   color: var(--text);
   transition: background-color 220ms ease, color 220ms ease;
   overflow-x: clip;
 }
 
+.page-transition {
+  display: flex;
+  flex: 1 0 auto;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.page-transition > main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
 /* Reserve space for the floating bottom nav (mobile/tablet only) so it never covers the last
    content -- comments, the "load more" message at the very bottom, etc. Desktop hides the nav. */
 @media (max-width: 1023px) {
   body {
-    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -498,24 +514,51 @@ button.bg-white {
    Sits ABOVE the search overlay (z 120) so the nav is always visible, but
    below full-content modals (weather 200 / article 220). */
 .bottom-nav {
+  --dock-bg: linear-gradient(180deg, rgba(248, 252, 255, 0.82), rgba(232, 242, 255, 0.76));
+  --dock-border: rgba(52, 98, 158, 0.18);
+  --dock-text: #64748b;
   position: fixed;
-  left: 14px;
-  right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   z-index: 130;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-around;
   gap: 2px;
-  padding: 4px 8px;
-  border-radius: 28px;
-  background: linear-gradient(180deg, rgba(22, 32, 55, 0.44), rgba(9, 15, 29, 0.54));
-  border: 1px solid rgba(120, 170, 255, 0.16);
+  height: 46px;
+  padding: 3px 5px;
+  border-radius: 18px;
+  background: var(--dock-bg);
+  border: 1px solid var(--dock-border);
   box-shadow:
-    0 16px 40px rgba(0, 10, 30, 0.4),
-    0 0 40px rgba(47, 128, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(30px) saturate(160%);
+    0 10px 26px rgba(31, 55, 91, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.36) inset,
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  isolation: isolate;
+}
+
+:root[data-theme="dark"] .bottom-nav {
+  --dock-bg: linear-gradient(180deg, rgba(18, 38, 62, 0.84), rgba(6, 17, 34, 0.88));
+  --dock-border: rgba(101, 194, 232, 0.2);
+  --dock-text: #91a4bf;
+  box-shadow:
+    0 12px 28px rgba(0, 7, 22, 0.46),
+    0 0 22px rgba(25, 211, 224, 0.07),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.bottom-nav::before {
+  content: "";
+  position: absolute;
+  inset: 1px 10px auto;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.78), transparent);
+  opacity: 0.62;
+  pointer-events: none;
 }
 
 /* Mobile/tablet only: .bottom-nav's own display:flex would otherwise beat the
@@ -531,79 +574,123 @@ button.bg-white {
 .bottom-nav-item {
   position: relative;
   flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 2px 0;
-  border-radius: 16px;
-  color: #9aa7c0;
-  font-size: 10.5px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  border-radius: 14px;
+  color: var(--dock-text);
+  font-size: 8.5px;
   font-weight: 800;
-  letter-spacing: 0.01em;
-  transition: color 160ms ease, transform 140ms ease;
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 180ms ease, transform 160ms ease;
+}
+
+.bottom-nav-item:focus-visible {
+  outline: 2px solid rgba(47, 128, 255, 0.62);
+  outline-offset: -2px;
 }
 
 .bottom-nav-item:active {
-  transform: scale(0.92);
+  transform: scale(0.94);
+}
+
+.bottom-nav-item::before {
+  content: "";
+  position: absolute;
+  inset: 5px 8px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 50%, rgba(47, 128, 255, 0.18), transparent 72%);
+  opacity: 0;
+  transform: scale(0.76);
+  transition: opacity 200ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Premium active state — applies to EVERY tab (not only Search). */
 .bottom-nav-item.is-active {
   color: #2f80ff;
-  transform: scale(1.06);
+}
+
+.bottom-nav-item.is-active::before {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .bottom-nav-item.is-active .bottom-nav-ico {
-  color: #4f9dff;
-  background: linear-gradient(135deg, rgba(47, 128, 255, 0.24), rgba(0, 198, 255, 0.14));
-  box-shadow: 0 6px 18px rgba(47, 128, 255, 0.34), inset 0 0 0 1px rgba(47, 128, 255, 0.3);
-}
-
-/* Small glowing active indicator (the raised Search circle is its own indicator). */
-.bottom-nav-item.is-active:not(.is-search)::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  margin-left: -2.5px;
+  transform: translate3d(0, -6px, 0) scale(1.03);
   border-radius: 999px;
-  background: #2f80ff;
-  box-shadow: 0 0 8px rgba(47, 128, 255, 0.9);
+  color: #fff;
+  background: radial-gradient(circle at 34% 26%, #8ddcff 0, #2f80ff 42%, #1451c7 100%);
+  box-shadow:
+    0 7px 16px rgba(22, 103, 238, 0.42),
+    0 0 0 3px rgba(47, 128, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  animation: dock-active-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .bottom-nav-ico {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 12px;
-  transition: background 200ms ease, box-shadow 200ms ease, color 180ms ease,
-    width 240ms cubic-bezier(0.22, 1, 0.36, 1), height 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    margin-top 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate3d(0, 0, 0);
+  transition: color 180ms ease, background 220ms ease, box-shadow 220ms ease,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
-/* Search tab: a raised, glowing blue circle ONLY when it is the active tab
-   (i.e. the Search overlay is open). Otherwise it's a plain tab like the rest. */
-.bottom-nav-item.is-search.is-active {
-  color: #2f80ff;
-}
-
-.bottom-nav-item.is-search.is-active .bottom-nav-ico {
-  width: 54px;
-  height: 54px;
-  margin-top: -20px;
+.bottom-nav-item.is-active .bottom-nav-ico::after {
+  content: "";
+  position: absolute;
+  inset: 2px 6px auto;
+  height: 8px;
   border-radius: 999px;
-  color: #fff;
-  background: radial-gradient(circle at 35% 28%, #59a0ff, #2f80ff 45%, #1a55cc);
-  box-shadow: 0 12px 28px rgba(47, 128, 255, 0.6), 0 0 22px rgba(47, 128, 255, 0.55), 0 0 0 6px rgba(47, 128, 255, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent);
+  pointer-events: none;
 }
 
-.bottom-nav-item.is-search:active .bottom-nav-ico {
-  transform: scale(0.92);
+.bottom-nav-label {
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  z-index: 2;
+  max-width: 66px;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  line-height: 10px;
+  text-overflow: ellipsis;
+  transform: translate3d(-50%, 4px, 0);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bottom-nav-item.is-active .bottom-nav-label {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}
+
+.bottom-nav-item:active .bottom-nav-ico {
+  transform: scale(0.9);
+}
+
+.bottom-nav-item.is-active:active .bottom-nav-ico {
+  transform: translate3d(0, -6px, 0) scale(0.92);
+}
+
+@media (hover: hover) {
+  .bottom-nav-item:not(.is-active):hover {
+    color: #2f80ff;
+  }
 }
 
 /* Backdrop sits BELOW the floating nav (z 130) so the bar is never dimmed. */
@@ -611,80 +698,130 @@ button.bg-white {
   position: fixed;
   inset: 0;
   z-index: 125;
-  background: rgba(3, 8, 18, 0.55);
-  backdrop-filter: blur(8px);
-  animation: sheet-fade 200ms ease;
+  padding: 0;
+  border: 0;
+  background: rgba(3, 10, 22, 0.36);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: sheet-fade 180ms ease;
 }
 
 /* Glassmorphism sheet. z 128 keeps it under the floating nav (130) — the nav
    stays visible on top — while a big bottom padding clears the nav. */
 .bottom-sheet {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 10px;
+  right: 10px;
+  bottom: calc(62px + env(safe-area-inset-bottom, 0px));
   z-index: 128;
-  max-height: 78vh;
+  max-height: min(62vh, 460px);
   overflow-y: auto;
-  padding: 10px 16px calc(104px + env(safe-area-inset-bottom, 0px));
-  border-radius: 28px 28px 0 0;
-  background: rgba(10, 22, 40, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(22px) saturate(150%);
-  animation: sheet-up 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px 10px 10px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(248, 252, 255, 0.9), rgba(230, 242, 255, 0.82));
+  border: 1px solid rgba(74, 119, 178, 0.18);
+  box-shadow: 0 18px 48px rgba(12, 31, 58, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
+  animation: sheet-up 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme="dark"] .bottom-sheet {
+  background: linear-gradient(145deg, rgba(15, 37, 59, 0.94), rgba(5, 17, 33, 0.9));
+  border-color: rgba(101, 194, 232, 0.2);
+  box-shadow: 0 20px 54px rgba(0, 6, 18, 0.56), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .sheet-handle {
-  width: 42px;
-  height: 4px;
+  width: 34px;
+  height: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  margin: 2px auto 12px;
+  background: rgba(80, 111, 151, 0.28);
+  margin: 1px auto 7px;
+}
+
+:root[data-theme="dark"] .sheet-handle {
+  background: rgba(192, 226, 255, 0.22);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px;
 }
 
 .sheet-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
-  color: #eef3ff;
+  color: #10213d;
+}
+
+:root[data-theme="dark"] .sheet-title {
+  color: #eef6ff;
 }
 
 .sheet-close {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
-  color: #9fb0c9;
-  background: rgba(255, 255, 255, 0.05);
-  transition: background 150ms ease, color 150ms ease;
+  color: #60738f;
+  background: rgba(77, 114, 166, 0.09);
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.sheet-close:focus-visible,
+.sheet-card:focus-visible {
+  outline: 2px solid rgba(47, 128, 255, 0.64);
+  outline-offset: 1px;
 }
 
 .sheet-close:active {
-  background: rgba(255, 255, 255, 0.14);
+  transform: scale(0.9);
+  background: rgba(47, 128, 255, 0.16);
+}
+
+:root[data-theme="dark"] .sheet-close {
+  color: #9fb2cd;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .sheet-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .sheet-card {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 12px 13px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #eaf1ff;
+  min-width: 0;
+  min-height: 48px;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(74, 119, 178, 0.12);
+  color: #182b49;
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 12.5px;
+  outline: 0;
   opacity: 0;
-  transform: translateY(12px);
-  animation: sheet-item-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+  transform: translate3d(0, 8px, 0) scale(0.98);
+  animation: sheet-item-rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: background 180ms ease, border-color 180ms ease, transform 150ms ease, box-shadow 180ms ease;
+}
+
+:root[data-theme="dark"] .sheet-card {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.07);
+  color: #eaf2ff;
 }
 
 .sheet-card:active {
@@ -693,8 +830,9 @@ button.bg-white {
 
 .sheet-card:hover,
 .sheet-card.is-active {
-  background: rgba(47, 128, 255, 0.12);
-  border-color: rgba(47, 128, 255, 0.3);
+  background: rgba(47, 128, 255, 0.13);
+  border-color: rgba(47, 128, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .sheet-card.is-active {
@@ -704,22 +842,31 @@ button.bg-white {
 .sheet-card-ico {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   flex-shrink: 0;
-  background: rgba(47, 128, 255, 0.16);
-  color: #6ea8ff;
+  background: linear-gradient(145deg, rgba(47, 128, 255, 0.18), rgba(25, 211, 224, 0.1));
+  color: #2879ed;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .sheet-card-title {
   flex: 1;
   min-width: 0;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .sheet-card-arrow {
-  color: #5b6b86;
+  width: 14px;
+  color: #71829c;
   flex-shrink: 0;
+}
+
+@keyframes dock-active-in {
+  from { transform: translate3d(0, -2px, 0) scale(0.84); opacity: 0.72; }
+  to { transform: translate3d(0, -6px, 0) scale(1.03); opacity: 1; }
 }
 
 @keyframes sheet-item-rise {
@@ -731,10 +878,12 @@ button.bg-white {
 
 @keyframes sheet-up {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.98);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -744,6 +893,19 @@ button.bg-white {
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav-item,
+  .bottom-nav-ico,
+  .bottom-nav-label,
+  .bottom-sheet,
+  .bottom-sheet-overlay,
+  .sheet-card {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -2238,5 +2400,451 @@ footer:not(.site-footer),
   .cm-arrow { display: none; }
   .cm-body { grid-template-columns: 1fr; }
   .cm-left { border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+}
+
+/* ============ Premium desktop shell and homepage ============ */
+@media (min-width: 1024px) {
+  .site-header {
+    border-bottom-color: var(--border) !important;
+    box-shadow: 0 10px 32px rgba(17, 45, 78, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    transition: background 240ms ease, box-shadow 240ms ease, backdrop-filter 240ms ease;
+  }
+
+  :root[data-theme="dark"] .site-header {
+    box-shadow: 0 12px 34px rgba(0, 7, 20, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .desktop-header-row {
+    height: 72px !important;
+    gap: 14px !important;
+    transition: height 220ms ease;
+  }
+
+  .site-header.is-scrolled .desktop-header-row {
+    height: 64px !important;
+  }
+
+  .site-header.is-scrolled {
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+  }
+
+  .desktop-brand {
+    padding: 3px 6px;
+    border-radius: 8px;
+    transition: background 180ms ease, transform 180ms ease;
+  }
+
+  .desktop-brand:hover {
+    background: rgba(47, 128, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .desktop-brand img {
+    height: 48px !important;
+  }
+
+  .desktop-nav {
+    align-self: center;
+    height: 48px !important;
+    gap: 2px !important;
+    padding: 4px;
+    border: 1px solid rgba(98, 142, 198, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.34);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52), 0 5px 16px rgba(25, 58, 98, 0.06);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  :root[data-theme="dark"] .desktop-nav {
+    border-color: rgba(134, 214, 241, 0.13);
+    background: rgba(4, 16, 33, 0.34);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 20px rgba(0, 7, 20, 0.18);
+  }
+
+  .desktop-nav .nav-link {
+    position: relative;
+    height: 40px !important;
+    padding: 0 10px;
+    border-bottom: 0 !important;
+    border-radius: 6px;
+    color: var(--text);
+    transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 160ms ease;
+  }
+
+  .desktop-nav .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 3px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2f80ff, #19d3e0);
+    opacity: 0;
+    transform: scaleX(0.4);
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .desktop-nav .nav-link:hover {
+    background: rgba(47, 128, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .desktop-nav .nav-link.is-active {
+    color: #1767f5 !important;
+    background: linear-gradient(145deg, rgba(47, 128, 255, 0.15), rgba(25, 211, 224, 0.07));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 5px 14px rgba(47, 128, 255, 0.11);
+  }
+
+  .desktop-nav .nav-link.is-active::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  :root[data-theme="dark"] .desktop-nav .nav-link.is-active {
+    color: #74b6ff !important;
+    background: linear-gradient(145deg, rgba(47, 128, 255, 0.2), rgba(25, 211, 224, 0.08));
+  }
+
+  .desktop-nav-more-wrap {
+    height: 40px !important;
+  }
+
+  .desktop-menu-popover {
+    top: 52px !important;
+    border-radius: 8px !important;
+    border-color: var(--border) !important;
+    box-shadow: 0 22px 54px rgba(10, 30, 58, 0.24) !important;
+    backdrop-filter: blur(24px) saturate(155%);
+    -webkit-backdrop-filter: blur(24px) saturate(155%);
+    animation: desktop-menu-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .desktop-menu-link {
+    color: var(--text) !important;
+    font-weight: 750;
+  }
+
+  .desktop-menu-link:hover,
+  .desktop-menu-link:focus-visible,
+  .desktop-menu-link.is-active {
+    background: rgba(255, 255, 255, 0.82) !important;
+    color: #1767f5 !important;
+    outline: none;
+  }
+
+  :root[data-theme="dark"] .desktop-menu-link:hover,
+  :root[data-theme="dark"] .desktop-menu-link:focus-visible,
+  :root[data-theme="dark"] .desktop-menu-link.is-active {
+    background: linear-gradient(135deg, rgba(47, 128, 255, 0.24), rgba(25, 211, 224, 0.12)) !important;
+    color: #dcecff !important;
+  }
+
+  .desktop-header-actions {
+    gap: 7px !important;
+  }
+
+  .desktop-header-actions .header-search,
+  .desktop-header-actions .language-trigger,
+  .desktop-header-actions .theme-toggle {
+    border-color: rgba(83, 126, 181, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 5px 16px rgba(17, 45, 78, 0.07);
+  }
+
+  .home-lead-grid {
+    padding-top: 20px !important;
+    padding-bottom: 24px !important;
+  }
+
+  .home-hero,
+  .home-editor-lead {
+    border: 1px solid rgba(119, 211, 234, 0.22);
+    box-shadow: 0 22px 52px rgba(0, 12, 30, 0.28), 0 0 34px rgba(25, 211, 224, 0.08);
+    transform: translateZ(0);
+    transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease, box-shadow 260ms ease;
+  }
+
+  .home-hero::after,
+  .home-editor-lead::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    pointer-events: none;
+  }
+
+  .home-hero > .relative,
+  .home-editor-lead > .relative {
+    z-index: 2;
+  }
+
+  .home-hero img,
+  .home-hero video,
+  .home-editor-lead img,
+  .home-editor-lead video,
+  .home-side-media,
+  .news-card-media {
+    transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1), filter 260ms ease;
+  }
+
+  .home-hero:hover,
+  .home-editor-lead:hover {
+    transform: translateY(-3px);
+    border-color: rgba(47, 128, 255, 0.44);
+    box-shadow: 0 28px 64px rgba(0, 12, 30, 0.34), 0 0 42px rgba(25, 211, 224, 0.11);
+  }
+
+  .home-hero:hover img,
+  .home-hero:hover video,
+  .home-editor-lead:hover img,
+  .home-editor-lead:hover video {
+    transform: scale(1.025);
+  }
+
+  .home-side-card,
+  .home-glass-panel,
+  .news-card-modern,
+  .home-outline-action {
+    background: var(--glass-bg) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+    box-shadow: 0 14px 34px rgba(13, 45, 80, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.26);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  :root[data-theme="dark"] .home-side-card,
+  :root[data-theme="dark"] .home-glass-panel,
+  :root[data-theme="dark"] .news-card-modern,
+  :root[data-theme="dark"] .home-outline-action {
+    box-shadow: 0 18px 40px rgba(0, 7, 20, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .home-side-card,
+  .news-card-modern {
+    overflow: hidden;
+    transform: translateZ(0);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 200ms ease, box-shadow 220ms ease;
+  }
+
+  .home-side-card:hover,
+  .news-card-modern:hover {
+    transform: translateY(-4px);
+    border-color: rgba(47, 128, 255, 0.42) !important;
+    box-shadow: 0 20px 46px rgba(12, 42, 78, 0.19), 0 0 24px rgba(25, 211, 224, 0.07);
+  }
+
+  .home-side-card:hover .home-side-media,
+  .news-card-modern:hover .news-card-media {
+    transform: scale(1.035);
+    filter: saturate(1.06) contrast(1.02);
+  }
+
+  .home-trend-panel,
+  .home-popular-panel {
+    padding: 20px !important;
+  }
+
+  .home-empty-state,
+  .home-rank-card {
+    background: var(--surface-soft) !important;
+    border-color: rgba(98, 161, 206, 0.16) !important;
+    color: var(--text) !important;
+  }
+
+  .home-rank-card {
+    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .home-rank-card:hover {
+    transform: translateX(3px);
+    background: rgba(47, 128, 255, 0.09) !important;
+    border-color: rgba(47, 128, 255, 0.3) !important;
+    box-shadow: inset 3px 0 0 #2f80ff;
+  }
+
+  .home-outline-action {
+    border-radius: 7px !important;
+    transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .home-outline-action:hover {
+    transform: translateY(-2px);
+    border-color: rgba(47, 128, 255, 0.42) !important;
+    color: #1767f5 !important;
+    box-shadow: 0 10px 24px rgba(47, 128, 255, 0.12);
+  }
+
+  .home-section-head {
+    min-height: 44px;
+    padding: 0 2px;
+    flex-wrap: nowrap !important;
+  }
+
+  .home-section-head .section-title {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .home-section-head .section-title::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #2f80ff, #19d3e0);
+    box-shadow: 0 0 14px rgba(25, 211, 224, 0.28);
+  }
+
+  .home-filter-chip {
+    height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+    border-radius: 7px !important;
+    background: var(--surface) !important;
+    border-color: rgba(98, 161, 206, 0.16) !important;
+    color: var(--text) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transition: transform 170ms ease, color 170ms ease, background 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+  }
+
+  .home-filter-chip:hover {
+    transform: translateY(-2px);
+    color: #1767f5 !important;
+    border-color: rgba(47, 128, 255, 0.34) !important;
+  }
+
+  .home-filter-chip.is-active {
+    color: #fff !important;
+    background: linear-gradient(135deg, #2f80ff, #1767f5) !important;
+    border-color: transparent !important;
+    box-shadow: 0 9px 22px rgba(47, 128, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+
+  .home-news-grid {
+    align-items: stretch;
+  }
+
+  .news-card-modern {
+    min-height: 308px;
+  }
+
+  .news-card-media {
+    height: 160px !important;
+  }
+
+  .news-card-body {
+    padding: 15px !important;
+  }
+
+  .news-card-badge {
+    border-radius: 5px !important;
+    background: linear-gradient(135deg, rgba(47, 128, 255, 0.16), rgba(25, 211, 224, 0.09)) !important;
+    border: 1px solid rgba(47, 128, 255, 0.14);
+    letter-spacing: 0;
+  }
+
+  .news-card-meta {
+    border-top: 1px solid rgba(99, 157, 204, 0.12);
+    margin-top: 12px !important;
+  }
+
+  .home-lead-grid .text-slate-500,
+  .home-content-grid .text-slate-500,
+  .news-card-modern .text-slate-500 {
+    color: var(--muted) !important;
+  }
+
+  .home-category-panel {
+    padding: 20px !important;
+  }
+
+  .home-category-row {
+    padding: 8px;
+    margin: 0 -8px;
+    transition: transform 180ms ease, background 180ms ease;
+  }
+
+  .home-category-row:hover {
+    transform: translateX(3px);
+    background: rgba(47, 128, 255, 0.07) !important;
+  }
+
+  .home-side-card:focus-visible,
+  .home-rank-card:focus-visible,
+  .home-filter-chip:focus-visible,
+  .home-outline-action:focus-visible,
+  .news-card-modern:focus-visible,
+  .home-hero:focus-visible,
+  .home-editor-lead:focus-visible,
+  .desktop-nav .nav-link:focus-visible {
+    outline: 2px solid rgba(47, 128, 255, 0.72);
+    outline-offset: 3px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1359px) {
+  .desktop-header-row {
+    gap: 7px !important;
+  }
+
+  .desktop-brand img {
+    height: 42px !important;
+  }
+
+  .desktop-nav {
+    font-size: 12.5px !important;
+  }
+
+  .desktop-nav .nav-link {
+    padding: 0 7px;
+  }
+
+  .desktop-header-actions .weather-pill {
+    max-width: 150px;
+  }
+
+  .home-section-head {
+    gap: 6px !important;
+  }
+
+  .home-section-head .section-title {
+    white-space: nowrap;
+    font-size: 23px !important;
+  }
+
+  .home-filter-chip {
+    padding: 0 8px !important;
+    font-size: 11.5px !important;
+  }
+}
+
+@keyframes desktop-menu-in {
+  from { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-header-row,
+  .desktop-brand,
+  .desktop-nav .nav-link,
+  .desktop-menu-popover,
+  .home-hero,
+  .home-editor-lead,
+  .home-side-card,
+  .home-rank-card,
+  .home-filter-chip,
+  .home-outline-action,
+  .news-card-modern,
+  .home-category-row,
+  .home-side-media,
+  .news-card-media {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 

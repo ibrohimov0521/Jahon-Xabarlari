@@ -21,7 +21,7 @@ function inHorizontalScroller(node: EventTarget | null) {
 
 /**
  * Mobile-only: horizontal swipe moves between the FIVE bottom-bar tabs
- * (Home · News · Search · Saved · Menu) — NOT into their sub-sections.
+ * (Home · News · Search · Popular · Menu) — NOT into their sub-sections.
  * Each tab triggers the same action the bar button would (route, sheet, or the
  * search overlay), so their own slide/fade animations play the transition.
  */
@@ -32,14 +32,18 @@ export default function SwipeNav() {
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
 
   useEffect(() => {
+    const isNewsPath = pathname.startsWith("/category") || pathname.startsWith("/articles");
+    const isSearchPath = pathname.startsWith("/search");
+    const isMorePath = ["/editor-choice", "/about", "/ads", "/contact"].some((path) => pathname.startsWith(path));
+
     // Current tab (0..4) from the shared nav state.
-    const currentTab = searchOpen
+    const currentTab = searchOpen || isSearchPath
       ? 2
-      : sheet === "categories"
+      : sheet === "categories" || (!sheet && isNewsPath)
         ? 1
-        : sheet === "saved"
+        : pathname.startsWith("/popular")
           ? 3
-          : sheet === "more"
+          : sheet === "more" || (!sheet && isMorePath)
             ? 4
             : 0;
 
@@ -63,7 +67,11 @@ export default function SwipeNav() {
           break;
         case 3:
           closeSearch();
-          setSheet("saved");
+          setSheet(null);
+          if (!pathname.startsWith("/popular")) {
+            document.documentElement.dataset.swipeDir = "next";
+            router.push("/popular");
+          }
           break;
         case 4:
           closeSearch();

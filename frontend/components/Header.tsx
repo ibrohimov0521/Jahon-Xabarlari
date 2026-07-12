@@ -67,7 +67,7 @@ export function Header() {
 
   const navLinkClass = (href: string) =>
     `nav-link flex h-full items-center whitespace-nowrap border-b-2 transition-all duration-200 ${
-      activeHref === href ? "border-brand text-brand" : "border-transparent text-ink hover:border-brand/40 hover:text-brand"
+      activeHref === href ? "is-active border-brand text-brand" : "border-transparent text-ink hover:border-brand/40 hover:text-brand"
     }`;
 
   useEffect(() => {
@@ -161,8 +161,8 @@ export function Header() {
     <>
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
         {/* ---- Desktop header ---- */}
-        <div className="container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
-          <Link href="/" className="flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
+        <div className="desktop-header-row container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
+          <Link href="/" className="desktop-brand flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
               src="/brand/logo-jx.png"
               alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}
@@ -172,26 +172,26 @@ export function Header() {
               className="h-14 w-auto object-contain"
             />
           </Link>
-          <nav className="hidden h-full items-center gap-6 text-[15px] font-bold lg:flex">
+          <nav className="desktop-nav hidden h-full items-center gap-6 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
               <Link key={item.href} className={navLinkClass(item.href)} href={item.href}>
                 {t.nav[item.key]}
               </Link>
             ))}
-            <div ref={moreMenuRef} className="relative h-full">
-              <button onClick={() => setMenuOpen((value) => !value)} className={`nav-link flex h-full items-center gap-2 whitespace-nowrap border-b-2 font-bold transition ${[...moreLinkKeys, ...moreCategoryKeys].some((item) => item.href === activeHref) ? "border-brand text-brand" : "border-transparent hover:text-brand"}`}>
+            <div ref={moreMenuRef} className="desktop-nav-more-wrap relative h-full">
+              <button onClick={() => setMenuOpen((value) => !value)} className={`desktop-nav-more nav-link flex h-full items-center gap-2 whitespace-nowrap border-b-2 font-bold transition ${[...moreLinkKeys, ...moreCategoryKeys].some((item) => item.href === activeHref) ? "is-active border-brand text-brand" : "border-transparent hover:text-brand"}`}>
                 {t.nav.more} <Menu size={18} />
               </button>
               {menuOpen && (
-                <div className="menu-popover absolute right-0 top-[72px] z-40 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+                <div className="desktop-menu-popover menu-popover absolute right-0 top-[72px] z-40 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
                   {moreCategoryKeys.map((item) => (
-                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`block rounded-xl px-4 py-3 text-sm transition hover:bg-slate-50 hover:text-brand ${activeHref === item.href ? "text-brand" : "text-ink"}`} href={item.href}>
+                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={item.href}>
                       {t.nav[item.key]}
                     </Link>
                   ))}
                   <div className="my-1 border-t border-slate-200" />
                   {moreLinkKeys.map((item) => (
-                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`block rounded-xl px-4 py-3 text-sm transition hover:bg-slate-50 hover:text-brand ${activeHref === item.href ? "text-brand" : "text-ink"}`} href={item.href}>
+                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={item.href}>
                       {t.more[item.key]}
                     </Link>
                   ))}
@@ -206,7 +206,7 @@ export function Header() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2">
+          <div className="desktop-header-actions flex shrink-0 items-center justify-end gap-2">
             <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker">

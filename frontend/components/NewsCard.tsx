@@ -8,12 +8,12 @@ export function NewsCard({ article }: { article: Article }) {
   return (
     <Link
       href={`/articles/${article.slug}`}
-      className="news-shadow flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition hover:-translate-y-0.5"
+      className="news-card-modern news-shadow flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:-translate-y-0.5"
     >
-      <MediaView src={article.mainImage} className="h-[130px] w-full object-cover sm:h-[152px]" />
-      <div className="flex flex-1 flex-col p-2.5 sm:p-4">
+      <MediaView src={article.mainImage} className="news-card-media h-[130px] w-full object-cover sm:h-[152px]" />
+      <div className="news-card-body flex flex-1 flex-col p-2.5 sm:p-4">
         {article.category?.name && (
-          <span className="w-fit rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand">
+          <span className="news-card-badge w-fit rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand">
             {article.category.name}
           </span>
         )}
@@ -29,7 +29,7 @@ export function NewsCard({ article }: { article: Article }) {
           </p>
         )}
 
-        <p className="mt-auto flex items-center gap-3 pt-2 text-[11px] font-bold text-slate-500">
+        <p className="news-card-meta mt-auto flex items-center gap-3 pt-2 text-[11px] font-bold text-slate-500">
           <span className="inline-flex items-center gap-1">
             <Clock size={12} /> {formatDateCompact(article.publishedAt)}
           </span>

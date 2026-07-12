@@ -104,7 +104,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning>
+    <html lang="uz" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
         <div className="site-backdrop" aria-hidden="true" />
         <script

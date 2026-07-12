@@ -7,7 +7,7 @@ import SwipeNav from "../components/SwipeNav";
 import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
-import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_FULL_NAME, SITE_ICON_192, SITE_ICON_512, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_DOMAIN_NAME, SITE_FULL_NAME, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,16 +30,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: SITE_LOGO_SQUARE, sizes: "512x512", type: "image/png" },
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: SITE_ICON_192, sizes: "192x192", type: "image/png" },
-      { url: SITE_ICON_512, sizes: "512x512", type: "image/png" }
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" }
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-    shortcut: ["/favicon.ico"]
+    shortcut: ["/favicon-96x96.png"]
   },
   appleWebApp: {
     capable: true,
@@ -69,7 +66,7 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
-    siteName: SITE_FULL_NAME,
+    siteName: SITE_NAME,
     locale: "uz_UZ",
     type: "website",
     images: [
@@ -114,9 +111,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "NewsMediaOrganization",
               "@id": `${SITE_URL}/#organization`,
-              name: SITE_FULL_NAME,
-              alternateName: [SITE_NAME, SITE_ALTERNATE_NAME, "JahonXabarlari.uz"],
-              url: SITE_URL,
+              name: SITE_NAME,
+              legalName: SITE_FULL_NAME,
+              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari.uz", SITE_DOMAIN_NAME],
+              url: `${SITE_URL}/`,
               logo: {
                 "@type": "ImageObject",
                 url: `${SITE_URL}${SITE_LOGO_SQUARE}`,
@@ -135,9 +133,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
-              name: SITE_FULL_NAME,
-              alternateName: [SITE_NAME, SITE_ALTERNATE_NAME, "JahonXabarlari.uz"],
-              url: SITE_URL,
+              name: SITE_NAME,
+              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari.uz", SITE_DOMAIN_NAME],
+              url: `${SITE_URL}/`,
               publisher: { "@id": `${SITE_URL}/#organization` },
               potentialAction: {
                 "@type": "SearchAction",

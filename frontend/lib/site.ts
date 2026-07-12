@@ -1,11 +1,12 @@
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.jahonxabarlari.uz").replace(/\/$/, "");
 
-export const SITE_NAME = "JX";
-export const SITE_FULL_NAME = "JX — Jahon Xabarlari";
-export const SITE_ALTERNATE_NAME = "Jahon Xabarlari";
+export const SITE_NAME = "Jahon Xabarlari";
+export const SITE_FULL_NAME = "Jahon Xabarlari";
+export const SITE_ALTERNATE_NAME = "JX";
+export const SITE_DOMAIN_NAME = "jahonxabarlari.uz";
 export const SITE_TAGLINE = "Yangilik. AI. Hayot.";
-export const SITE_TITLE = "JX — Jahon Xabarlari | Yangilik. AI. Hayot.";
-export const SITE_DESCRIPTION = "JX — Jahon Xabarlari: O'zbekiston, dunyo, siyosat, iqtisodiyot, sport, texnologiya, AI, ob-havo va moliya bo'yicha tezkor media platforma.";
+export const SITE_TITLE = "Jahon Xabarlari - O'zbekiston va Dunyo Yangiliklari";
+export const SITE_DESCRIPTION = "Jahon Xabarlari - O'zbekiston va dunyodagi eng muhim yangiliklarni tezkor, ishonchli va xolis yorituvchi yangiliklar portali.";
 export const SITE_KEYWORDS = [
   "JX",
   "JX Jahon Xabarlari",

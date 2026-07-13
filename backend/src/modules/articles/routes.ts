@@ -10,6 +10,7 @@ import { permit, requireAuth } from "../../middleware/auth.js";
 import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
 import { queueArticlePush } from "../../services/push.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
+import { pagination, positiveInt } from "../../utils/query.js";
 
 export const articleRouter = Router();
 
@@ -92,8 +93,7 @@ function applyTranslation<T extends { title: string; summary: string; shortDescr
 }
 
 articleRouter.get("/articles", async (req, res) => {
-  const page = Math.max(Number(req.query.page ?? 1), 1);
-  const take = Math.min(Number(req.query.limit ?? 12), 200);
+  const { page, take, skip } = pagination(req.query, { limit: 12, max: 200 });
   const category = req.query.category?.toString();
   const lang = req.query.lang?.toString();
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
@@ -111,7 +111,7 @@ articleRouter.get("/articles", async (req, res) => {
         ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
       },
       orderBy: { publishedAt: "desc" },
-      skip: (page - 1) * take,
+      skip,
       take
     }),
     prisma.article.count({ where })
@@ -121,7 +121,7 @@ articleRouter.get("/articles", async (req, res) => {
 
 articleRouter.get("/articles/trending", async (req, res) => {
   const lang = req.query.lang?.toString();
-  const take = Math.min(Number(req.query.limit ?? 8), 20);
+  const take = positiveInt(req.query.limit, 8, 20);
   const since = startOfTashkentDay();
 
   const grouped = await prisma.articleView.groupBy({
@@ -154,8 +154,8 @@ articleRouter.get("/articles/trending", async (req, res) => {
 
 articleRouter.get("/articles/popular", async (req, res) => {
   const lang = req.query.lang?.toString();
-  const take = Math.min(Number(req.query.limit ?? 8), 20);
-  const days = Math.min(Math.max(Number(req.query.days ?? 4), 1), 30);
+  const take = positiveInt(req.query.limit, 8, 20);
+  const days = positiveInt(req.query.days, 4, 30);
   const since = daysAgoFromTashkentDay(days - 1);
 
   const items = await prisma.article.findMany({
@@ -169,6 +169,16 @@ articleRouter.get("/articles/popular", async (req, res) => {
   });
 
   res.json({ items: items.map((item) => applyTranslation(item, lang)) });
+});
+
+articleRouter.get("/articles/sitemap", async (_req, res) => {
+  const items = await prisma.article.findMany({
+    where: { deletedAt: null, status: "PUBLISHED" },
+    orderBy: { publishedAt: "desc" },
+    take: 50_000,
+    select: { slug: true, updatedAt: true, publishedAt: true }
+  });
+  res.json({ items });
 });
 
 articleRouter.get("/articles/:slug", async (req, res) => {
@@ -185,27 +195,39 @@ articleRouter.get("/articles/:slug", async (req, res) => {
     .catch(() => null);
   if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
 
+  res.json(applyTranslation(article, lang));
+});
+
+const viewRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+articleRouter.post("/articles/:id/view", viewRateLimit, async (req, res) => {
+  const articleId = req.params.id;
   const ipHash = viewerHash(req);
-  const since = new Date(Date.now() - VIEW_WINDOW_MS);
-  const existingView = await prisma.articleView.findFirst({
-    where: {
-      articleId: article.id,
-      ipHash,
-      createdAt: { gte: since }
-    },
-    select: { id: true }
-  });
+  const bucket = Math.floor(Date.now() / VIEW_WINDOW_MS);
+  const viewId = crypto.createHash("sha256").update(`${articleId}:${ipHash}:${bucket}`).digest("hex");
 
-  let viewsCount = article.viewsCount;
-  if (!existingView) {
-    await prisma.$transaction([
-      prisma.articleView.create({ data: { articleId: article.id, ipHash } }),
-      prisma.article.update({ where: { id: article.id }, data: { viewsCount: { increment: 1 } } })
-    ]);
-    viewsCount += 1;
-  }
+  const result = await prisma.$transaction(async (tx) => {
+    const inserted = await tx.articleView.createMany({
+      data: [{ id: viewId, articleId, ipHash }],
+      skipDuplicates: true
+    });
+    if (!inserted.count) {
+      return tx.article.findUnique({ where: { id: articleId }, select: { viewsCount: true } });
+    }
+    return tx.article.update({
+      where: { id: articleId, status: "PUBLISHED", deletedAt: null },
+      data: { viewsCount: { increment: 1 } },
+      select: { viewsCount: true }
+    });
+  }).catch(() => null);
 
-  res.json(applyTranslation({ ...article, viewsCount }, lang));
+  if (!result) return res.status(404).json({ message: "Maqola topilmadi" });
+  res.json({ viewsCount: result.viewsCount });
 });
 
 // Public comments -- only APPROVED ones are visible; new submissions land as PENDING and wait
@@ -249,6 +271,8 @@ articleRouter.get("/search", async (req, res) => {
   const lang = req.query.lang?.toString();
   const category = req.query.category?.toString();
   const sort = req.query.sort?.toString();
+  const cursor = req.query.cursor?.toString();
+  const take = positiveInt(req.query.limit, 20, 50);
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
   const categoryFilter = categoryRow ? { OR: [{ categoryId: categoryRow.id }, { extraCategoryIds: { has: categoryRow.id } }] } : category ? { category: { slug: category } } : {};
   const orderBy = sort === "popular" ? { viewsCount: "desc" as const } : { publishedAt: "desc" as const };
@@ -268,7 +292,7 @@ articleRouter.get("/search", async (req, res) => {
           }
         }
       : undefined;
-  const items = await prisma.article.findMany({
+  const rows = await prisma.article.findMany({
     where: {
       deletedAt: null,
       status: "PUBLISHED",
@@ -288,20 +312,27 @@ articleRouter.get("/search", async (req, res) => {
       ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
     },
     orderBy,
-    take: 20
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    take: take + 1
   });
-  res.json({ items: items.map((item) => applyTranslation(item, lang)) });
+  const hasMore = rows.length > take;
+  const items = rows.slice(0, take);
+  res.json({ items: items.map((item) => applyTranslation(item, lang)), nextCursor: hasMore ? items.at(-1)?.id ?? null : null });
 });
 
 articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async (req, res) => {
   const status = req.query.status?.toString() as ArticleStatus | undefined;
   const trashed = req.query.trashed?.toString() === "true";
   const search = req.query.search?.toString();
-  const items = await prisma.article.findMany({
+  const { page, take, skip } = pagination(req.query);
+  const where = {
+    deletedAt: trashed ? { not: null } : null,
+    ...(status ? { status } : {}),
+    ...(search ? { title: { contains: search, mode: "insensitive" as const } } : {})
+  };
+  const [items, total] = await Promise.all([prisma.article.findMany({
     where: {
-      deletedAt: trashed ? { not: null } : null,
-      ...(status ? { status } : {}),
-      ...(search ? { title: { contains: search, mode: "insensitive" } } : {})
+      ...where
     },
     include: {
       category: true,
@@ -309,9 +340,10 @@ articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async
       translations: { select: { lang: true, status: true } }
     },
     orderBy: { updatedAt: "desc" },
-    take: 100
-  });
-  res.json({ items });
+    skip,
+    take
+  }), prisma.article.count({ where })]);
+  res.json({ items, total, page, pages: Math.ceil(total / take) });
 });
 
 articleRouter.get("/admin/articles/:id", requireAuth, permit("articles.read"), async (req, res) => {
@@ -484,4 +516,10 @@ export async function publishScheduledArticles() {
   });
   due.forEach((item) => queueArticlePush(item.id));
   console.log(`[scheduler] ${due.length} ta rejalashtirilgan maqola nashr qilindi`);
+}
+
+export async function cleanupOldArticleViews(retentionDays = 90) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const deleted = await prisma.articleView.deleteMany({ where: { createdAt: { lt: cutoff } } });
+  if (deleted.count) console.log(`[views] ${deleted.count} ta eski ko'rish yozuvi tozalandi`);
 }

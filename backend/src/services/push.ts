@@ -1,6 +1,8 @@
 import webpush from "web-push";
+import { Queue, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { createBullConnection } from "./redis.js";
 
 const configured = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
 
@@ -14,25 +16,20 @@ export function getPushPublicKey() {
 
 export function queueArticlePush(articleId: string) {
   if (!configured) return;
-  setTimeout(() => {
-    sendArticlePush(articleId).catch((error) => console.error("[push] notification failed:", error));
-  }, 0);
+  void pushQueue.add(
+    "article",
+    { articleId },
+    {
+      jobId: `article-${articleId}`,
+      attempts: 5,
+      backoff: { type: "exponential", delay: 10_000 },
+      removeOnComplete: { age: 24 * 60 * 60, count: 5_000 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 5_000 }
+    }
+  ).catch((error) => console.error("[push] notification navbatga olinmadi:", error));
 }
 
 async function sendArticlePush(articleId: string) {
-  // Claim the article before sending so simultaneous status/flag updates cannot create duplicates.
-  const claim = await prisma.article.updateMany({
-    where: {
-      id: articleId,
-      status: "PUBLISHED",
-      deletedAt: null,
-      pushSentAt: null,
-      OR: [{ isBreaking: true }, { isFeatured: true }]
-    },
-    data: { pushSentAt: new Date() }
-  });
-  if (!claim.count) return;
-
   const article = await prisma.article.findUnique({
     where: { id: articleId },
     include: {
@@ -43,10 +40,13 @@ async function sendArticlePush(articleId: string) {
       }
     }
   });
-  if (!article) return;
+  if (!article || article.status !== "PUBLISHED" || article.deletedAt || article.pushSentAt) return;
 
   const subscriptions = await prisma.webPushSubscription.findMany({ where: { enabled: true } });
-  if (!subscriptions.length) return;
+  if (!subscriptions.length) {
+    await prisma.article.update({ where: { id: article.id }, data: { pushSentAt: new Date() } });
+    return;
+  }
 
   const successIds: string[] = [];
   const invalidIds: string[] = [];
@@ -56,6 +56,7 @@ async function sendArticlePush(articleId: string) {
     const batch = subscriptions.slice(start, start + 50);
     await Promise.all(
       batch.map(async (subscription) => {
+        if (subscription.importantOnly && !article.isBreaking && !article.isFeatured) return;
         if (subscription.categorySlugs.length && !subscription.categorySlugs.includes(article.category.slug)) return;
 
         const translation = article.translations.find((item) => item.lang === subscription.language);
@@ -105,8 +106,27 @@ async function sendArticlePush(articleId: string) {
           where: { id: { in: failedIds } },
           data: { failureCount: { increment: 1 } }
         })
-      : Promise.resolve()
+      : Promise.resolve(),
+    prisma.webPushSubscription.updateMany({
+      where: { failureCount: { gte: 5 } },
+      data: { enabled: false }
+    }),
+    prisma.article.update({ where: { id: article.id }, data: { pushSentAt: new Date() } })
   ]);
 
   console.log(`[push] ${article.slug}: ${successIds.length} sent, ${invalidIds.length} removed, ${failedIds.length} failed`);
+}
+
+type PushJob = { articleId: string };
+type PushJobName = "article";
+const pushQueue = new Queue<PushJob, void, PushJobName>("article-push", { connection: createBullConnection() });
+const pushWorker = new Worker<PushJob, void, PushJobName>(
+  "article-push",
+  (job) => sendArticlePush(job.data.articleId),
+  { connection: createBullConnection(), concurrency: 2 }
+);
+pushWorker.on("failed", (job, error) => console.error(`[push] job ${job?.id ?? "unknown"} failed:`, error));
+
+export async function closePushJobs() {
+  await Promise.all([pushWorker.close(), pushQueue.close()]);
 }

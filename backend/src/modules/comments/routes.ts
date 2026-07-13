@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { pagination } from "../../utils/query.js";
 
 export const commentRouter = Router();
 commentRouter.use(requireAuth, permit("comments.manage"));
@@ -11,16 +12,24 @@ commentRouter.use(requireAuth, permit("comments.manage"));
 commentRouter.get("/", async (req, res) => {
   const status = req.query.status?.toString() as CommentStatus | undefined;
   const search = req.query.search?.toString();
-  res.json({
-    items: await prisma.comment.findMany({
+  const { page, take, skip } = pagination(req.query);
+  const where = {
+    ...(status ? { status } : {}),
+    ...(search ? { body: { contains: search, mode: "insensitive" as const } } : {})
+  };
+  const [items, total] = await Promise.all([
+    prisma.comment.findMany({
       where: {
-        ...(status ? { status } : {}),
-        ...(search ? { body: { contains: search, mode: "insensitive" } } : {})
+        ...where
       },
       include: { article: { select: { title: true, slug: true } } },
-      orderBy: { createdAt: "desc" }
-    })
-  });
+      orderBy: { createdAt: "desc" },
+      skip,
+      take
+    }),
+    prisma.comment.count({ where })
+  ]);
+  res.json({ items, total, page, pages: Math.ceil(total / take) });
 });
 
 commentRouter.patch("/:id/status", async (req, res) => {

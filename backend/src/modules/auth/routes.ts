@@ -1,10 +1,10 @@
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { env } from "../../config/env.js";
+import { env, frontendOrigins } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 
@@ -60,6 +60,12 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function requireTrustedOrigin(req: Request, res: Response, next: NextFunction) {
+  const origin = req.get("origin");
+  if (origin && !frontendOrigins.includes(origin)) return res.status(403).json({ message: "Origin ruxsat etilmagan" });
+  next();
+}
+
 async function issueTokens(userId: string) {
   const accessToken = jwt.sign({}, env.JWT_ACCESS_SECRET, { subject: userId, expiresIn: "15m" });
   const refreshToken = jwt.sign({}, env.JWT_REFRESH_SECRET, { subject: userId, expiresIn: "30d" });
@@ -103,7 +109,7 @@ authRouter.post("/telegram-login", telegramLoginLimiter, async (req, res) => {
   res.json({ user: { id: user.id, name: user.name, role: user.role.name }, accessToken });
 });
 
-authRouter.post("/refresh", async (req, res) => {
+authRouter.post("/refresh", requireTrustedOrigin, async (req, res) => {
   // Prefer the HttpOnly cookie; fall back to a body token so any pre-migration client still works.
   const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
   if (!token) return res.status(401).json({ message: "Refresh token yaroqsiz" });
@@ -122,7 +128,7 @@ authRouter.post("/refresh", async (req, res) => {
   }
 });
 
-authRouter.post("/logout", async (req, res) => {
+authRouter.post("/logout", requireTrustedOrigin, async (req, res) => {
   const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
   if (token) await revokeRefreshToken(token);
   res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });

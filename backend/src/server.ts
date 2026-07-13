@@ -11,7 +11,7 @@ import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { apiPort, env, frontendOrigins } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
-import { articleRouter, publishScheduledArticles } from "./modules/articles/routes.js";
+import { articleRouter, cleanupOldArticleViews, publishScheduledArticles } from "./modules/articles/routes.js";
 import { categoryRouter } from "./modules/categories/routes.js";
 import { dashboardRouter } from "./modules/dashboard/routes.js";
 import { commentRouter } from "./modules/comments/routes.js";
@@ -24,6 +24,10 @@ import { weatherRouter } from "./modules/weather/routes.js";
 import { subscriberRouter } from "./modules/subscribers/routes.js";
 import { pushRouter } from "./modules/push/routes.js";
 import { runAggregatorCycle } from "./services/aggregator.js";
+import { prisma } from "./config/prisma.js";
+import { closePushJobs } from "./services/push.js";
+import { closeTranslationJobs } from "./services/translate.js";
+import { closeRedisLockConnection } from "./services/redis.js";
 
 const app = express();
 
@@ -35,7 +39,14 @@ app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(rateLimit({ windowMs: 60_000, limit: 180 }));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, name: "Jahon Xabarlari API" }));
+app.get("/api/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, database: "up", name: "Jahon Xabarlari API" });
+  } catch {
+    res.status(503).json({ ok: false, database: "down", name: "Jahon Xabarlari API" });
+  }
+});
 app.use("/api/auth", authRouter);
 app.use("/api", articleRouter);
 app.use("/api", categoryRouter);
@@ -50,7 +61,7 @@ app.use("/api/weather", weatherRouter);
 app.use("/api/subscribe", subscriberRouter);
 app.use("/api/push", pushRouter);
 
-app.use((req, res) => res.status(404).json({ message: "Topilmadi" }));
+app.use((_req, res) => res.status(404).json({ message: "Topilmadi" }));
 
 // Centralized error handler -- without this, an async route handler that throws (a zod
 // validation failure, a Prisma "not found", anything else) would otherwise leak Express's
@@ -66,15 +77,54 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ message: "Serverda kutilmagan xatolik yuz berdi" });
 });
 
-app.listen(apiPort, () => {
+const server = app.listen(apiPort, () => {
   console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);
 });
 
-setInterval(() => publishScheduledArticles().catch((error) => console.error("[scheduler] failed:", error)), 60_000);
+const scheduledPublisher = setInterval(() => publishScheduledArticles().catch((error) => console.error("[scheduler] failed:", error)), 60_000);
+scheduledPublisher.unref();
+
+async function runMaintenance() {
+  const revokedCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await Promise.all([
+    cleanupOldArticleViews(),
+    prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: new Date() } },
+          { revokedAt: { lt: revokedCutoff } }
+        ]
+      }
+    })
+  ]);
+}
+
+setTimeout(() => runMaintenance().catch((error) => console.error("[maintenance] failed:", error)), 30_000).unref();
+const maintenance = setInterval(() => runMaintenance().catch((error) => console.error("[maintenance] failed:", error)), 24 * 60 * 60 * 1000);
+maintenance.unref();
 
 if (env.NEWS_AGGREGATOR_ENABLED) {
   const intervalMs = env.NEWS_AGGREGATOR_INTERVAL_MINUTES * 60_000;
   console.log(`[aggregator] enabled, running every ${env.NEWS_AGGREGATOR_INTERVAL_MINUTES} min`);
   setTimeout(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), 15_000);
-  setInterval(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), intervalMs);
+  const aggregatorInterval = setInterval(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), intervalMs);
+  aggregatorInterval.unref();
 }
+
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[server] ${signal} qabul qilindi, server to'xtatilmoqda`);
+  clearInterval(scheduledPublisher);
+  clearInterval(maintenance);
+  server.close(async () => {
+    await Promise.all([closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

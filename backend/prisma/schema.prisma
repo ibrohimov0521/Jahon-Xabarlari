@@ -59,6 +59,7 @@ model RefreshToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  @@index([expiresAt, revokedAt])
 }
 
 model Role {
@@ -151,6 +152,8 @@ model Article {
   @@index([status, deletedAt, publishedAt])
   @@index([categoryId, status])
   @@index([viewsCount])
+  @@index([createdAt])
+  @@index([status, deletedAt, viewsCount, publishedAt])
 }
 
 model WebPushSubscription {
@@ -198,6 +201,8 @@ model MediaFile {
   size      Int
   data      Bytes?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Comment {
@@ -208,6 +213,9 @@ model Comment {
   body      String
   status    CommentStatus @default(PENDING)
   createdAt DateTime      @default(now())
+
+  @@index([articleId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model Advertisement {
@@ -242,6 +250,10 @@ model AuditLog {
   metadata  Json?
   ip        String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity, createdAt])
+  @@index([action, createdAt])
 }
 
 model ArticleView {
@@ -252,4 +264,6 @@ model ArticleView {
   createdAt DateTime @default(now())
 
   @@index([articleId, createdAt])
+  @@index([createdAt, articleId])
+  @@index([articleId, ipHash, createdAt])
 }

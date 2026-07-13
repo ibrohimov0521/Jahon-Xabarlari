@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CommentSection } from "../../../components/CommentSection";
+import { ArticleViewTracker } from "../../../components/ArticleViewTracker";
 import { Header } from "../../../components/Header";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
@@ -38,6 +39,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   return {
     title,
     description,
+    keywords: article.seoKeywords?.split(",").map((item) => item.trim()).filter(Boolean),
     alternates: {
       canonical: url
     },
@@ -72,6 +74,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   return (
     <main>
+      <ArticleViewTracker articleId={article.id} />
       <Header />
       <script
         type="application/ld+json"

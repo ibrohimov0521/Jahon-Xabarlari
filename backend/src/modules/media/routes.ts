@@ -3,6 +3,7 @@ import multer from "multer";
 import crypto from "node:crypto";
 import { prisma } from "../../config/prisma.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { pagination } from "../../utils/query.js";
 
 export const mediaRouter = Router();
 
@@ -62,8 +63,18 @@ mediaRouter.post("/upload", upload.single("file"), async (req, res) => {
   res.status(201).json(item);
 });
 
-mediaRouter.get("/", async (_req, res) => {
-  res.json({ items: await prisma.mediaFile.findMany({ orderBy: { createdAt: "desc" } }) });
+mediaRouter.get("/", async (req, res) => {
+  const { page, take, skip } = pagination(req.query, { limit: 30, max: 100 });
+  const [items, total] = await Promise.all([
+    prisma.mediaFile.findMany({
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      select: { id: true, url: true, key: true, mimeType: true, size: true, createdAt: true }
+    }),
+    prisma.mediaFile.count()
+  ]);
+  res.json({ items, total, page, pages: Math.ceil(total / take) });
 });
 
 mediaRouter.delete("/:id", async (req, res) => {

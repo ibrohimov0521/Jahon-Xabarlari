@@ -7,6 +7,7 @@ import type { Article } from "../lib/api";
 import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
 import { MediaView } from "./MediaView";
+import { recordArticleView } from "../lib/api";
 
 export function ArticleModal() {
   const { language } = useUi();
@@ -39,6 +40,11 @@ export function ArticleModal() {
         .then((data: Article) => {
           if (requestIdRef.current !== requestId) return;
           setArticle(data);
+          void recordArticleView(data.id).then((viewsCount) => {
+            if (viewsCount !== null && requestIdRef.current === requestId) {
+              setArticle((current) => current?.id === data.id ? { ...current, viewsCount } : current);
+            }
+          });
         })
         .catch(() => {
           if (requestIdRef.current === requestId) setArticle(null);

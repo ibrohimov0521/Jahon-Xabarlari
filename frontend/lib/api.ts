@@ -12,6 +12,7 @@ export type Article = {
   updatedAt?: string;
   seoTitle?: string;
   seoDescription?: string;
+  seoKeywords?: string;
   sourceName?: string | null;
   category?: { name: string; slug: string };
   isFeatured?: boolean;
@@ -39,9 +40,7 @@ export async function getArticles(params = "", lang?: string) {
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
-    // A category-filtered request must not fall back to unrelated demo content -- it would render
-    // under the wrong category heading and hide an unknown slug. Only unfiltered lists show demos.
-    return params.includes("category=") ? [] : demoArticles;
+    return process.env.NODE_ENV === "development" && !params.includes("category=") ? demoArticles : [];
   }
 }
 
@@ -110,8 +109,19 @@ export async function searchArticles(q: string, lang?: string, params = "") {
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
+    if (process.env.NODE_ENV !== "development") return [];
     const needle = q.toLowerCase();
     return demoArticles.filter((item) => `${item.title} ${item.summary} ${item.category?.name}`.toLowerCase().includes(needle));
+  }
+}
+
+export async function recordArticleView(articleId: string): Promise<number | null> {
+  try {
+    const res = await fetch(`${API_URL}/articles/${articleId}/view`, { method: "POST", keepalive: true });
+    if (!res.ok) return null;
+    return ((await res.json()) as { viewsCount: number }).viewsCount;
+  } catch {
+    return null;
   }
 }
 

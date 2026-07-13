@@ -13,6 +13,7 @@ const sourceSchema = z.object({
   feedUrl: z.string().url(),
   enabled: z.boolean().optional()
 });
+const runSchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() });
 
 aggregatorRouter.get("/status", async (_req, res) => {
   const sources = await getAggregatorSources();
@@ -32,7 +33,7 @@ const SKIP_MESSAGES: Record<string, string> = {
 };
 
 aggregatorRouter.post("/run", async (req, res) => {
-  const maxPerCycle = req.body?.limit ? Number(req.body.limit) : undefined;
+  const maxPerCycle = runSchema.parse(req.body ?? {}).limit;
   try {
     const result = await runAggregatorCycle({ force: true, maxPerCycle });
     if (result.skipped) {

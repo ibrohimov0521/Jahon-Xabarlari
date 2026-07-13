@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { prisma } from "../../config/prisma.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { pagination } from "../../utils/query.js";
 
 export const auditRouter = Router();
 auditRouter.use(requireAuth, permit("audit.read"));
 
 auditRouter.get("/", async (req, res) => {
-  const page = Math.max(Number(req.query.page ?? 1), 1);
-  const take = Math.min(Number(req.query.limit ?? 50), 100);
+  const { page, take, skip } = pagination(req.query);
   const entity = req.query.entity?.toString();
   const action = req.query.action?.toString();
   const where = {
@@ -19,7 +19,7 @@ auditRouter.get("/", async (req, res) => {
       where,
       include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * take,
+      skip,
       take
     }),
     prisma.auditLog.count({ where })

@@ -18,6 +18,7 @@ class Settings:
     openai_api_key: str | None
     forward_concurrency: int
     service_secret: str | None
+    redis_url: str
 
 
 def load_settings() -> Settings:
@@ -34,4 +35,5 @@ def load_settings() -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         forward_concurrency=max(1, int(os.getenv("FORWARD_CONCURRENCY", "5"))),
         service_secret=os.getenv("BOT_SERVICE_SECRET"),
+        redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
     )

@@ -8,6 +8,7 @@ import { prisma } from "../config/prisma.js";
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
 import { safeFetch } from "./net-guard.js";
 import { queueTranslations } from "./translate.js";
+import { withRedisLock } from "./redis.js";
 
 export { NEWS_SOURCES, type NewsSource };
 
@@ -477,25 +478,34 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
 
   running = true;
   try {
+    const result = await withRedisLock("lock:news-aggregator", 30 * 60 * 1000, async () => {
     const categories = await prisma.category.findMany();
     if (!categories.length) return { published: 0 };
 
     const author = await ensureAggregatorAuthor();
     const since = new Date(Date.now() - DEDUP_WINDOW_MS);
-    const recentArticles = await prisma.article.findMany({ where: { createdAt: { gte: since } }, select: { title: true } });
+    const recentArticles = await prisma.article.findMany({
+      where: { createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: 5_000,
+      select: { title: true }
+    });
     const seenTokens = recentArticles.map((item) => tokenize(item.title));
 
     const sources = await getAggregatorSources({ enabledOnly: true });
     const batches = await Promise.all(sources.map(fetchSource));
     const candidates = batches.flat();
+    const sourceUrls = [...new Set(candidates.map((item) => item.link))];
+    const existingRows = sourceUrls.length
+      ? await prisma.article.findMany({ where: { sourceUrl: { in: sourceUrls } }, select: { sourceUrl: true } })
+      : [];
+    const existingUrls = new Set(existingRows.map((item) => item.sourceUrl).filter(Boolean));
 
     // Pass 1: cheap filter -- drop items already ingested (by URL) or an obvious word-overlap
     // match against something recently published or already accepted earlier in this loop.
     const survivors: FeedItem[] = [];
     for (const item of candidates) {
-      // eslint-disable-next-line no-await-in-loop
-      const existing = await prisma.article.findUnique({ where: { sourceUrl: item.link } });
-      if (existing) continue;
+      if (existingUrls.has(item.link)) continue;
 
       const tokens = tokenize(item.title);
       if (seenTokens.some((other) => similarity(tokens, other) >= DUPLICATE_THRESHOLD)) continue;
@@ -506,7 +516,7 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
     // Cap how many go through the (paid, slower) AI dedup + rewrite pipeline per cycle so a
     // large first run or a burst across many sources can't blow up cost/latency in one go --
     // anything left over simply gets picked up on the next cycle since it's still unpublished.
-    const MAX_PER_CYCLE = options.maxPerCycle ?? 40;
+    const MAX_PER_CYCLE = Math.min(Math.max(options.maxPerCycle ?? 40, 1), 100);
     const batch = survivors.slice(0, MAX_PER_CYCLE);
 
     // Pass 2: semantic dedup via AI across the surviving candidates -- catches same-story
@@ -527,6 +537,8 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
 
     if (published > 0) console.log(`[aggregator] ${published} ta yangi maqola nashr qilindi`);
     return { published };
+    });
+    return result ?? { published: 0, skipped: "already_running" };
   } finally {
     running = false;
   }

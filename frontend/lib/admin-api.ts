@@ -2,15 +2,16 @@ import { API_URL, API_ORIGIN } from "./config";
 
 export { API_URL };
 
-const TOKEN_KEY = "jh_admin_token";
+const LEGACY_TOKEN_KEY = "jh_admin_token";
 const USER_KEY = "jh_admin_user";
 const AUTH_EXPIRED_EVENT = "jh-admin-auth-expired";
 
 export type AuthUser = { id: string; name: string; email?: string; role: string };
+let accessToken = "";
+let refreshInFlight: Promise<string | null> | null = null;
 
 export function getStoredToken() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(TOKEN_KEY) ?? "";
+  return accessToken;
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -28,12 +29,17 @@ export function getStoredUser(): AuthUser | null {
 // The refresh token now lives in an HttpOnly cookie the browser sends automatically, so only the
 // short-lived access token and the user profile are kept client-side.
 export function storeSession(user: AuthUser, accessToken: string) {
-  localStorage.setItem(TOKEN_KEY, accessToken);
+  setAccessToken(accessToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+function setAccessToken(token: string) {
+  accessToken = token;
+  if (typeof window !== "undefined") localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
 export function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
+  setAccessToken("");
   localStorage.removeItem(USER_KEY);
 }
 
@@ -60,7 +66,7 @@ async function rawRequest(path: string, options: RequestInit, token: string) {
   });
 }
 
-async function tryRefresh(): Promise<string | null> {
+async function performRefresh(): Promise<string | null> {
   const user = getStoredUser();
   if (!user) return null;
   try {
@@ -73,6 +79,26 @@ async function tryRefresh(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function tryRefresh(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = performRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+export async function restoreSession(): Promise<AuthUser | null> {
+  const user = getStoredUser();
+  if (!user) return null;
+  const token = await tryRefresh();
+  if (!token) {
+    clearSession();
+    return null;
+  }
+  return user;
 }
 
 export class AdminApiError extends Error {

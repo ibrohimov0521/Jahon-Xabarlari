@@ -36,10 +36,10 @@ import {
   AdminApiError,
   adminRequest,
   getStoredToken,
-  getStoredUser,
   login as apiLogin,
   logout as apiLogout,
   onAuthExpired,
+  restoreSession,
   type AuthUser
 } from "../../lib/admin-api";
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
@@ -63,6 +63,7 @@ export default function AdminPage() {
   const { theme, toggleTheme } = useUi();
   const [token, setToken] = useState("");
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [view, setView] = useState<View>("dashboard");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -90,13 +91,22 @@ export default function AdminPage() {
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
   useEffect(() => {
-    setToken(getStoredToken());
-    setUser(getStoredUser());
-    return onAuthExpired(() => {
+    let active = true;
+    void restoreSession().then((restoredUser) => {
+      if (!active) return;
+      setUser(restoredUser);
+      setToken(getStoredToken());
+      setAuthReady(true);
+    });
+    const unsubscribe = onAuthExpired(() => {
       setToken("");
       setUser(null);
       setSessionNotice("Sessiya muddati tugadi, qaytadan kiring.");
     });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   async function loadCategories() {
@@ -327,6 +337,10 @@ export default function AdminPage() {
     setPreviewForm(form);
     setPreviewReturnView(editingArticleId ? "edit" : "new");
     setView("preview");
+  }
+
+  if (!authReady) {
+    return <main className="admin-login-page"><LoadingBlock label="Sessiya tekshirilmoqda..." /></main>;
   }
 
   if (!token || !user) {

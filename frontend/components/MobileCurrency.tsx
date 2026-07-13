@@ -268,7 +268,7 @@ export function MobileCurrencyExperience() {
             </header>
             <label className="mobile-currency-picker-search">
               <Search size={17} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.search} autoFocus />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.search} />
             </label>
             <div className="mobile-currency-picker-list">
               {filteredCurrencies.map((rate) => {

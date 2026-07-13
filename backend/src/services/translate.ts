@@ -1,7 +1,10 @@
 import OpenAI from "openai";
 import slugify from "slugify";
+import crypto from "node:crypto";
+import { Queue, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { createBullConnection } from "./redis.js";
 
 const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 
@@ -133,15 +136,41 @@ async function translateOne(article: TranslatableArticle, lang: Lang) {
   }
 }
 
+type TranslationJob = { articleId: string; lang: Lang };
+type TranslationJobName = "translate";
+const translationQueue = new Queue<TranslationJob, void, TranslationJobName>("article-translations", { connection: createBullConnection() });
+const translationWorker = new Worker<TranslationJob, void, TranslationJobName>(
+  "article-translations",
+  async (job) => {
+    const article = await prisma.article.findUniqueOrThrow({ where: { id: job.data.articleId } });
+    await translateOne(article, job.data.lang);
+  },
+  { connection: createBullConnection(), concurrency: 3 }
+);
+translationWorker.on("failed", (job, error) => console.error(`[translate] job ${job?.id ?? "unknown"} failed:`, error));
+
 export function queueTranslations(article: TranslatableArticle) {
+  const revision = crypto.createHash("sha1").update(`${article.title}:${article.summary}:${article.content}`).digest("hex").slice(0, 12);
   for (const lang of LANGS) {
-    void translateOne(article, lang).catch((error) => {
-      console.error(`[translate] ${lang} failed for ${article.id}:`, error);
-    });
+    void translationQueue.add(
+      "translate",
+      { articleId: article.id, lang },
+      {
+        jobId: `${article.id}-${lang}-${revision}`,
+        attempts: 4,
+        backoff: { type: "exponential", delay: 5_000 },
+        removeOnComplete: { age: 24 * 60 * 60, count: 2_000 },
+        removeOnFail: { age: 7 * 24 * 60 * 60, count: 2_000 }
+      }
+    ).catch((error) => console.error(`[translate] ${lang} navbatga olinmadi for ${article.id}:`, error));
   }
 }
 
 export async function regenerateTranslation(articleId: string, lang: Lang) {
   const article = await prisma.article.findUniqueOrThrow({ where: { id: articleId } });
   await translateOne(article, lang);
+}
+
+export async function closeTranslationJobs() {
+  await Promise.all([translationWorker.close(), translationQueue.close()]);
 }

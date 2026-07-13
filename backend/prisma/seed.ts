@@ -56,17 +56,51 @@ async function main() {
     await prisma.permission.upsert({ where: { key: `editor.${key}` }, update: {}, create: { key: `editor.${key}`, roleId: editorRole.id } });
   }
 
-  const role = superAdminRole;
-  const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? "Admin12345!", 12);
-  await prisma.user.upsert({
-    where: { email: process.env.ADMIN_EMAIL ?? "admin@jahonxabarlari.uz" },
-    update: { passwordHash, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[0] },
-    create: { name: "Super Admin", email: process.env.ADMIN_EMAIL ?? "admin@jahonxabarlari.uz", passwordHash, roleId: role.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[0] }
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@jahonxabarlari.uz";
+  const telegramIds = process.env.BOT_ADMIN_IDS?.split(",").map((item) => item.trim());
+
+  async function upsertManagedUser(input: {
+    email: string;
+    name: string;
+    roleId: string;
+    password?: string;
+    telegramId?: string;
+  }) {
+    const existing = await prisma.user.findUnique({ where: { email: input.email }, select: { id: true } });
+    if (!existing && (!input.password || input.password.length < 12)) {
+      throw new Error(`${input.email} uchun kamida 12 belgili parol ENV orqali berilishi kerak`);
+    }
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : undefined;
+    await prisma.user.upsert({
+      where: { email: input.email },
+      update: {
+        name: input.name,
+        roleId: input.roleId,
+        ...(input.telegramId ? { telegramId: input.telegramId } : {})
+      },
+      create: {
+        name: input.name,
+        email: input.email,
+        roleId: input.roleId,
+        passwordHash: passwordHash!,
+        telegramId: input.telegramId
+      }
+    });
+  }
+
+  await upsertManagedUser({
+    name: "Super Admin",
+    email: adminEmail,
+    roleId: superAdminRole.id,
+    password: process.env.ADMIN_PASSWORD,
+    telegramId: telegramIds?.[0]
   });
-  await prisma.user.upsert({
-    where: { email: "editor@jahonxabarlari.uz" },
-    update: { passwordHash, roleId: editorRole.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] },
-    create: { name: "Muharrir", email: "editor@jahonxabarlari.uz", passwordHash, roleId: editorRole.id, telegramId: process.env.BOT_ADMIN_IDS?.split(",")[1] }
+  await upsertManagedUser({
+    name: "Muharrir",
+    email: "editor@jahonxabarlari.uz",
+    roleId: editorRole.id,
+    password: process.env.EDITOR_PASSWORD,
+    telegramId: telegramIds?.[1]
   });
 
   const categoryRows = [];

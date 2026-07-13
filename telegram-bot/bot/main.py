@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import CallbackQuery, Message
 
 from .ai_classifier import classify_article
@@ -705,9 +705,15 @@ async def fallback(message: Message, state: FSMContext):
 
 async def main() -> None:
     bot = Bot(settings.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dispatcher = Dispatcher(storage=MemoryStorage())
+    storage = RedisStorage.from_url(settings.redis_url, state_ttl=24 * 60 * 60, data_ttl=24 * 60 * 60)
+    dispatcher = Dispatcher(storage=storage)
     dispatcher.include_router(router)
-    await dispatcher.start_polling(bot, drop_pending_updates=True)
+    try:
+        await dispatcher.start_polling(bot, drop_pending_updates=False)
+    finally:
+        await storage.close()
+        await api.close()
+        await bot.session.close()
 
 
 if __name__ == "__main__":

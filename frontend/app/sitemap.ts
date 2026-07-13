@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 import { API_URL } from "../lib/config";
 import { SITE_URL } from "../lib/site";
 
-type ApiArticle = { slug: string; updatedAt?: string; publishedAt?: string; category?: { slug: string } };
+type ApiArticle = { slug: string; updatedAt?: string; publishedAt?: string };
 
 async function getPublishedArticles() {
   try {
-    const response = await fetch(`${API_URL}/articles?limit=200`, { next: { revalidate: 300 } });
+    const response = await fetch(`${API_URL}/articles/sitemap`, { next: { revalidate: 300 } });
     if (!response.ok) return [];
     const data = (await response.json()) as { items?: ApiArticle[] };
     return data.items ?? [];

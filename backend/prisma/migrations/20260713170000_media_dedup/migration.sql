@@ -1,0 +1,4 @@
+ALTER TABLE "MediaFile" ADD COLUMN IF NOT EXISTS "sha256" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "MediaFile_sha256_key"
+ON "MediaFile"("sha256");

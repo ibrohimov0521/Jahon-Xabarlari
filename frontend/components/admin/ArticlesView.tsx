@@ -1,11 +1,11 @@
 "use client";
 
 import { Archive, CheckCircle2, Clock3, Edit3, Eye, FileText, Languages, MoreVertical, RotateCcw, Send, ShieldCheck, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { formatArticleDateTime } from "../../lib/format";
 import { ARTICLE_STATUSES, type Article, type ArticleStatus } from "./types";
-import { Badge, Button, ConfirmButton, Empty, Panel, SearchInput, SelectFilter } from "./ui";
+import { Badge, Button, ConfirmButton, Empty, Pagination, Panel, SearchInput, SelectFilter } from "./ui";
 import { MediaView } from "../MediaView";
 
 // datetime-local expects a LOCAL wall-clock string; toISOString() is UTC, so slicing it directly
@@ -67,6 +67,11 @@ export function ArticlesView({
   onEdit,
   onPreview,
   onRegenerateTranslation,
+  page,
+  pages,
+  total,
+  onPageChange,
+  onFiltersChange,
   initialStatus = "",
   onlyToday = false
 }: {
@@ -82,6 +87,11 @@ export function ArticlesView({
   onEdit: (id: string) => void;
   onPreview: (article: Article) => void;
   onRegenerateTranslation: (id: string, lang: string) => void;
+  page: number;
+  pages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onFiltersChange: (search: string, status: ArticleStatus | "") => void;
   initialStatus?: ArticleStatus | "";
   onlyToday?: boolean;
 }) {
@@ -91,6 +101,7 @@ export function ArticlesView({
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [scheduleTargetId, setScheduleTargetId] = useState<string | null>(null);
   const [scheduleValue, setScheduleValue] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setStatus(initialStatus);
@@ -98,6 +109,15 @@ export function ArticlesView({
     setOpenStatusId(null);
     setScheduleTargetId(null);
   }, [initialStatus, onlyToday]);
+
+  useEffect(() => () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const visibleIds = new Set(articles.map((article) => article.id));
+    setSelected((current) => current.filter((id) => visibleIds.has(id)));
+  }, [articles]);
 
   // Dismiss the status dropdown on outside click or Escape.
   useEffect(() => {
@@ -120,16 +140,19 @@ export function ArticlesView({
     };
   }, [openStatusId]);
 
-  const filtered = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return articles.filter((item) => {
-      if (status && item.status !== status) return false;
-      if (onlyToday && new Date(item.createdAt) < today) return false;
-      if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [articles, onlyToday, search, status]);
+  const filtered = articles;
+
+  function changeSearch(value: string) {
+    setSearch(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => onFiltersChange(value, status), 300);
+  }
+
+  function changeFilterStatus(value: ArticleStatus | "") {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    setStatus(value);
+    onFiltersChange(search, value);
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
@@ -164,8 +187,8 @@ export function ArticlesView({
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {onlyToday && <Badge tone="green">Bugun qo'shilganlar</Badge>}
-          <SearchInput value={search} onChange={setSearch} placeholder="Sarlavha bo'yicha qidirish..." />
-          {!trashed && <SelectFilter value={status} onChange={setStatus} options={ARTICLE_STATUSES} allLabel="Barcha statuslar" />}
+          <SearchInput value={search} onChange={changeSearch} placeholder="Sarlavha bo'yicha qidirish..." />
+          {!trashed && <SelectFilter value={status} onChange={changeFilterStatus} options={ARTICLE_STATUSES} allLabel="Barcha statuslar" />}
           <button
             onClick={() => {
               onTrashedChange(!trashed);
@@ -182,7 +205,7 @@ export function ArticlesView({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
         <label className="inline-flex items-center gap-3 text-sm font-black">
           <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} className="size-4 accent-blue-600" />
-          {filtered.length} ta yangilik
+          {total} ta yangilik
         </label>
         {selected.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-brand">
@@ -353,10 +376,16 @@ export function ArticlesView({
         })}
         {!filtered.length && <Empty text={trashed ? "Trash bo'sh" : "Bazadagi yangiliklar bo'sh. Yangi maqola qo'shishingiz mumkin."} />}
       </div>
+      <Pagination page={page} pages={pages} onChange={onPageChange} />
     </Panel>
   );
 }
 
-export async function fetchArticles(trashed: boolean) {
-  return adminRequest<{ items: Article[] }>(`/admin/articles${trashed ? "?trashed=true" : ""}`);
+export async function fetchArticles(options: { trashed: boolean; page: number; search?: string; status?: ArticleStatus | ""; today?: boolean }) {
+  const query = new URLSearchParams({ page: String(options.page), limit: "50" });
+  if (options.trashed) query.set("trashed", "true");
+  if (options.search) query.set("search", options.search);
+  if (options.status) query.set("status", options.status);
+  if (options.today) query.set("today", "true");
+  return adminRequest<{ items: Article[]; total: number; page: number; pages: number }>(`/admin/articles?${query}`);
 }

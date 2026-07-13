@@ -5,7 +5,6 @@ import {
   Clock,
   Command,
   Cpu,
-  CornerDownLeft,
   Globe2,
   Landmark,
   LineChart,
@@ -18,7 +17,6 @@ import {
   X,
   Zap
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { MediaView } from "./MediaView";

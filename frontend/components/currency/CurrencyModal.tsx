@@ -2,7 +2,7 @@
 
 import { ArrowRight, ArrowLeftRight, Landmark, RefreshCw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { COUNTRY, fmt, fmt0, fmtSigned, percentOf, SYMBOL, trendOf, type CurrencyRate } from "../../lib/currency";
+import { fmt, fmt0, fmtSigned, type CurrencyRate } from "../../lib/currency";
 import { CurrencySelect, type CurrencyOption } from "./CurrencySelect";
 import { Flag } from "./Flag";
 import { Sparkline } from "./Sparkline";

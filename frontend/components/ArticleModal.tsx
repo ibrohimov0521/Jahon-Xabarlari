@@ -16,6 +16,7 @@ export function ArticleModal() {
   // Guards against out-of-order responses: if the user opens article B before article A's
   // fetch resolves, A's stale response must not overwrite B once it lands.
   const requestIdRef = useRef(0);
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     function onClick(event: globalThis.MouseEvent) {
@@ -30,9 +31,13 @@ export function ArticleModal() {
       if (!slug) return;
 
       const requestId = ++requestIdRef.current;
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+      const timeout = setTimeout(() => controller.abort(), 12_000);
       setLoading(true);
       const langQuery = language === "uz" ? "" : `?lang=${encodeURIComponent(language)}`;
-      fetch(`${API_URL}/articles/${slug}${langQuery}`)
+      fetch(`${API_URL}/articles/${slug}${langQuery}`, { signal: controller.signal })
         .then((res) => {
           if (!res.ok) throw new Error("Maqola topilmadi");
           return res.json();
@@ -50,12 +55,17 @@ export function ArticleModal() {
           if (requestIdRef.current === requestId) setArticle(null);
         })
         .finally(() => {
+          clearTimeout(timeout);
+          if (fetchControllerRef.current === controller) fetchControllerRef.current = null;
           if (requestIdRef.current === requestId) setLoading(false);
         });
     }
 
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      fetchControllerRef.current?.abort();
+    };
   }, [language]);
 
   useEffect(() => {
@@ -75,6 +85,8 @@ export function ArticleModal() {
   function close() {
     // Invalidate any in-flight fetch so it can't resurrect the modal after the user closed it.
     requestIdRef.current += 1;
+    fetchControllerRef.current?.abort();
+    fetchControllerRef.current = null;
     setArticle(null);
     setLoading(false);
   }

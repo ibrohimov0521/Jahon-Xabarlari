@@ -51,7 +51,7 @@ weatherRouter.get("/", async (req, res) => {
       "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max" +
       "&timezone=auto&forecast_days=16";
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error(`Open-Meteo ${response.status}`);
     const data = await response.json();
 
@@ -83,7 +83,7 @@ weatherRouter.get("/alerts", async (req, res) => {
     const url =
       "https://api.weatherapi.com/v1/forecast.json" +
       `?key=${env.WEATHERAPI_API_KEY}&q=${lat},${lon}&days=1&alerts=yes&aqi=no`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error(`WeatherAPI ${response.status}`);
     const data = await response.json();
     const result = { alerts: data?.alerts?.alert ?? [] };

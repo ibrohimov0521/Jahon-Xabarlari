@@ -1,3 +1,5 @@
+import { timeoutSignal } from "./http";
+
 export type UzRegion = { name: string; lat: number; lon: number };
 
 // All 12 viloyat + Toshkent shahri + Qoraqalpog'iston Respublikasi (regional center coords).
@@ -195,7 +197,7 @@ import { API_URL } from "./config";
 // any failure -- alerts are a bonus banner on top of the core forecast, never a blocker.
 export async function fetchWeatherAlerts(lat: number, lon: number): Promise<WeatherAlert[]> {
   try {
-    const res = await fetch(`${API_URL}/weather/alerts?lat=${lat}&lon=${lon}`);
+    const res = await fetch(`${API_URL}/weather/alerts?lat=${lat}&lon=${lon}`, { signal: timeoutSignal() });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data?.alerts) ? data.alerts : [];
@@ -208,7 +210,7 @@ export async function fetchWeatherAlerts(lat: number, lon: number): Promise<Weat
 // calling Open-Meteo directly from the browser, per the requested architecture.
 export async function fetchFullWeather(lat: number, lon: number): Promise<FullWeather | null> {
   try {
-    const res = await fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`);
+    const res = await fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`, { signal: timeoutSignal() });
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.current || !data?.hourly || !data?.daily) return null;

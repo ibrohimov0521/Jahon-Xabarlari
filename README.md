@@ -37,7 +37,8 @@ docker compose exec backend npm run prisma:seed
 Test admin:
 
 - Email: `admin@jahonxabarlari.uz`
-- Parol: `Admin12345!`
+- Parol: birinchi seed oldidan `.env` ichidagi `ADMIN_PASSWORD` orqali kamida 12 belgili qilib beriladi.
+- Production parolini repository yoki hujjatga yozmang; mavjud admin paroli keyingi deploylarda seed tomonidan o'zgartirilmaydi.
 
 ## Telegram Admin Bot
 

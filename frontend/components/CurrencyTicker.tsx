@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fmt0, TICKER_CODES, type CurrencyRate } from "../lib/currency";
+import { timeoutSignal } from "../lib/http";
 import { CurrencyModal } from "./currency/CurrencyModal";
 import { Flag } from "./currency/Flag";
 
@@ -12,7 +13,7 @@ export function CurrencyTicker() {
   const ref = useRef<HTMLDivElement>(null);
 
   const load = () =>
-    fetch("/api/rates")
+    fetch("/api/rates", { signal: timeoutSignal(10_000) })
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d.rates)) {

@@ -24,14 +24,34 @@ export function createBullConnection() {
 }
 
 const lockRedis = createRedisConnection();
+lockRedis.on("error", (error) => console.error("[redis] distributed lock xatosi:", error));
 
 export async function withRedisLock<T>(key: string, ttlMs: number, task: () => Promise<T>): Promise<T | null> {
   const token = crypto.randomUUID();
   const acquired = await lockRedis.set(key, token, "PX", ttlMs, "NX");
   if (acquired !== "OK") return null;
+  let refreshing = false;
+  const refreshTimer = setInterval(() => {
+    if (refreshing) return;
+    refreshing = true;
+    void lockRedis
+      .eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+        1,
+        key,
+        token,
+        ttlMs
+      )
+      .catch((error) => console.error(`[redis] ${key} lock muddatini uzaytirib bo'lmadi:`, error))
+      .finally(() => {
+        refreshing = false;
+      });
+  }, Math.max(1_000, Math.floor(ttlMs / 3)));
+  refreshTimer.unref();
   try {
     return await task();
   } finally {
+    clearInterval(refreshTimer);
     await lockRedis.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
       1,

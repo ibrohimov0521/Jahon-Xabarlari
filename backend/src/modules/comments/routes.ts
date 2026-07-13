@@ -10,12 +10,22 @@ export const commentRouter = Router();
 commentRouter.use(requireAuth, permit("comments.manage"));
 
 commentRouter.get("/", async (req, res) => {
-  const status = req.query.status?.toString() as CommentStatus | undefined;
-  const search = req.query.search?.toString();
+  const statusRaw = req.query.status?.toString();
+  const statusResult = statusRaw ? z.nativeEnum(CommentStatus).safeParse(statusRaw) : null;
+  if (statusResult && !statusResult.success) return res.status(400).json({ message: "Noto'g'ri izoh statusi" });
+  const status = statusResult?.data;
+  const search = req.query.search?.toString().trim().slice(0, 200);
   const { page, take, skip } = pagination(req.query);
   const where = {
     ...(status ? { status } : {}),
-    ...(search ? { body: { contains: search, mode: "insensitive" as const } } : {})
+    ...(search
+      ? {
+          OR: [
+            { body: { contains: search, mode: "insensitive" as const } },
+            { name: { contains: search, mode: "insensitive" as const } }
+          ]
+        }
+      : {})
   };
   const [items, total] = await Promise.all([
     prisma.comment.findMany({

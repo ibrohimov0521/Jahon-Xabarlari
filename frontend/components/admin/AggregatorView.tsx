@@ -22,7 +22,7 @@ type AggregatorSource = {
 
 export function AggregatorView() {
   const [status, setStatus] = useState<AggregatorStatus | null>(null);
-  const [limit, setLimit] = useState("300");
+  const [limit, setLimit] = useState("40");
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
@@ -154,7 +154,7 @@ export function AggregatorView() {
                 onChange={(event) => setLimit(event.target.value)}
                 type="number"
                 min={1}
-                max={1000}
+                max={100}
               />
             </label>
             <Button

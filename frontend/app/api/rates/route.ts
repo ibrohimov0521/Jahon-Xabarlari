@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildHistory, CURRENCY_CODES, COUNTRY, type CurrencyRate, percentOf, trendOf } from "../../../lib/currency";
+import { timeoutSignal } from "../../../lib/http";
 
 // Live UZS exchange rates from the Central Bank of Uzbekistan (free, no key).
 // Fetched server-side (avoids CORS) and cached; CBU publishes once per business day.
@@ -13,7 +14,8 @@ export async function GET() {
   try {
     const res = await fetch("https://cbu.uz/uz/arkhiv-kursov-valyut/json/", {
       next: { revalidate },
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: timeoutSignal(10_000)
     });
     if (!res.ok) throw new Error(`cbu ${res.status}`);
     const data = (await res.json()) as CbuItem[];
@@ -44,6 +46,9 @@ export async function GET() {
       { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } }
     );
   } catch {
-    return NextResponse.json({ updated: "", base: "UZS", rates: [] as CurrencyRate[] });
+    return NextResponse.json(
+      { updated: "", base: "UZS", rates: [] as CurrencyRate[] },
+      { status: 502, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

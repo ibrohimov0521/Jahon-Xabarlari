@@ -9,10 +9,10 @@ export const adRouter = Router();
 adRouter.use(requireAuth, permit("ads.manage"));
 
 const adSchema = z.object({
-  title: z.string().min(2),
-  placement: z.string().min(2),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  targetUrl: z.string().url().optional().or(z.literal("")),
+  title: z.string().trim().min(2).max(160),
+  placement: z.string().trim().min(2).max(80),
+  imageUrl: z.string().url().max(2_048).optional().or(z.literal("")),
+  targetUrl: z.string().url().max(2_048).optional().or(z.literal("")),
   status: z.nativeEnum(AdvertisementStatus).default("DRAFT")
 });
 

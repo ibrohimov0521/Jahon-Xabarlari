@@ -9,7 +9,6 @@ import {
   fetchFullWeather,
   fetchWeatherAlerts,
   weatherBackgroundImage,
-  UZ_REGIONS,
   type FullWeather,
   type UzRegion,
   type WeatherAlert,

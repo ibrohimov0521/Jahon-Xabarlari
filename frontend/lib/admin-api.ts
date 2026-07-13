@@ -1,4 +1,5 @@
 import { API_URL, API_ORIGIN } from "./config";
+import { timeoutSignal } from "./http";
 
 export { API_URL };
 
@@ -56,6 +57,7 @@ function announceAuthExpired() {
 async function rawRequest(path: string, options: RequestInit, token: string) {
   return fetch(`${API_URL}${path}`, {
     ...options,
+    signal: options.signal ?? timeoutSignal(20_000),
     // Send the HttpOnly refresh cookie on auth calls; harmless (path-scoped) on others.
     credentials: "include",
     headers: {
@@ -71,7 +73,7 @@ async function performRefresh(): Promise<string | null> {
   if (!user) return null;
   try {
     // No body: the refresh token rides along as an HttpOnly cookie.
-    const res = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" });
+    const res = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include", signal: timeoutSignal(15_000) });
     if (!res.ok) return null;
     const data = (await res.json()) as { accessToken: string };
     storeSession(user, data.accessToken);
@@ -140,7 +142,8 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
     method: "POST",
     credentials: "include",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: createForm()
+    body: createForm(),
+    signal: timeoutSignal(120_000)
   });
 
   if (res.status === 401) {
@@ -151,7 +154,8 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
         method: "POST",
         credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
-        body: createForm()
+        body: createForm(),
+        signal: timeoutSignal(120_000)
       });
     }
   }
@@ -177,7 +181,7 @@ export async function logout() {
   clearSession();
   try {
     // The HttpOnly cookie is sent automatically; the server revokes it and clears the cookie.
-    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
+    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include", signal: timeoutSignal(10_000) });
   } catch {
     // best-effort server-side revocation; local session is already cleared
   }

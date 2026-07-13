@@ -10,7 +10,7 @@ function formatCommentDate(iso: string) {
 }
 
 export function CommentSection({ articleId, initialComments }: { articleId: string; initialComments: Comment[] }) {
-  const [comments, setComments] = useState(initialComments);
+  const [comments] = useState(initialComments);
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);

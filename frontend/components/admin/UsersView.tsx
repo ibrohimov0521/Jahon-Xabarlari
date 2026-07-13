@@ -1,9 +1,9 @@
 "use client";
 
 import type { UserItem } from "./types";
-import { Badge, Empty, Panel } from "./ui";
+import { Badge, Empty, Pagination, Panel } from "./ui";
 
-export function UsersView({ users }: { users: UserItem[] }) {
+export function UsersView({ users, page, pages, onPageChange }: { users: UserItem[]; page: number; pages: number; onPageChange: (page: number) => void }) {
   return (
     <Panel title="Foydalanuvchilar">
       <div className="overflow-x-auto">
@@ -33,6 +33,7 @@ export function UsersView({ users }: { users: UserItem[] }) {
         </table>
         {!users.length && <Empty text="Foydalanuvchilar topilmadi" />}
       </div>
+      <Pagination page={page} pages={pages} onChange={onPageChange} />
     </Panel>
   );
 }

@@ -24,6 +24,7 @@ import { weatherRouter } from "./modules/weather/routes.js";
 import { subscriberRouter } from "./modules/subscribers/routes.js";
 import { pushRouter } from "./modules/push/routes.js";
 import { runAggregatorCycle } from "./services/aggregator.js";
+import { closeAggregatorJobs } from "./services/aggregator-jobs.js";
 import { prisma } from "./config/prisma.js";
 import { closePushJobs } from "./services/push.js";
 import { closeTranslationJobs } from "./services/translate.js";
@@ -73,6 +74,12 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
     return res.status(404).json({ message: "Topilmadi" });
   }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    return res.status(409).json({ message: "Bu ma'lumot avval yaratilgan" });
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+    return res.status(409).json({ message: "Bog'langan ma'lumot sabab amalni bajarib bo'lmaydi" });
+  }
   console.error("[server] Kutilmagan xatolik:", error);
   res.status(500).json({ message: "Serverda kutilmagan xatolik yuz berdi" });
 });
@@ -119,7 +126,7 @@ async function shutdown(signal: string) {
   clearInterval(scheduledPublisher);
   clearInterval(maintenance);
   server.close(async () => {
-    await Promise.all([closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
+    await Promise.all([closeAggregatorJobs(), closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
     await prisma.$disconnect();
     process.exit(0);
   });

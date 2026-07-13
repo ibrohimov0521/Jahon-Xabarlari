@@ -142,7 +142,7 @@ export default async function Home() {
         </div>
 
         <div className="home-side-stack grid content-start gap-[18px]">
-          {side.map((item, index) => (
+          {side.map((item) => (
             <Link
               key={item.id}
               href={`/articles/${item.slug}`}

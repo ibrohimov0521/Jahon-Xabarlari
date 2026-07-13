@@ -197,6 +197,7 @@ model MediaFile {
   id        String   @id @default(cuid())
   url       String
   key       String   @unique
+  sha256    String?  @unique
   mimeType  String
   size      Int
   data      Bytes?

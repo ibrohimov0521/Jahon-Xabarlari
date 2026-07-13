@@ -6,13 +6,14 @@ import slugify from "slugify";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
-import { safeFetch } from "./net-guard.js";
+import { readTextResponse, safeFetch } from "./net-guard.js";
+import { queueArticlePush } from "./push.js";
 import { queueTranslations } from "./translate.js";
 import { withRedisLock } from "./redis.js";
 
 export { NEWS_SOURCES, type NewsSource };
 
-const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 2 }) : null;
 const MODEL = "gpt-4o-mini";
 const parser = new Parser<Record<string, unknown>, RawFeedItem>({
   timeout: 15_000,
@@ -268,7 +269,7 @@ async function fetchPageMedia(link: string) {
       }
     });
     if (!response.ok) return null;
-    const html = await response.text();
+    const html = await readTextResponse(response, 500_000);
     return extractMetaMedia(html.slice(0, 250_000), link);
   } catch {
     return null;
@@ -348,7 +349,7 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
       headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)" }
     });
     if (!response.ok) return [];
-    const feed = await parser.parseString(await response.text());
+    const feed = await parser.parseString(await readTextResponse(response, 2_000_000));
     return (feed.items ?? [])
       .filter((item): item is typeof item & { title: string; link: string } => Boolean(item.title && item.link))
       .slice(0, 20)
@@ -454,6 +455,7 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
   });
 
   queueTranslations(article);
+  queueArticlePush(article);
 }
 
 let running = false;

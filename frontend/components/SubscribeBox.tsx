@@ -3,6 +3,7 @@
 import { Send } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { API_URL } from "../lib/config";
+import { timeoutSignal } from "../lib/http";
 import { useUi } from "../lib/ui-context";
 
 export function SubscribeBox({ variant = "card" }: { variant?: "card" | "inline" }) {
@@ -17,7 +18,8 @@ export function SubscribeBox({ variant = "card" }: { variant?: "card" | "inline"
       const res = await fetch(`${API_URL}/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
+        signal: timeoutSignal()
       });
       if (!res.ok) throw new Error("subscribe failed");
       setStatus("sent");

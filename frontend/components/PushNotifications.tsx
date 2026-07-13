@@ -3,6 +3,7 @@
 import { BellRing, Check, Loader2, Settings2, Smartphone, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL } from "../lib/config";
+import { timeoutSignal } from "../lib/http";
 import { useUi, type Language } from "../lib/ui-context";
 
 type PushState = "loading" | "default" | "enabled" | "denied" | "unsupported";
@@ -98,7 +99,8 @@ export function PushNotifications() {
         language: lang,
         importantOnly: true,
         categorySlugs: []
-      })
+      }),
+      signal: timeoutSignal(15_000)
     });
     if (!response.ok) throw new Error("Subscription saqlanmadi");
   }, []);
@@ -186,7 +188,7 @@ export function PushNotifications() {
         return;
       }
       const registration = await navigator.serviceWorker.ready;
-      const keyResponse = await fetch(`${API_URL}/push/public-key`);
+      const keyResponse = await fetch(`${API_URL}/push/public-key`, { signal: timeoutSignal(15_000) });
       if (!keyResponse.ok) throw new Error("VAPID kaliti olinmadi");
       const { publicKey } = (await keyResponse.json()) as { publicKey: string };
       const existing = await registration.pushManager.getSubscription();
@@ -220,7 +222,8 @@ export function PushNotifications() {
         await fetch(`${API_URL}/push/subscriptions`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: subscription.endpoint })
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+          signal: timeoutSignal(15_000)
         });
         await subscription.unsubscribe();
       }

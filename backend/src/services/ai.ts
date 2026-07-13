@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { env } from "../config/env.js";
 
-const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 2 }) : null;
 const MODEL = "gpt-4o-mini";
 
 export class AiNotConfiguredError extends Error {

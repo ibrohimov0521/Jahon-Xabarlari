@@ -12,14 +12,14 @@ categoryRouter.get("/categories", async (_req, res) => {
 });
 
 categoryRouter.post("/admin/categories", requireAuth, permit("categories.manage"), async (req, res) => {
-  const name = z.object({ name: z.string().min(2) }).parse(req.body).name;
+  const name = z.object({ name: z.string().trim().min(2).max(100) }).parse(req.body).name;
   const item = await prisma.category.create({ data: { name, slug: slugify(name, { lower: true, strict: true }) } });
   await audit(req, "CATEGORY_CREATE", "Category", item.id);
   res.status(201).json(item);
 });
 
 categoryRouter.put("/admin/categories/:id", requireAuth, permit("categories.manage"), async (req, res) => {
-  const name = z.object({ name: z.string().min(2) }).parse(req.body).name;
+  const name = z.object({ name: z.string().trim().min(2).max(100) }).parse(req.body).name;
   const item = await prisma.category.update({ where: { id: req.params.id }, data: { name } });
   await audit(req, "CATEGORY_UPDATE", "Category", item.id);
   res.json(item);

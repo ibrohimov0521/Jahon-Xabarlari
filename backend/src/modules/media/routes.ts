@@ -57,8 +57,12 @@ mediaRouter.post("/upload", upload.single("file"), async (req, res) => {
   // filename or Content-Type can't influence what we store or later serve.
   const key = `${crypto.randomUUID()}.${sniffed.ext}`;
   const url = `/api/admin/media/file/${key}`;
-  const item = await prisma.mediaFile.create({
-    data: { key, url, mimeType: sniffed.mime, size: req.file.size, data: req.file.buffer }
+  const sha256 = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
+  const item = await prisma.mediaFile.upsert({
+    where: { sha256 },
+    update: {},
+    create: { key, url, sha256, mimeType: sniffed.mime, size: req.file.size, data: req.file.buffer },
+    select: { id: true, url: true, key: true, mimeType: true, size: true, createdAt: true }
   });
   res.status(201).json(item);
 });

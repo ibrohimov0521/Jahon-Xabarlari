@@ -4,6 +4,7 @@ import { Router, type Request } from "express";
 import rateLimit from "express-rate-limit";
 import slugify from "slugify";
 import { z } from "zod";
+import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
@@ -11,19 +12,24 @@ import { AiNotConfiguredError, generateArticleShortDescription } from "../../ser
 import { queueArticlePush } from "../../services/push.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 import { pagination, positiveInt } from "../../utils/query.js";
+import { daysAgoFromTashkentDay, startOfTashkentDay } from "../../utils/time.js";
 
 export const articleRouter = Router();
 
 const articleSchema = z.object({
-  title: z.string().min(3),
-  slug: z.string().optional(),
-  summary: z.string().min(10),
-  shortDescription: z.string().optional(),
-  content: z.string().min(20),
-  mainImage: z.string().url().optional().or(z.literal("")),
-  gallery: z.array(z.string().url()).optional(),
-  categoryId: z.string(),
-  extraCategoryIds: z.array(z.string()).optional(),
+  title: z.string().trim().min(3).max(220),
+  slug: z.string().trim().max(240).regex(/^[a-z0-9-]+$/).optional().or(z.literal("")),
+  summary: z.string().trim().min(10).max(2_000),
+  shortDescription: z.string().trim().max(500).optional(),
+  content: z.string().trim().min(20).max(250_000),
+  mainImage: z.string().url().max(2_048).optional().or(z.literal("")),
+  gallery: z.array(z.string().url().max(2_048)).max(20).optional(),
+  categoryId: z.string().min(1).max(64),
+  extraCategoryIds: z
+    .array(z.string().min(1).max(64))
+    .max(12)
+    .refine((items) => new Set(items).size === items.length, "Qo'shimcha kategoriyalar takrorlanmasligi kerak")
+    .optional(),
   status: z.nativeEnum(ArticleStatus).default("DRAFT"),
   isFeatured: z.boolean().default(false),
   isBreaking: z.boolean().default(false),
@@ -33,19 +39,18 @@ const articleSchema = z.object({
   showInSidebar: z.boolean().default(false),
   showInLatest: z.boolean().default(true),
   showInPopular: z.boolean().default(false),
-  seoTitle: z.string().optional(),
-  seoDescription: z.string().optional(),
-  seoKeywords: z.string().optional()
+  seoTitle: z.string().trim().max(220).optional(),
+  seoDescription: z.string().trim().max(500).optional(),
+  seoKeywords: z.string().trim().max(500).optional()
 });
 
-const idsSchema = z.object({ ids: z.array(z.string()).min(1) });
+const idsSchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(100) });
 const aiShortDescriptionSchema = z.object({
-  title: z.string().min(3),
-  summary: z.string().optional(),
-  content: z.string().min(20)
+  title: z.string().trim().min(3).max(220),
+  summary: z.string().trim().max(2_000).optional(),
+  content: z.string().trim().min(20).max(250_000)
 });
 const VIEW_WINDOW_MS = 6 * 60 * 60 * 1000;
-const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
 
 const aiGenerationLimit = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -62,16 +67,7 @@ function isLang(value: string | undefined): value is Lang {
 function viewerHash(req: Request) {
   const ip = req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
   const userAgent = req.headers["user-agent"]?.toString() || "unknown";
-  return crypto.createHash("sha256").update(`${ip}:${userAgent}`).digest("hex");
-}
-
-function startOfTashkentDay(date = new Date()) {
-  const shifted = new Date(date.getTime() + TASHKENT_OFFSET_MS);
-  return new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - TASHKENT_OFFSET_MS);
-}
-
-function daysAgoFromTashkentDay(days: number) {
-  return new Date(startOfTashkentDay().getTime() - days * 24 * 60 * 60 * 1000);
+  return crypto.createHmac("sha256", env.JWT_ACCESS_SECRET).update(`${ip}:${userAgent}`).digest("hex");
 }
 
 function applyTranslation<T extends { title: string; summary: string; shortDescription?: string | null; content: string; seoTitle: string | null; seoDescription: string | null }>(
@@ -94,7 +90,7 @@ function applyTranslation<T extends { title: string; summary: string; shortDescr
 
 articleRouter.get("/articles", async (req, res) => {
   const { page, take, skip } = pagination(req.query, { limit: 12, max: 200 });
-  const category = req.query.category?.toString();
+  const category = req.query.category?.toString().slice(0, 100);
   const lang = req.query.lang?.toString();
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
   const where = {
@@ -267,15 +263,17 @@ articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) 
 });
 
 articleRouter.get("/search", async (req, res) => {
-  const q = req.query.q?.toString() ?? "";
+  const q = req.query.q?.toString().trim().slice(0, 200) ?? "";
   const lang = req.query.lang?.toString();
-  const category = req.query.category?.toString();
+  const category = req.query.category?.toString().slice(0, 100);
   const sort = req.query.sort?.toString();
   const cursor = req.query.cursor?.toString();
   const take = positiveInt(req.query.limit, 20, 50);
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
   const categoryFilter = categoryRow ? { OR: [{ categoryId: categoryRow.id }, { extraCategoryIds: { has: categoryRow.id } }] } : category ? { category: { slug: category } } : {};
-  const orderBy = sort === "popular" ? { viewsCount: "desc" as const } : { publishedAt: "desc" as const };
+  const orderBy = sort === "popular"
+    ? [{ viewsCount: "desc" as const }, { id: "desc" as const }]
+    : [{ publishedAt: "desc" as const }, { id: "desc" as const }];
   const translatedSearch =
     isLang(lang) && q
       ? {
@@ -321,12 +319,17 @@ articleRouter.get("/search", async (req, res) => {
 });
 
 articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async (req, res) => {
-  const status = req.query.status?.toString() as ArticleStatus | undefined;
+  const statusRaw = req.query.status?.toString();
+  const statusResult = statusRaw ? z.nativeEnum(ArticleStatus).safeParse(statusRaw) : null;
+  if (statusResult && !statusResult.success) return res.status(400).json({ message: "Noto'g'ri maqola statusi" });
+  const status = statusResult?.data;
   const trashed = req.query.trashed?.toString() === "true";
-  const search = req.query.search?.toString();
+  const today = req.query.today?.toString() === "true";
+  const search = req.query.search?.toString().trim().slice(0, 200);
   const { page, take, skip } = pagination(req.query);
   const where = {
     deletedAt: trashed ? { not: null } : null,
+    ...(today ? { createdAt: { gte: startOfTashkentDay() } } : {}),
     ...(status ? { status } : {}),
     ...(search ? { title: { contains: search, mode: "insensitive" as const } } : {})
   };
@@ -385,7 +388,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
   });
   await audit(req, "ARTICLE_CREATE", "Article", article.id, { title: article.title, status: article.status });
   queueTranslations(article);
-  queueArticlePush(article.id);
+  queueArticlePush(article);
   res.status(201).json(article);
 });
 
@@ -413,7 +416,7 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
   if (data.title || data.summary || data.shortDescription || data.content || data.seoTitle || data.seoDescription) {
     queueTranslations(article);
   }
-  queueArticlePush(article.id);
+  queueArticlePush(article);
   res.json(article);
 });
 
@@ -433,7 +436,7 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
     }
   });
   await audit(req, "ARTICLE_STATUS", "Article", article.id, { status });
-  queueArticlePush(article.id);
+  queueArticlePush(article);
   res.json(article);
 });
 
@@ -453,7 +456,7 @@ articleRouter.patch("/admin/articles/:id/flags", requireAuth, permit("articles.u
   const data = flagsSchema.parse(req.body);
   const article = await prisma.article.update({ where: { id: req.params.id }, data });
   await audit(req, "ARTICLE_FLAGS", "Article", article.id, data);
-  queueArticlePush(article.id);
+  queueArticlePush(article);
   res.json(article);
 });
 
@@ -510,11 +513,12 @@ export async function publishScheduledArticles() {
     select: { id: true }
   });
   if (!due.length) return;
+  const publishedAt = new Date();
   await prisma.article.updateMany({
     where: { id: { in: due.map((item) => item.id) } },
-    data: { status: "PUBLISHED", publishedAt: new Date(), scheduledAt: null }
+    data: { status: "PUBLISHED", publishedAt, scheduledAt: null }
   });
-  due.forEach((item) => queueArticlePush(item.id));
+  due.forEach((item) => queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt }));
   console.log(`[scheduler] ${due.length} ta rejalashtirilgan maqola nashr qilindi`);
 }
 

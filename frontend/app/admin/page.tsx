@@ -77,16 +77,29 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [trashed, setTrashed] = useState(false);
+  const [articlePage, setArticlePage] = useState(1);
+  const [articlePages, setArticlePages] = useState(1);
+  const [articleTotal, setArticleTotal] = useState(0);
+  const [articleSearch, setArticleSearch] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentPages, setCommentPages] = useState(1);
+  const [commentSearch, setCommentSearch] = useState("");
+  const [commentStatus, setCommentStatus] = useState<CommentStatus | "">("");
   const [ads, setAds] = useState<AdItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [userPage, setUserPage] = useState(1);
+  const [userPages, setUserPages] = useState(1);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [previewForm, setPreviewForm] = useState<ArticleFormState | null>(null);
   const [previewReturnView, setPreviewReturnView] = useState<View>("new");
   const [articleStatusFilter, setArticleStatusFilter] = useState<ArticleStatus | "">("");
   const [articleOnlyToday, setArticleOnlyToday] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const articleLoadSequence = useRef(0);
+  const commentLoadSequence = useRef(0);
+  const userLoadSequence = useRef(0);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
@@ -114,14 +127,39 @@ export default function AdminPage() {
     setCategories(data);
   }
 
-  async function loadArticles(nextTrashed = trashed) {
-    const data = await fetchArticles(nextTrashed);
+  async function loadArticles(
+    nextTrashed = trashed,
+    nextPage = articlePage,
+    nextSearch = articleSearch,
+    nextStatus = articleStatusFilter,
+    nextOnlyToday = articleOnlyToday
+  ) {
+    const requestId = ++articleLoadSequence.current;
+    let data = await fetchArticles({ trashed: nextTrashed, page: nextPage, search: nextSearch, status: nextStatus, today: nextOnlyToday });
+    if (data.pages > 0 && nextPage > data.pages) {
+      data = await fetchArticles({ trashed: nextTrashed, page: data.pages, search: nextSearch, status: nextStatus, today: nextOnlyToday });
+    }
+    if (requestId !== articleLoadSequence.current) return;
     setArticles(data.items);
+    setArticlePage(data.page || 1);
+    setArticlePages(Math.max(data.pages, 1));
+    setArticleTotal(data.total);
   }
 
-  async function loadComments() {
-    const data = await adminRequest<{ items: CommentItem[] }>("/admin/comments");
+  async function loadComments(nextPage = commentPage, nextSearch = commentSearch, nextStatus = commentStatus) {
+    const requestId = ++commentLoadSequence.current;
+    const query = new URLSearchParams({ page: String(nextPage), limit: "50" });
+    if (nextSearch) query.set("search", nextSearch);
+    if (nextStatus) query.set("status", nextStatus);
+    let data = await adminRequest<{ items: CommentItem[]; page: number; pages: number }>(`/admin/comments?${query}`);
+    if (data.pages > 0 && nextPage > data.pages) {
+      query.set("page", String(data.pages));
+      data = await adminRequest<{ items: CommentItem[]; page: number; pages: number }>(`/admin/comments?${query}`);
+    }
+    if (requestId !== commentLoadSequence.current) return;
     setComments(data.items);
+    setCommentPage(data.page || 1);
+    setCommentPages(Math.max(data.pages, 1));
   }
 
   async function loadAds() {
@@ -129,9 +167,16 @@ export default function AdminPage() {
     setAds(data.items);
   }
 
-  async function loadUsers() {
-    const data = await adminRequest<{ items: UserItem[] }>("/admin/users");
+  async function loadUsers(nextPage = userPage) {
+    const requestId = ++userLoadSequence.current;
+    let data = await adminRequest<{ items: UserItem[]; page: number; pages: number }>(`/admin/users?page=${nextPage}&limit=50`);
+    if (data.pages > 0 && nextPage > data.pages) {
+      data = await adminRequest<{ items: UserItem[]; page: number; pages: number }>(`/admin/users?page=${data.pages}&limit=50`);
+    }
+    if (requestId !== userLoadSequence.current) return;
     setUsers(data.items);
+    setUserPage(data.page || 1);
+    setUserPages(Math.max(data.pages, 1));
   }
 
   async function loadDashboard() {
@@ -145,7 +190,8 @@ export default function AdminPage() {
     setError("");
     try {
       await Promise.all([loadDashboard(), loadCategories()]);
-      if (["articles", "dashboard", "stats", "new", "edit"].includes(nextView)) await loadArticles();
+      if (["dashboard", "stats", "new", "edit"].includes(nextView)) await loadArticles(false, 1, "", "", false);
+      if (nextView === "articles") await loadArticles();
       if (nextView === "comments") await loadComments();
       if (nextView === "ads") await loadAds();
       if (nextView === "users") await loadUsers();
@@ -204,8 +250,10 @@ export default function AdminPage() {
     setArticleStatusFilter(status);
     setArticleOnlyToday(onlyToday);
     setTrashed(false);
+    setArticleSearch("");
+    setArticlePage(1);
     setView("articles");
-    await loadArticles(false);
+    await loadArticles(false, 1, "", status, onlyToday);
   }
 
   async function handleDashboardAction(action: "articles" | "today" | "stats" | "review" | "draft" | "users") {
@@ -217,7 +265,7 @@ export default function AdminPage() {
       setView("users");
       setArticleStatusFilter("");
       setArticleOnlyToday(false);
-      await loadUsers();
+      await loadUsers(1);
       return;
     }
     setView("dashboard");
@@ -456,8 +504,26 @@ export default function AdminPage() {
               initialStatus={articleStatusFilter}
               onlyToday={articleOnlyToday}
               onTrashedChange={(next) => {
+                const nextStatus = next ? "" : articleStatusFilter;
+                const nextOnlyToday = next ? false : articleOnlyToday;
                 setTrashed(next);
-                loadArticles(next);
+                setArticleStatusFilter(nextStatus);
+                setArticleOnlyToday(nextOnlyToday);
+                setArticlePage(1);
+                void withErrorHandling(() => loadArticles(next, 1, articleSearch, nextStatus, nextOnlyToday));
+              }}
+              page={articlePage}
+              pages={articlePages}
+              total={articleTotal}
+              onPageChange={(nextPage) => {
+                setArticlePage(nextPage);
+                void withErrorHandling(() => loadArticles(trashed, nextPage));
+              }}
+              onFiltersChange={(nextSearch, nextStatus) => {
+                setArticleSearch(nextSearch);
+                setArticleStatusFilter(nextStatus);
+                setArticlePage(1);
+                void withErrorHandling(() => loadArticles(trashed, 1, nextSearch, nextStatus, articleOnlyToday));
               }}
               onStatus={changeArticleStatus}
               onTrash={trashArticle}
@@ -490,9 +556,36 @@ export default function AdminPage() {
             />
           )}
           {view === "categories" && <CategoriesView categories={categories} onChanged={loadCategories} />}
-          {view === "comments" && !(loading && !comments.length) && <CommentsView comments={comments} onStatus={changeCommentStatus} />}
+          {view === "comments" && !(loading && !comments.length) && (
+            <CommentsView
+              comments={comments}
+              onStatus={changeCommentStatus}
+              page={commentPage}
+              pages={commentPages}
+              onPageChange={(nextPage) => {
+                setCommentPage(nextPage);
+                void withErrorHandling(() => loadComments(nextPage));
+              }}
+              onFiltersChange={(nextSearch, nextStatus) => {
+                setCommentSearch(nextSearch);
+                setCommentStatus(nextStatus);
+                setCommentPage(1);
+                void withErrorHandling(() => loadComments(1, nextSearch, nextStatus));
+              }}
+            />
+          )}
           {view === "ads" && !(loading && !ads.length) && <AdsView ads={ads} onChanged={loadAds} />}
-          {view === "users" && !(loading && !users.length) && <UsersView users={users} />}
+          {view === "users" && !(loading && !users.length) && (
+            <UsersView
+              users={users}
+              page={userPage}
+              pages={userPages}
+              onPageChange={(nextPage) => {
+                setUserPage(nextPage);
+                void withErrorHandling(() => loadUsers(nextPage));
+              }}
+            />
+          )}
           {view === "auditlog" && <AuditLogView />}
           {view === "aggregator" && <AggregatorView />}
         </div>

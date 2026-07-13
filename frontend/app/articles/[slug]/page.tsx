@@ -6,6 +6,7 @@ import { Header } from "../../../components/Header";
 import { getArticle, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { isVideoUrl, toOptimizedImageSrc } from "../../../lib/media";
+import { serializeJsonLd } from "../../../lib/json-ld";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
@@ -79,7 +80,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: serializeJsonLd({
             "@context": "https://schema.org",
             "@type": "NewsArticle",
             headline: article.title,

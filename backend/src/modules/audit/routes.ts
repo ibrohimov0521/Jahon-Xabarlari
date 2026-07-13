@@ -8,8 +8,8 @@ auditRouter.use(requireAuth, permit("audit.read"));
 
 auditRouter.get("/", async (req, res) => {
   const { page, take, skip } = pagination(req.query);
-  const entity = req.query.entity?.toString();
-  const action = req.query.action?.toString();
+  const entity = req.query.entity?.toString().trim().slice(0, 100);
+  const action = req.query.action?.toString().trim().slice(0, 100);
   const where = {
     ...(entity ? { entity } : {}),
     ...(action ? { action } : {})

@@ -6,6 +6,7 @@ import SearchExperience from "../components/SearchExperience";
 import { SiteFooter } from "../components/SiteFooter";
 import SwipeNav from "../components/SwipeNav";
 import { PushNotifications } from "../components/PushNotifications";
+import { serializeJsonLd } from "../lib/json-ld";
 import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { UiProvider } from "../lib/ui-context";
@@ -109,7 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: serializeJsonLd({
               "@context": "https://schema.org",
               "@type": "NewsMediaOrganization",
               "@id": `${SITE_URL}/#organization`,
@@ -131,7 +132,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: serializeJsonLd({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,

@@ -5,7 +5,7 @@ import { prisma } from "../../config/prisma.js";
 
 export const subscriberRouter = Router();
 
-const subscribeSchema = z.object({ email: z.string().trim().email() });
+const subscribeSchema = z.object({ email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()) });
 
 const subscribeRateLimit = rateLimit({
   windowMs: 10 * 60 * 1000,

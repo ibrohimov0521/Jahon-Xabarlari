@@ -3,6 +3,7 @@
 import { ArrowLeftRight, Check, ChevronDown, ChevronRight, CircleDollarSign, RefreshCw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { COUNTRY, fmt, TICKER_CODES, type CurrencyRate } from "../lib/currency";
+import { timeoutSignal } from "../lib/http";
 import { useUi } from "../lib/ui-context";
 import { Flag } from "./currency/Flag";
 
@@ -76,7 +77,7 @@ function useRates(enabled = true) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/rates");
+      const response = await fetch("/api/rates", { signal: timeoutSignal(10_000) });
       const data = (await response.json()) as RatesResponse;
       if (Array.isArray(data.rates)) {
         setRates(data.rates);
@@ -182,6 +183,7 @@ export function MobileCurrencyExperience() {
   };
 
   const openPicker = (target: "from" | "to") => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setQuery("");
     setPicker(target);
   };

@@ -709,7 +709,11 @@ async def main() -> None:
     dispatcher = Dispatcher(storage=storage)
     dispatcher.include_router(router)
     try:
-        await dispatcher.start_polling(bot, drop_pending_updates=False)
+        await dispatcher.start_polling(
+            bot,
+            drop_pending_updates=False,
+            tasks_concurrency_limit=max(20, settings.forward_concurrency * 4),
+        )
     finally:
         await storage.close()
         await api.close()

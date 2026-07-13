@@ -26,6 +26,7 @@ export type Article = {
 };
 
 import { API_URL } from "./config";
+import { timeoutSignal } from "./http";
 
 // "uz" is the native/default content language already stored on the article, so there's
 // no need to ask the backend for a translation in that case.
@@ -36,7 +37,7 @@ function withLang(url: string, lang?: string) {
 
 export async function getArticles(params = "", lang?: string) {
   try {
-    const res = await fetch(withLang(`${API_URL}/articles${params}`, lang), { next: { revalidate: 60 } });
+    const res = await fetch(withLang(`${API_URL}/articles${params}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -48,7 +49,7 @@ export async function getArticles(params = "", lang?: string) {
 // papered over with unrelated demo content -- the caller renders a real 404 for null.
 export async function getArticle(slug: string, lang?: string): Promise<Article | null> {
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 } });
+    const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) return null;
     return (await res.json()) as Article;
   } catch {
@@ -58,7 +59,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
 
 export async function getTrendingArticles(lang?: string, limit = 5) {
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/trending?limit=${limit}`, lang), { next: { revalidate: 120 } });
+    const res = await fetch(withLang(`${API_URL}/articles/trending?limit=${limit}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -68,7 +69,7 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
 
 export async function getPopularArticles(lang?: string, limit = 8, days = 4) {
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/popular?limit=${limit}&days=${days}`, lang), { next: { revalidate: 120 } });
+    const res = await fetch(withLang(`${API_URL}/articles/popular?limit=${limit}&days=${days}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -80,7 +81,7 @@ export type Comment = { id: string; name: string; body: string; createdAt: strin
 
 export async function getComments(articleId: string): Promise<Comment[]> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, { cache: "no-store", signal: timeoutSignal() });
     if (!res.ok) return [];
     return (await res.json()).items as Comment[];
   } catch {
@@ -93,7 +94,8 @@ export async function submitComment(articleId: string, name: string, body: strin
     const res = await fetch(`${API_URL}/articles/${articleId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, body })
+      body: JSON.stringify({ name, body }),
+      signal: timeoutSignal()
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, message: data.message ?? "Izohni yuborib bo'lmadi" };
@@ -105,7 +107,7 @@ export async function submitComment(articleId: string, name: string, body: strin
 
 export async function searchArticles(q: string, lang?: string, params = "") {
   try {
-    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}${params}`, lang), { next: { revalidate: 30 } });
+    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}${params}`, lang), { next: { revalidate: 30 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -117,7 +119,7 @@ export async function searchArticles(q: string, lang?: string, params = "") {
 
 export async function recordArticleView(articleId: string): Promise<number | null> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/view`, { method: "POST", keepalive: true });
+    const res = await fetch(`${API_URL}/articles/${articleId}/view`, { method: "POST", keepalive: true, signal: timeoutSignal(8_000) });
     if (!res.ok) return null;
     return ((await res.json()) as { viewsCount: number }).viewsCount;
   } catch {

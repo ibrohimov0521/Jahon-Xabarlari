@@ -6,7 +6,7 @@ import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { createBullConnection } from "./redis.js";
 
-const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 2 }) : null;
 
 export const LANGS = ["ru", "en"] as const;
 export type Lang = (typeof LANGS)[number];
@@ -133,6 +133,7 @@ async function translateOne(article: TranslatableArticle, lang: Lang) {
         error: message
       }
     });
+    throw error instanceof Error ? error : new Error(message);
   }
 }
 
@@ -148,6 +149,8 @@ const translationWorker = new Worker<TranslationJob, void, TranslationJobName>(
   { connection: createBullConnection(), concurrency: 3 }
 );
 translationWorker.on("failed", (job, error) => console.error(`[translate] job ${job?.id ?? "unknown"} failed:`, error));
+translationWorker.on("error", (error) => console.error("[translate] worker Redis xatosi:", error));
+translationQueue.on("error", (error) => console.error("[translate] queue Redis xatosi:", error));
 
 export function queueTranslations(article: TranslatableArticle) {
   const revision = crypto.createHash("sha1").update(`${article.title}:${article.summary}:${article.content}`).digest("hex").slice(0, 12);

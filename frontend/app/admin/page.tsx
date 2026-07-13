@@ -88,6 +88,8 @@ export default function AdminPage() {
   const [commentSearch, setCommentSearch] = useState("");
   const [commentStatus, setCommentStatus] = useState<CommentStatus | "">("");
   const [ads, setAds] = useState<AdItem[]>([]);
+  const [adPage, setAdPage] = useState(1);
+  const [adPages, setAdPages] = useState(1);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [userPage, setUserPage] = useState(1);
   const [userPages, setUserPages] = useState(1);
@@ -99,6 +101,7 @@ export default function AdminPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const articleLoadSequence = useRef(0);
   const commentLoadSequence = useRef(0);
+  const adLoadSequence = useRef(0);
   const userLoadSequence = useRef(0);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
@@ -162,9 +165,16 @@ export default function AdminPage() {
     setCommentPages(Math.max(data.pages, 1));
   }
 
-  async function loadAds() {
-    const data = await adminRequest<{ items: AdItem[] }>("/admin/advertisements");
+  async function loadAds(nextPage = adPage) {
+    const requestId = ++adLoadSequence.current;
+    let data = await adminRequest<{ items: AdItem[]; page: number; pages: number }>(`/admin/advertisements?page=${nextPage}&limit=30`);
+    if (data.pages > 0 && nextPage > data.pages) {
+      data = await adminRequest<{ items: AdItem[]; page: number; pages: number }>(`/admin/advertisements?page=${data.pages}&limit=30`);
+    }
+    if (requestId !== adLoadSequence.current) return;
     setAds(data.items);
+    setAdPage(data.page || 1);
+    setAdPages(Math.max(data.pages, 1));
   }
 
   async function loadUsers(nextPage = userPage) {
@@ -574,7 +584,18 @@ export default function AdminPage() {
               }}
             />
           )}
-          {view === "ads" && !(loading && !ads.length) && <AdsView ads={ads} onChanged={loadAds} />}
+          {view === "ads" && !(loading && !ads.length) && (
+            <AdsView
+              ads={ads}
+              onChanged={loadAds}
+              page={adPage}
+              pages={adPages}
+              onPageChange={(nextPage) => {
+                setAdPage(nextPage);
+                void withErrorHandling(() => loadAds(nextPage));
+              }}
+            />
+          )}
           {view === "users" && !(loading && !users.length) && (
             <UsersView
               users={users}

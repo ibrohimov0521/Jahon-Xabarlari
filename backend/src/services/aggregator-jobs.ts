@@ -1,5 +1,5 @@
 import { Queue, Worker } from "bullmq";
-import { createBullConnection } from "./redis.js";
+import { createBullConnection, withRedisLock } from "./redis.js";
 import { runAggregatorCycle, type AggregatorRunResult } from "./aggregator.js";
 
 type AggregatorJob = { maxPerCycle?: number };
@@ -25,18 +25,20 @@ aggregatorWorker.on("error", (error) => console.error("[aggregator] worker Redis
 aggregatorQueue.on("error", (error) => console.error("[aggregator] queue Redis xatosi:", error));
 
 export async function queueAggregatorRun(maxPerCycle?: number) {
-  const counts = await aggregatorQueue.getJobCounts("active", "waiting", "delayed");
-  if (counts.active + counts.waiting + counts.delayed > 0) return null;
-  return aggregatorQueue.add(
-    "manual",
-    { maxPerCycle },
-    {
-      attempts: 5,
-      backoff: { type: "exponential", delay: 30_000 },
-      removeOnComplete: { age: 60 * 60, count: 100 },
-      removeOnFail: { age: 7 * 24 * 60 * 60, count: 100 }
-    }
-  );
+  return withRedisLock("lock:queue-news-aggregator", 5_000, async () => {
+    const counts = await aggregatorQueue.getJobCounts("active", "waiting", "delayed");
+    if (counts.active + counts.waiting + counts.delayed > 0) return null;
+    return aggregatorQueue.add(
+      "manual",
+      { maxPerCycle },
+      {
+        attempts: 5,
+        backoff: { type: "exponential", delay: 30_000 },
+        removeOnComplete: { age: 60 * 60, count: 100 },
+        removeOnFail: { age: 7 * 24 * 60 * 60, count: 100 }
+      }
+    );
+  });
 }
 
 export async function getAggregatorJobCounts() {

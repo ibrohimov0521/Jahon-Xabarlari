@@ -38,7 +38,17 @@ app.use(cors({ origin: frontendOrigins, credentials: true }));
 app.use(compression());
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
-app.use(rateLimit({ windowMs: 60_000, limit: 180 }));
+// Browser-side API writes still need a broad safety net. Public GET requests are skipped here:
+// Next.js server rendering reaches the API from one shared Railway IP, so counting those reads
+// together would block every visitor once traffic grows. Expensive public writes have tighter
+// route-specific limits below their own routers.
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    limit: 300,
+    skip: (req) => req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS"
+  })
+);
 
 app.get("/api/health", async (_req, res) => {
   try {
@@ -106,15 +116,19 @@ async function runMaintenance() {
   ]);
 }
 
-setTimeout(() => runMaintenance().catch((error) => console.error("[maintenance] failed:", error)), 30_000).unref();
+const maintenanceStartup = setTimeout(() => runMaintenance().catch((error) => console.error("[maintenance] failed:", error)), 30_000);
+maintenanceStartup.unref();
 const maintenance = setInterval(() => runMaintenance().catch((error) => console.error("[maintenance] failed:", error)), 24 * 60 * 60 * 1000);
 maintenance.unref();
 
+let aggregatorStartup: ReturnType<typeof setTimeout> | null = null;
+let aggregatorInterval: ReturnType<typeof setInterval> | null = null;
 if (env.NEWS_AGGREGATOR_ENABLED) {
   const intervalMs = env.NEWS_AGGREGATOR_INTERVAL_MINUTES * 60_000;
   console.log(`[aggregator] enabled, running every ${env.NEWS_AGGREGATOR_INTERVAL_MINUTES} min`);
-  setTimeout(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), 15_000);
-  const aggregatorInterval = setInterval(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), intervalMs);
+  aggregatorStartup = setTimeout(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), 15_000);
+  aggregatorStartup.unref();
+  aggregatorInterval = setInterval(() => runAggregatorCycle().catch((error) => console.error("[aggregator] cycle failed:", error)), intervalMs);
   aggregatorInterval.unref();
 }
 
@@ -124,11 +138,19 @@ async function shutdown(signal: string) {
   shuttingDown = true;
   console.log(`[server] ${signal} qabul qilindi, server to'xtatilmoqda`);
   clearInterval(scheduledPublisher);
+  clearTimeout(maintenanceStartup);
   clearInterval(maintenance);
-  server.close(async () => {
-    await Promise.all([closeAggregatorJobs(), closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
-    await prisma.$disconnect();
-    process.exit(0);
+  if (aggregatorStartup) clearTimeout(aggregatorStartup);
+  if (aggregatorInterval) clearInterval(aggregatorInterval);
+  server.close(() => {
+    void (async () => {
+      const results = await Promise.allSettled([closeAggregatorJobs(), closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
+      results.forEach((result) => {
+        if (result.status === "rejected") console.error("[server] servisni yopishda xato:", result.reason);
+      });
+      await prisma.$disconnect().catch((error) => console.error("[server] Prisma yopilmadi:", error));
+      process.exit(0);
+    })();
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }

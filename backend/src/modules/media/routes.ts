@@ -2,7 +2,9 @@ import { Router } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
 import { prisma } from "../../config/prisma.js";
+import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { parseByteRange } from "../../utils/http-range.js";
 import { pagination } from "../../utils/query.js";
 
 export const mediaRouter = Router();
@@ -41,10 +43,27 @@ mediaRouter.get("/file/:key", async (req, res) => {
   const item = await prisma.mediaFile.findUnique({ where: { key: req.params.key } });
   if (!item) return res.status(404).json({ message: "Fayl topilmadi" });
   if (!item.data) return res.status(404).json({ message: "Fayl saqlanmagan" });
+  const data = Buffer.from(item.data);
   res.setHeader("Content-Type", item.mimeType);
-  res.setHeader("Content-Length", item.size.toString());
   res.setHeader("Cache-Control", "public, max-age=604800, immutable");
-  res.send(Buffer.from(item.data));
+  res.setHeader("Accept-Ranges", "bytes");
+
+  const rangeHeader = req.get("range");
+  if (rangeHeader) {
+    const range = parseByteRange(rangeHeader, data.length);
+    if (!range) {
+      res.setHeader("Content-Range", `bytes */${data.length}`);
+      return res.sendStatus(416);
+    }
+    const chunk = data.subarray(range.start, range.end + 1);
+    res.status(206);
+    res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${data.length}`);
+    res.setHeader("Content-Length", chunk.length.toString());
+    return res.send(chunk);
+  }
+
+  res.setHeader("Content-Length", data.length.toString());
+  res.send(data);
 });
 
 mediaRouter.use(requireAuth, permit("media.manage"));
@@ -64,6 +83,7 @@ mediaRouter.post("/upload", upload.single("file"), async (req, res) => {
     create: { key, url, sha256, mimeType: sniffed.mime, size: req.file.size, data: req.file.buffer },
     select: { id: true, url: true, key: true, mimeType: true, size: true, createdAt: true }
   });
+  await audit(req, "MEDIA_UPLOAD", "MediaFile", item.id, { key: item.key, mimeType: item.mimeType, size: item.size });
   res.status(201).json(item);
 });
 
@@ -82,6 +102,7 @@ mediaRouter.get("/", async (req, res) => {
 });
 
 mediaRouter.delete("/:id", async (req, res) => {
-  await prisma.mediaFile.delete({ where: { id: req.params.id } });
+  const item = await prisma.mediaFile.delete({ where: { id: req.params.id }, select: { id: true, key: true } });
+  await audit(req, "MEDIA_DELETE", "MediaFile", item.id, { key: item.key });
   res.json({ ok: true });
 });

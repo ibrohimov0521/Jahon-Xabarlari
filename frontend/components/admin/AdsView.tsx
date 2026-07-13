@@ -4,11 +4,17 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { AD_STATUSES, type AdItem, type AdStatus } from "./types";
-import { Badge, Button, ConfirmButton, Empty, ErrorBanner, IconButton, Input, Panel, Select } from "./ui";
+import { Badge, Button, ConfirmButton, Empty, ErrorBanner, IconButton, Input, Pagination, Panel, Select } from "./ui";
 
 const emptyAdForm = { title: "", placement: "header", imageUrl: "", targetUrl: "", status: "DRAFT" as AdStatus };
 
-export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => void }) {
+export function AdsView({ ads, onChanged, page, pages, onPageChange }: {
+  ads: AdItem[];
+  onChanged: () => Promise<void>;
+  page: number;
+  pages: number;
+  onPageChange: (page: number) => void;
+}) {
   const [form, setForm] = useState(emptyAdForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -35,7 +41,7 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
         await adminRequest("/admin/advertisements", { method: "POST", body: JSON.stringify(form) });
       }
       cancelEdit();
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reklama saqlanmadi");
     } finally {
@@ -47,7 +53,7 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
     setError("");
     try {
       await adminRequest(`/admin/advertisements/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Status o'zgartirilmadi");
     }
@@ -57,7 +63,7 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
     setError("");
     try {
       await adminRequest(`/admin/advertisements/${id}`, { method: "DELETE" });
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reklama o'chirilmadi");
     }
@@ -94,6 +100,7 @@ export function AdsView({ ads, onChanged }: { ads: AdItem[]; onChanged: () => vo
           ))}
           {!ads.length && <Empty text="Reklama yozuvlari yo'q" />}
         </div>
+        <Pagination page={page} pages={pages} onChange={onPageChange} />
       </Panel>
       <Panel title={editingId ? "Reklamani tahrirlash" : "Yangi reklama"}>
         <ErrorBanner message={error} />

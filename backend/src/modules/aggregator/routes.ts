@@ -5,7 +5,8 @@ import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
 import { getAggregatorJobCounts, queueAggregatorRun } from "../../services/aggregator-jobs.js";
-import { getAggregatorSources } from "../../services/aggregator.js";
+import { getAggregatorSources, MAX_AGGREGATOR_SOURCES } from "../../services/aggregator.js";
+import { assertPublicUrl } from "../../services/net-guard.js";
 
 export const aggregatorRouter = Router();
 aggregatorRouter.use(requireAuth, permit("articles.create"));
@@ -46,6 +47,14 @@ aggregatorRouter.post("/run", async (req, res) => {
 
 aggregatorRouter.post("/sources", async (req, res) => {
   const data = sourceSchema.parse(req.body);
+  if ((await prisma.aggregatorSource.count()) >= MAX_AGGREGATOR_SOURCES) {
+    return res.status(409).json({ message: `Ko'pi bilan ${MAX_AGGREGATOR_SOURCES} ta aggregator manbasi qo'shish mumkin` });
+  }
+  try {
+    await assertPublicUrl(data.feedUrl);
+  } catch (error) {
+    return res.status(400).json({ message: error instanceof Error ? error.message : "Feed URL yaroqsiz" });
+  }
   const source = await prisma.aggregatorSource.create({ data: { ...data, enabled: data.enabled ?? true } });
   await audit(req, "AGGREGATOR_SOURCE_CREATE", "AggregatorSource", source.id, { name: source.name, feedUrl: source.feedUrl });
   res.status(201).json(source);
@@ -53,6 +62,13 @@ aggregatorRouter.post("/sources", async (req, res) => {
 
 aggregatorRouter.patch("/sources/:id", async (req, res) => {
   const data = sourceSchema.partial().parse(req.body);
+  if (data.feedUrl) {
+    try {
+      await assertPublicUrl(data.feedUrl);
+    } catch (error) {
+      return res.status(400).json({ message: error instanceof Error ? error.message : "Feed URL yaroqsiz" });
+    }
+  }
   const source = await prisma.aggregatorSource.update({ where: { id: req.params.id }, data });
   await audit(req, "AGGREGATOR_SOURCE_UPDATE", "AggregatorSource", source.id, data);
   res.json(source);

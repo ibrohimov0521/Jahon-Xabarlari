@@ -33,7 +33,9 @@ def load_settings() -> Settings:
         admin_ids=ids,
         admin_panel_url=os.getenv("ADMIN_PANEL_URL", "https://frontend-production-89aa6.up.railway.app/admin"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
-        forward_concurrency=max(1, int(os.getenv("FORWARD_CONCURRENCY", "5"))),
+        # Each forward may hold a Telegram media file in memory. Keep the operator setting
+        # bounded so a typo cannot start dozens of 20 MB downloads at once.
+        forward_concurrency=min(5, max(1, int(os.getenv("FORWARD_CONCURRENCY", "5")))),
         service_secret=os.getenv("BOT_SERVICE_SECRET"),
         redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
     )

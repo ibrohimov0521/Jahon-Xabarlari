@@ -11,9 +11,10 @@ import { requireAuth } from "../../middleware/auth.js";
 export const authRouter = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
+  email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
+  password: z.string().min(8).max(128)
 });
+const refreshBodySchema = z.object({ refreshToken: z.string().max(4_096).optional() });
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60_000,
@@ -68,7 +69,12 @@ function requireTrustedOrigin(req: Request, res: Response, next: NextFunction) {
 
 async function issueTokens(userId: string) {
   const accessToken = jwt.sign({}, env.JWT_ACCESS_SECRET, { subject: userId, expiresIn: "15m" });
-  const refreshToken = jwt.sign({}, env.JWT_REFRESH_SECRET, { subject: userId, expiresIn: "30d" });
+  // A jti keeps two logins in the same second from producing the same tokenHash.
+  const refreshToken = jwt.sign({}, env.JWT_REFRESH_SECRET, {
+    subject: userId,
+    expiresIn: "30d",
+    jwtid: crypto.randomUUID()
+  });
   await prisma.refreshToken.create({
     data: { userId, tokenHash: hashToken(refreshToken), expiresAt: new Date(Date.now() + REFRESH_TTL_MS) }
   });
@@ -101,7 +107,7 @@ authRouter.post("/telegram-login", telegramLoginLimiter, async (req, res) => {
   if (!safeEqual(provided, env.BOT_SERVICE_SECRET)) {
     return res.status(401).json({ message: "Ruxsat yo'q" });
   }
-  const telegramId = z.object({ telegramId: z.string() }).parse(req.body).telegramId;
+  const telegramId = z.object({ telegramId: z.string().regex(/^\d{5,20}$/) }).parse(req.body).telegramId;
   const user = await prisma.user.findUnique({ where: { telegramId }, include: { role: true } });
   if (!user) return res.status(403).json({ message: "Telegram ID ruxsat etilmagan" });
   const { accessToken, refreshToken } = await issueTokens(user.id);
@@ -111,7 +117,7 @@ authRouter.post("/telegram-login", telegramLoginLimiter, async (req, res) => {
 
 authRouter.post("/refresh", requireTrustedOrigin, async (req, res) => {
   // Prefer the HttpOnly cookie; fall back to a body token so any pre-migration client still works.
-  const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
+  const token = req.cookies?.[REFRESH_COOKIE] ?? refreshBodySchema.parse(req.body ?? {}).refreshToken;
   if (!token) return res.status(401).json({ message: "Refresh token yaroqsiz" });
   try {
     const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { sub: string };
@@ -119,7 +125,11 @@ authRouter.post("/refresh", requireTrustedOrigin, async (req, res) => {
     if (!stored || stored.revokedAt || stored.expiresAt < new Date() || stored.userId !== payload.sub) {
       return res.status(401).json({ message: "Refresh token yaroqsiz" });
     }
-    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+    const rotated = await prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+    if (rotated.count !== 1) return res.status(401).json({ message: "Refresh token avval ishlatilgan" });
     const { accessToken, refreshToken } = await issueTokens(payload.sub);
     res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
     res.json({ accessToken });
@@ -129,7 +139,7 @@ authRouter.post("/refresh", requireTrustedOrigin, async (req, res) => {
 });
 
 authRouter.post("/logout", requireTrustedOrigin, async (req, res) => {
-  const token = req.cookies?.[REFRESH_COOKIE] ?? z.object({ refreshToken: z.string().optional() }).parse(req.body ?? {}).refreshToken;
+  const token = req.cookies?.[REFRESH_COOKIE] ?? refreshBodySchema.parse(req.body ?? {}).refreshToken;
   if (token) await revokeRefreshToken(token);
   res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
   res.json({ ok: true });

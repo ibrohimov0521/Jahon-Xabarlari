@@ -6,7 +6,7 @@ import { adminRequest } from "../../lib/admin-api";
 import type { Category } from "./types";
 import { Button, ConfirmButton, Empty, ErrorBanner, IconButton, Panel } from "./ui";
 
-export function CategoriesView({ categories, onChanged }: { categories: Category[]; onChanged: () => void }) {
+export function CategoriesView({ categories, onChanged }: { categories: Category[]; onChanged: () => Promise<void> }) {
   const [name, setName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -20,7 +20,7 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
     try {
       await adminRequest("/admin/categories", { method: "POST", body: JSON.stringify({ name }) });
       setName("");
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kategoriya saqlanmadi");
     } finally {
@@ -33,7 +33,7 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
     try {
       await adminRequest(`/admin/categories/${id}`, { method: "PUT", body: JSON.stringify({ name: editingName }) });
       setEditingId(null);
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kategoriya yangilanmadi");
     }
@@ -43,7 +43,7 @@ export function CategoriesView({ categories, onChanged }: { categories: Category
     setError("");
     try {
       await adminRequest(`/admin/categories/${id}`, { method: "DELETE" });
-      onChanged();
+      await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kategoriya o'chirilmadi");
     }

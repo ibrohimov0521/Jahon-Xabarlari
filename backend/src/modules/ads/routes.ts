@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { pagination } from "../../utils/query.js";
 
 export const adRouter = Router();
 adRouter.use(requireAuth, permit("ads.manage"));
@@ -16,8 +17,13 @@ const adSchema = z.object({
   status: z.nativeEnum(AdvertisementStatus).default("DRAFT")
 });
 
-adRouter.get("/", async (_req, res) => {
-  res.json({ items: await prisma.advertisement.findMany({ orderBy: { updatedAt: "desc" } }) });
+adRouter.get("/", async (req, res) => {
+  const { page, take, skip } = pagination(req.query, { limit: 30, max: 100 });
+  const [items, total] = await Promise.all([
+    prisma.advertisement.findMany({ orderBy: { updatedAt: "desc" }, skip, take }),
+    prisma.advertisement.count()
+  ]);
+  res.json({ items, total, page, pages: Math.ceil(total / take) });
 });
 
 adRouter.post("/", async (req, res) => {

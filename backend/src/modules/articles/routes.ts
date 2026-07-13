@@ -10,6 +10,7 @@ import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
 import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
 import { queueArticlePush } from "../../services/push.js";
+import { withRedisLock } from "../../services/redis.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 import { pagination, positiveInt } from "../../utils/query.js";
 import { daysAgoFromTashkentDay, startOfTashkentDay } from "../../utils/time.js";
@@ -179,16 +180,14 @@ articleRouter.get("/articles/sitemap", async (_req, res) => {
 
 articleRouter.get("/articles/:slug", async (req, res) => {
   const lang = req.query.lang?.toString();
-  const article = await prisma.article
-    .findUnique({
-      where: { slug: req.params.slug },
-      include: {
-        category: true,
-        author: { select: { name: true } },
-        ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
-      }
-    })
-    .catch(() => null);
+  const article = await prisma.article.findUnique({
+    where: { slug: req.params.slug },
+    include: {
+      category: true,
+      author: { select: { name: true } },
+      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
+    }
+  });
   if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
 
   res.json(applyTranslation(article, lang));
@@ -213,14 +212,17 @@ articleRouter.post("/articles/:id/view", viewRateLimit, async (req, res) => {
       skipDuplicates: true
     });
     if (!inserted.count) {
-      return tx.article.findUnique({ where: { id: articleId }, select: { viewsCount: true } });
+      return tx.article.findFirst({
+        where: { id: articleId, status: "PUBLISHED", deletedAt: null },
+        select: { viewsCount: true }
+      });
     }
     return tx.article.update({
       where: { id: articleId, status: "PUBLISHED", deletedAt: null },
       data: { viewsCount: { increment: 1 } },
       select: { viewsCount: true }
     });
-  }).catch(() => null);
+  });
 
   if (!result) return res.status(404).json({ message: "Maqola topilmadi" });
   res.json({ viewsCount: result.viewsCount });
@@ -262,7 +264,15 @@ articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) 
   res.status(201).json({ id: comment.id, message: "Izohingiz yuborildi, moderatsiyadan so'ng ko'rinadi" });
 });
 
-articleRouter.get("/search", async (req, res) => {
+const searchRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Juda ko'p qidiruv so'rovi yuborildi, birozdan keyin qayta urinib ko'ring" }
+});
+
+articleRouter.get("/search", searchRateLimit, async (req, res) => {
   const q = req.query.q?.toString().trim().slice(0, 200) ?? "";
   const lang = req.query.lang?.toString();
   const category = req.query.category?.toString().slice(0, 100);
@@ -508,18 +518,23 @@ articleRouter.post("/admin/articles/:id/translations/:lang/regenerate", requireA
 // Promotes SCHEDULED articles whose scheduledAt has passed to PUBLISHED -- called from a
 // periodic sweep in server.ts, mirroring the aggregator's own interval pattern.
 export async function publishScheduledArticles() {
-  const due = await prisma.article.findMany({
-    where: { status: "SCHEDULED", scheduledAt: { lte: new Date() } },
-    select: { id: true }
+  await withRedisLock("lock:scheduled-publisher", 55_000, async () => {
+    const publishedAt = new Date();
+    // Bound each sweep so a long outage cannot flood the push queue and database in one tick.
+    const due = await prisma.article.findMany({
+      where: { status: "SCHEDULED", scheduledAt: { lte: publishedAt } },
+      orderBy: { scheduledAt: "asc" },
+      take: 500,
+      select: { id: true }
+    });
+    if (!due.length) return;
+    const updated = await prisma.article.updateMany({
+      where: { id: { in: due.map((item) => item.id) }, status: "SCHEDULED", scheduledAt: { lte: publishedAt } },
+      data: { status: "PUBLISHED", publishedAt, scheduledAt: null }
+    });
+    due.forEach((item) => queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt }));
+    console.log(`[scheduler] ${updated.count} ta rejalashtirilgan maqola nashr qilindi`);
   });
-  if (!due.length) return;
-  const publishedAt = new Date();
-  await prisma.article.updateMany({
-    where: { id: { in: due.map((item) => item.id) } },
-    data: { status: "PUBLISHED", publishedAt, scheduledAt: null }
-  });
-  due.forEach((item) => queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt }));
-  console.log(`[scheduler] ${due.length} ta rejalashtirilgan maqola nashr qilindi`);
 }
 
 export async function cleanupOldArticleViews(retentionDays = 90) {

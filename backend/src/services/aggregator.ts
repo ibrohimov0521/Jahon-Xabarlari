@@ -13,6 +13,9 @@ import { withRedisLock } from "./redis.js";
 
 export { NEWS_SOURCES, type NewsSource };
 
+export const MAX_AGGREGATOR_SOURCES = 100;
+const SOURCE_FETCH_CONCURRENCY = 8;
+
 const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 2 }) : null;
 const MODEL = "gpt-4o-mini";
 const parser = new Parser<Record<string, unknown>, RawFeedItem>({
@@ -42,7 +45,8 @@ export async function getAggregatorSources(options: { enabledOnly?: boolean } = 
   await ensureDefaultAggregatorSources();
   return prisma.aggregatorSource.findMany({
     where: options.enabledOnly ? { enabled: true } : undefined,
-    orderBy: { createdAt: "asc" }
+    orderBy: { createdAt: "asc" },
+    take: MAX_AGGREGATOR_SOURCES
   });
 }
 
@@ -495,7 +499,11 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
     const seenTokens = recentArticles.map((item) => tokenize(item.title));
 
     const sources = await getAggregatorSources({ enabledOnly: true });
-    const batches = await Promise.all(sources.map(fetchSource));
+    const batches: FeedItem[][] = [];
+    for (let start = 0; start < sources.length; start += SOURCE_FETCH_CONCURRENCY) {
+      const chunk = await Promise.all(sources.slice(start, start + SOURCE_FETCH_CONCURRENCY).map(fetchSource));
+      batches.push(...chunk);
+    }
     const candidates = batches.flat();
     const sourceUrls = [...new Set(candidates.map((item) => item.link))];
     const existingRows = sourceUrls.length

@@ -67,22 +67,27 @@ async function main() {
     telegramId?: string;
   }) {
     const existing = await prisma.user.findUnique({ where: { email: input.email }, select: { id: true } });
-    if (!existing && (!input.password || input.password.length < 12)) {
+    if (existing) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: input.name,
+          roleId: input.roleId,
+          ...(input.telegramId ? { telegramId: input.telegramId } : {})
+        }
+      });
+      return;
+    }
+    if (!input.password || input.password.length < 12) {
       throw new Error(`${input.email} uchun kamida 12 belgili parol ENV orqali berilishi kerak`);
     }
-    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : undefined;
-    await prisma.user.upsert({
-      where: { email: input.email },
-      update: {
-        name: input.name,
-        roleId: input.roleId,
-        ...(input.telegramId ? { telegramId: input.telegramId } : {})
-      },
-      create: {
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    await prisma.user.create({
+      data: {
         name: input.name,
         email: input.email,
         roleId: input.roleId,
-        passwordHash: passwordHash!,
+        passwordHash,
         telegramId: input.telegramId
       }
     });

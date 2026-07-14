@@ -4,14 +4,14 @@ import { BellRing, ChevronDown, CloudSun, Globe2, Menu, Moon, Search, Sun } from
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CurrencyTicker } from "./CurrencyTicker";
 import { WeatherModal } from "./WeatherModal";
 import { openPushSettings } from "./PushNotifications";
 import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/site";
-import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, type FullWeather, type UzRegion } from "../lib/weather";
+import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, weatherButtonBackgroundImage, type FullWeather, type UzRegion } from "../lib/weather";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -160,6 +160,9 @@ export function Header() {
   const tickerSlides = weather
     ? [`${region.name} ${weather.temperature}°C`, `His: ${weather.feelsLike}°C`, conditionLabel(weather.condition)]
     : [region.name, "...", currentDate];
+  const weatherButtonStyle = {
+    "--weather-button-image": `url("${weatherButtonBackgroundImage(weather)}")`
+  } as CSSProperties;
 
   const selectedLanguage = languages.find((item) => item.code === language) ?? languages[0];
 
@@ -224,14 +227,14 @@ export function Header() {
           </div>
 
           <div className="desktop-header-actions flex shrink-0 items-center justify-end gap-2">
-            <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex">
+            <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex" style={weatherButtonStyle}>
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker">
                 {tickerSlides[tickerIndex]}
               </span>
               <ChevronDown size={13} />
             </button>
-            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="weather-mobile-button md:hidden">
+            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="weather-mobile-button md:hidden" style={weatherButtonStyle}>
               <CloudSun className="h-4 w-4 shrink-0 text-amber-300" />
               <span className="wm-city">{region.name}</span>
               <span className="wm-temp">{weather ? `${weather.temperature}°` : "--°"}</span>
@@ -284,7 +287,7 @@ export function Header() {
           </div>
 
           <div className="mh-center">
-            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="mh-weather">
+            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="mh-weather" style={weatherButtonStyle}>
               <Sun className="mh-sun" size={16} />
               <span className="mh-city">{region.name}</span>
               <span key={weather ? weather.temperature : "x"} className="mh-temp">{weather ? `${weather.temperature}°` : "--°"}</span>

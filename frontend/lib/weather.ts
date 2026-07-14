@@ -101,6 +101,24 @@ const WEATHER_BACKGROUNDS = {
   wind: ["/weather/windy-hill.jpg"]
 } as const;
 
+const WEATHER_BUTTON_BACKGROUNDS = {
+  clearNight: "/weather/pills/clear-night.webp",
+  sunrise: "/weather/pills/sunrise.webp",
+  sunset: "/weather/pills/sunset.webp",
+  mostlyClear: "/weather/pills/mostly-clear.webp",
+  partlyCloudy: "/weather/pills/partly-cloudy.webp",
+  cloudy: "/weather/pills/cloudy.webp",
+  overcast: "/weather/pills/overcast.webp",
+  rain: "/weather/pills/rain.webp",
+  heavyRain: "/weather/pills/heavy-rain.webp",
+  drizzle: "/weather/pills/drizzle.webp",
+  thunderstorm: "/weather/pills/thunderstorm.webp",
+  snow: "/weather/pills/snow.webp",
+  fog: "/weather/pills/fog.webp",
+  mist: "/weather/pills/mist.webp",
+  hailstorm: "/weather/pills/hailstorm.webp"
+} as const;
+
 function stableImage(list: readonly string[], seed: string | number) {
   if (list.length === 1) return list[0];
   const text = String(seed);
@@ -115,6 +133,42 @@ function isNearSunset(nowIso: string | undefined, sunsetIso: string | undefined)
   const sunset = new Date(sunsetIso).getTime();
   if (!Number.isFinite(now) || !Number.isFinite(sunset)) return false;
   return Math.abs(sunset - now) <= 90 * 60 * 1000;
+}
+
+function isNearSolarEvent(nowIso: string | undefined, eventIso: string | undefined) {
+  if (!nowIso || !eventIso) return false;
+  const now = new Date(nowIso).getTime();
+  const event = new Date(eventIso).getTime();
+  if (!Number.isFinite(now) || !Number.isFinite(event)) return false;
+  return Math.abs(event - now) <= 75 * 60 * 1000;
+}
+
+export function weatherButtonBackgroundImage(
+  weather: Pick<FullWeather, "weatherCode" | "condition" | "isDay" | "hourly" | "sunrise" | "sunset"> | null
+): string {
+  if (!weather) return WEATHER_BUTTON_BACKGROUNDS.mostlyClear;
+
+  const now = weather.hourly?.[0]?.time;
+  const calmSky = weather.condition === "clear" || weather.condition === "partlyCloudy" || weather.condition === "clouds";
+
+  if (weather.isDay && calmSky && isNearSolarEvent(now, weather.sunrise)) return WEATHER_BUTTON_BACKGROUNDS.sunrise;
+  if (weather.isDay && calmSky && isNearSolarEvent(now, weather.sunset)) return WEATHER_BUTTON_BACKGROUNDS.sunset;
+
+  const code = weather.weatherCode;
+  if (!weather.isDay && (code === 0 || code === 1)) return WEATHER_BUTTON_BACKGROUNDS.clearNight;
+  if (code === 0 || code === 1) return WEATHER_BUTTON_BACKGROUNDS.mostlyClear;
+  if (code === 2) return WEATHER_BUTTON_BACKGROUNDS.partlyCloudy;
+  if (code === 3) return WEATHER_BUTTON_BACKGROUNDS.overcast;
+  if (code === 45) return WEATHER_BUTTON_BACKGROUNDS.mist;
+  if (code === 48) return WEATHER_BUTTON_BACKGROUNDS.fog;
+  if ([51, 53, 55, 56, 57].includes(code)) return WEATHER_BUTTON_BACKGROUNDS.drizzle;
+  if ([65, 67, 82].includes(code)) return WEATHER_BUTTON_BACKGROUNDS.heavyRain;
+  if ([61, 63, 66, 80, 81].includes(code)) return WEATHER_BUTTON_BACKGROUNDS.rain;
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return WEATHER_BUTTON_BACKGROUNDS.snow;
+  if (code === 95) return WEATHER_BUTTON_BACKGROUNDS.thunderstorm;
+  if (code === 96 || code === 99) return WEATHER_BUTTON_BACKGROUNDS.hailstorm;
+
+  return weather.condition === "clouds" ? WEATHER_BUTTON_BACKGROUNDS.cloudy : WEATHER_BUTTON_BACKGROUNDS.mostlyClear;
 }
 
 export function weatherBackgroundImage(weather: Pick<FullWeather, "condition" | "isDay" | "windSpeed" | "precipitation" | "hourly" | "sunset"> | null): string {
@@ -167,6 +221,7 @@ export type DayPoint = {
 export type FullWeather = {
   temperature: number;
   feelsLike: number;
+  weatherCode: number;
   condition: WeatherCondition;
   isDay: boolean;
   humidity: number;
@@ -244,6 +299,7 @@ export async function fetchFullWeather(lat: number, lon: number): Promise<FullWe
     return {
       temperature: Math.round(data.current.temperature_2m),
       feelsLike: Math.round(data.current.apparent_temperature),
+      weatherCode: Number(data.current.weather_code ?? 0),
       condition: codeToCondition(data.current.weather_code),
       isDay: Boolean(data.current.is_day),
       humidity: Math.round(data.current.relative_humidity_2m ?? 0),

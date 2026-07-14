@@ -78,9 +78,11 @@ export default function BottomNav() {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSheet(null);
     };
+    document.body.classList.add("mobile-nav-sheet-open");
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", closeOnEscape);
     return () => {
+      document.body.classList.remove("mobile-nav-sheet-open");
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", closeOnEscape);
     };

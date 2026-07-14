@@ -700,10 +700,48 @@ button.bg-white {
   z-index: 125;
   padding: 0;
   border: 0;
-  background: rgba(3, 10, 22, 0.36);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  background: rgba(225, 236, 248, 0.82);
+  backdrop-filter: blur(24px) saturate(72%);
+  -webkit-backdrop-filter: blur(24px) saturate(72%);
   animation: sheet-fade 180ms ease;
+}
+
+:root[data-theme="dark"] .bottom-sheet-overlay {
+  background: rgba(2, 8, 18, 0.86);
+}
+
+body.mobile-nav-sheet-open .page-transition > main > :not(.site-header):not(.desktop-more-overlay),
+body.desktop-more-menu-open .page-transition > main > :not(.site-header):not(.desktop-more-overlay),
+body.mobile-nav-sheet-open .site-footer,
+body.desktop-more-menu-open .site-footer {
+  filter: blur(12px);
+  opacity: 0.08;
+}
+
+.desktop-more-overlay {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .desktop-more-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(225, 236, 248, 0.82);
+    backdrop-filter: blur(24px) saturate(72%);
+    -webkit-backdrop-filter: blur(24px) saturate(72%);
+    cursor: default;
+    animation: sheet-fade 180ms ease;
+  }
+
+  :root[data-theme="dark"] .desktop-more-overlay {
+    background: rgba(2, 8, 18, 0.86);
+  }
 }
 
 /* Glassmorphism sheet. z 128 keeps it under the floating nav (130) — the nav

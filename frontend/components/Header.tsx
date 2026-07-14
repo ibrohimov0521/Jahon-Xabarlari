@@ -139,6 +139,11 @@ export function Header() {
     return () => document.removeEventListener("pointerdown", closeFloatingMenus);
   }, []);
 
+  useEffect(() => {
+    document.body.classList.toggle("desktop-more-menu-open", menuOpen);
+    return () => document.body.classList.remove("desktop-more-menu-open");
+  }, [menuOpen]);
+
   // Shrink the sticky header on scroll (72px -> 60px, stronger blur).
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -318,6 +323,15 @@ export function Header() {
           </div>
         </div>
       </header>
+
+      {menuOpen && (
+        <button
+          type="button"
+          className="desktop-more-overlay"
+          aria-label="Menyuni yopish"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
 
       <WeatherModal
         open={weatherModalOpen}

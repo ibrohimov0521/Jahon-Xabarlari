@@ -102,21 +102,21 @@ const WEATHER_BACKGROUNDS = {
 } as const;
 
 const WEATHER_BUTTON_BACKGROUNDS = {
-  clearNight: "/weather/pills/clear-night.webp",
-  sunrise: "/weather/pills/sunrise.webp",
-  sunset: "/weather/pills/sunset.webp",
-  mostlyClear: "/weather/pills/mostly-clear.webp",
-  partlyCloudy: "/weather/pills/partly-cloudy.webp",
-  cloudy: "/weather/pills/cloudy.webp",
-  overcast: "/weather/pills/overcast.webp",
-  rain: "/weather/pills/rain.webp",
-  heavyRain: "/weather/pills/heavy-rain.webp",
-  drizzle: "/weather/pills/drizzle.webp",
-  thunderstorm: "/weather/pills/thunderstorm.webp",
-  snow: "/weather/pills/snow.webp",
-  fog: "/weather/pills/fog.webp",
-  mist: "/weather/pills/mist.webp",
-  hailstorm: "/weather/pills/hailstorm.webp"
+  clearNight: "/weather/pills/clear-night.jpg",
+  sunrise: "/weather/pills/sunrise.jpg",
+  sunset: "/weather/pills/sunset.jpg",
+  mostlyClear: "/weather/pills/mostly-clear.jpg",
+  partlyCloudy: "/weather/pills/partly-cloudy.jpg",
+  cloudy: "/weather/pills/cloudy.jpg",
+  overcast: "/weather/pills/overcast.jpg",
+  rain: "/weather/pills/rain.jpg",
+  heavyRain: "/weather/pills/heavy-rain.jpg",
+  drizzle: "/weather/pills/drizzle.jpg",
+  thunderstorm: "/weather/pills/thunderstorm.jpg",
+  snow: "/weather/pills/snow.jpg",
+  fog: "/weather/pills/fog.jpg",
+  mist: "/weather/pills/mist.jpg",
+  hailstorm: "/weather/pills/hailstorm.jpg"
 } as const;
 
 function stableImage(list: readonly string[], seed: string | number) {

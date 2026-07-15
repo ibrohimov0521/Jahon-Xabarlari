@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
-    "test": "npm run lint && npm run build"
+    "test": "npm run lint && npm run build",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -15,6 +16,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

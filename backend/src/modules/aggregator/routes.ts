@@ -24,6 +24,7 @@ aggregatorRouter.get("/status", async (_req, res) => {
     enabled: env.NEWS_AGGREGATOR_ENABLED,
     intervalMinutes: env.NEWS_AGGREGATOR_INTERVAL_MINUTES,
     publishStatus: env.NEWS_AGGREGATOR_STATUS,
+    autoPublishEnabled: env.NEWS_AGGREGATOR_AUTO_PUBLISH,
     openaiConfigured: Boolean(env.OPENAI_API_KEY),
     sources,
     jobs

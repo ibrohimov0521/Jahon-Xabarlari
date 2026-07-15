@@ -3,6 +3,7 @@
 import {
   Bot,
   FilePlus2,
+  Flag,
   History,
   LayoutDashboard,
   LogOut,
@@ -12,6 +13,7 @@ import {
   Moon,
   Newspaper,
   RefreshCcw,
+  ShieldCheck,
   Sun,
   Tags,
   Users,
@@ -29,6 +31,8 @@ import { AuditLogView } from "../../components/admin/AuditLogView";
 import { CategoriesView } from "../../components/admin/CategoriesView";
 import { CommentsView } from "../../components/admin/CommentsView";
 import { Dashboard } from "../../components/admin/Dashboard";
+import { ReportsView } from "../../components/admin/ReportsView";
+import { SecurityView } from "../../components/admin/SecurityView";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
 import { Button, ErrorBanner, Input, LoadingBlock, Toast } from "../../components/admin/ui";
@@ -45,7 +49,7 @@ import {
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 import { useUi } from "../../lib/ui-context";
 
-type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "stats" | "users" | "auditlog" | "aggregator";
+type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "security";
 
 const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -54,9 +58,11 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "categories", label: "Kategoriyalar", icon: Tags },
   { id: "ads", label: "Reklama", icon: Megaphone },
   { id: "comments", label: "Izohlar", icon: MessageCircle },
+  { id: "reports", label: "Xato xabarlari", icon: Flag },
   { id: "users", label: "Foydalanuvchilar", icon: Users },
   { id: "auditlog", label: "Audit log", icon: History },
-  { id: "aggregator", label: "Agregator", icon: Bot }
+  { id: "aggregator", label: "Agregator", icon: Bot },
+  { id: "security", label: "Xavfsizlik", icon: ShieldCheck }
 ];
 
 export default function AdminPage() {
@@ -70,7 +76,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [loginForm, setLoginForm] = useState({ email: "", password: "", otp: "" });
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -224,10 +231,16 @@ export default function AdminPage() {
     setLoginBusy(true);
     setLoginError("");
     try {
-      const loggedInUser = await apiLogin(loginForm.email, loginForm.password);
-      setUser(loggedInUser);
+      const result = await apiLogin(loginForm.email, loginForm.password, twoFactorRequired ? loginForm.otp : undefined);
+      if (result.requiresTwoFactor) {
+        setTwoFactorRequired(true);
+        return;
+      }
+      setUser(result.user);
       setToken(getStoredToken());
       setSessionNotice("");
+      setTwoFactorRequired(false);
+      setLoginForm((current) => ({ ...current, otp: "" }));
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Login bajarilmadi");
     } finally {
@@ -243,6 +256,8 @@ export default function AdminPage() {
     setArticles([]);
     setComments([]);
     setAds([]);
+    setTwoFactorRequired(false);
+    setLoginForm((current) => ({ ...current, otp: "" }));
   }
 
   async function selectView(nextView: View) {
@@ -422,10 +437,11 @@ export default function AdminPage() {
           <div className="grid gap-4">
             <Input label="Email" type="email" value={loginForm.email} onChange={(email) => setLoginForm({ ...loginForm, email })} placeholder="admin@..." />
             <Input label="Parol" type="password" value={loginForm.password} onChange={(password) => setLoginForm({ ...loginForm, password })} placeholder="••••••••" />
+            {twoFactorRequired && <Input label="Authenticator yoki tiklash kodi" value={loginForm.otp} onChange={(otp) => setLoginForm({ ...loginForm, otp })} placeholder="123456" />}
           </div>
           <ErrorBanner message={loginError} />
           <Button type="submit" size="lg" disabled={loginBusy} className="mt-6 w-full">
-            {loginBusy ? "Tekshirilmoqda..." : "Kirish"}
+            {loginBusy ? "Tekshirilmoqda..." : twoFactorRequired ? "Kodni tasdiqlash" : "Kirish"}
           </Button>
         </form>
       </main>
@@ -607,8 +623,10 @@ export default function AdminPage() {
               }}
             />
           )}
+          {view === "reports" && <ReportsView />}
           {view === "auditlog" && <AuditLogView />}
           {view === "aggregator" && <AggregatorView />}
+          {view === "security" && <SecurityView onReauthenticate={() => { void handleLogout(); setSessionNotice("Xavfsizlik sozlamasi o'zgardi. Qaytadan kiring."); }} />}
         </div>
       </section>
     </main>

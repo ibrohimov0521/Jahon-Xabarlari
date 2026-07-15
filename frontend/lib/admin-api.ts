@@ -168,13 +168,17 @@ export async function uploadAdminMedia(file: File): Promise<{ url: string; mimeT
   return data;
 }
 
-export async function login(email: string, password: string) {
-  const data = await adminRequest<{ user: AuthUser; accessToken: string }>("/auth/login", {
+export type LoginResult = { requiresTwoFactor: true } | { requiresTwoFactor: false; user: AuthUser };
+
+export async function login(email: string, password: string, otp?: string): Promise<LoginResult> {
+  const data = await adminRequest<{ requiresTwoFactor?: boolean; user?: AuthUser; accessToken?: string }>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, ...(otp ? { otp } : {}) })
   });
+  if (data.requiresTwoFactor) return { requiresTwoFactor: true };
+  if (!data.user || !data.accessToken) throw new AdminApiError("Login javobi noto'g'ri", 502);
   storeSession(data.user, data.accessToken);
-  return data.user;
+  return { requiresTwoFactor: false, user: data.user };
 }
 
 export async function logout() {

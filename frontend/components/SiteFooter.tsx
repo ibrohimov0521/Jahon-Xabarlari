@@ -6,7 +6,10 @@ import { SubscribeBox } from "./SubscribeBox";
 const info = [
   { label: "Sayt haqida", href: "/about" },
   { label: "Reklama", href: "/ads" },
-  { label: "Aloqa", href: "/contact" }
+  { label: "Aloqa", href: "/contact" },
+  { label: "Tahririyat siyosati", href: "/editorial-policy" },
+  { label: "Tuzatishlar", href: "/corrections" },
+  { label: "Maxfiylik", href: "/privacy" }
 ];
 
 export function SiteFooter() {

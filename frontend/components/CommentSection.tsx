@@ -37,14 +37,14 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
         <button
           type="button"
           onClick={() => setPanelOpen((value) => !value)}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-3 text-[12px] font-black text-cyan-50 shadow-sm shadow-cyan-500/10 transition hover:border-cyan-300/55 hover:bg-cyan-400/18 hover:text-white"
+          className="comment-toggle-button inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-black transition"
         >
           <MessageCircle size={13} /> Izohlar {comments.length > 0 && `(${comments.length})`}
         </button>
       </div>
 
       {panelOpen && (
-        <div className="mt-3 rounded-lg border border-cyan-300/20 bg-slate-950/35 p-3">
+        <div className="comment-panel mt-3 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[12px] font-bold text-slate-300">
               {comments.length ? `${comments.length} ta izoh` : "Hozircha izoh yo'q."}

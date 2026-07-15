@@ -14,6 +14,9 @@ export type Article = {
   seoDescription?: string;
   seoKeywords?: string;
   sourceName?: string | null;
+  sourceUrl?: string | null;
+  author?: { name: string } | null;
+  tags?: { tag: { id?: string; name: string; slug: string } }[];
   category?: { name: string; slug: string };
   isFeatured?: boolean;
   isBreaking?: boolean;
@@ -54,6 +57,16 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
     return (await res.json()) as Article;
   } catch {
     return null;
+  }
+}
+
+export async function getArticleContext(slug: string, lang?: string): Promise<{ related: Article[]; next: Article | null }> {
+  try {
+    const res = await fetch(withLang(`${API_URL}/articles/${slug}/context`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
+    if (!res.ok) return { related: [], next: null };
+    return (await res.json()) as { related: Article[]; next: Article | null };
+  } catch {
+    return { related: [], next: null };
   }
 }
 
@@ -102,6 +115,24 @@ export async function submitComment(articleId: string, name: string, body: strin
     return { ok: true, message: data.message ?? "Izohingiz yuborildi" };
   } catch {
     return { ok: false, message: "Izohni yuborib bo'lmadi" };
+  }
+}
+
+export async function submitArticleReport(
+  articleId: string,
+  payload: { reason: "FACT_ERROR" | "TYPO" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER"; details: string; email?: string }
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_URL}/articles/${articleId}/reports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: timeoutSignal()
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, message: data.message ?? (res.ok ? "Xabaringiz yuborildi" : "Xabar yuborilmadi") };
+  } catch {
+    return { ok: false, message: "Xabar yuborilmadi" };
   }
 }
 

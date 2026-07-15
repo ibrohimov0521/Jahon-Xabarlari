@@ -3,8 +3,11 @@ import crypto from "node:crypto";
 import OpenAI from "openai";
 import Parser from "rss-parser";
 import slugify from "slugify";
+import { z } from "zod";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { extractFallbackFeedMedia, extractPrimaryFeedMedia, resolveArticleMedia } from "./aggregator-media.js";
+import { inspectArticleQuality, normalizeArticleTags } from "./article-quality.js";
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
 import { readTextResponse, safeFetch } from "./net-guard.js";
 import { queueArticlePush } from "./push.js";
@@ -112,185 +115,6 @@ function similarity(a: Set<string>, b: Set<string>): number {
   for (const word of a) if (b.has(word)) intersection += 1;
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
-}
-
-function decodeHtml(value: string) {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
-function firstString(value: unknown): string | null {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = firstString(item);
-      if (found) return found;
-    }
-  }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : {};
-    return firstString(record.url ?? attrs.url ?? record.href ?? attrs.href);
-  }
-  return null;
-}
-
-function absolutizeMediaUrl(url: string | null, baseUrl: string) {
-  if (!url) return null;
-  const decoded = decodeHtml(url.trim());
-  if (!/^https?:\/\//i.test(decoded) && !decoded.startsWith("//") && !decoded.startsWith("/")) return null;
-  try {
-    return new URL(decoded.startsWith("//") ? `https:${decoded}` : decoded, baseUrl).toString();
-  } catch {
-    return null;
-  }
-}
-
-function isHttpUrl(url: string | null) {
-  return Boolean(url && /^https?:\/\//i.test(url));
-}
-
-function looksLikeMedia(url: string | null, mimeType?: string | null) {
-  return Boolean(
-    isHttpUrl(url) &&
-      ((mimeType && /^(image|video)\//i.test(mimeType)) || /\.(jpe?g|png|webp|gif|avif|mp4|webm|mov)(?:[?#].*)?$/i.test(url!))
-  );
-}
-
-function firstMedia(value: unknown): { url: string | null; type: string | null } {
-  if (typeof value === "string" && value.trim()) return { url: value.trim(), type: null };
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = firstMedia(item);
-      if (found.url) return found;
-    }
-  }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : {};
-    return {
-      url: firstString(record.url ?? attrs.url ?? record.href ?? attrs.href),
-      type: firstString(record.type ?? attrs.type ?? record.medium ?? attrs.medium)
-    };
-  }
-  return { url: null, type: null };
-}
-
-function mediaScore(entry: unknown): number {
-  if (!entry || typeof entry !== "object") return 0;
-  const record = entry as Record<string, unknown>;
-  const attrs = record.$ && typeof record.$ === "object" ? (record.$ as Record<string, unknown>) : record;
-  const width = Number(attrs.width) || 0;
-  const height = Number(attrs.height) || 0;
-  const fileSize = Number(attrs.fileSize) || 0;
-  const url = firstString(attrs.url ?? attrs.href) ?? "";
-  const baseScore = width && height ? width * height : fileSize;
-  const thumbnailPenalty = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}\/)/i.test(url) ? 0.25 : 1;
-  return baseScore * thumbnailPenalty;
-}
-
-// media:content / media:thumbnail often list several resolution variants for the same item.
-// Picking the first one (as opposed to the largest) is how a 150x150 thumbnail can end up as
-// mainImage even when a proper full-size version was right there in the same array.
-function bestMedia(value: unknown): { url: string | null; type: string | null } {
-  if (!Array.isArray(value)) return firstMedia(value);
-  let best: { url: string | null; type: string | null } = { url: null, type: null };
-  let bestScore = -1;
-  for (const entry of value) {
-    const found = firstMedia(entry);
-    if (!found.url) continue;
-    const score = mediaScore(entry);
-    if (score > bestScore) {
-      best = found;
-      bestScore = score;
-    }
-  }
-  return best;
-}
-
-function extractHtmlMedia(html: string | undefined, baseUrl: string) {
-  if (!html) return null;
-  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  const videoMatch = html.match(/<source[^>]+src=["']([^"']+)["']/i) ?? html.match(/<video[^>]+src=["']([^"']+)["']/i);
-  return absolutizeMediaUrl(videoMatch?.[1] ?? imgMatch?.[1] ?? null, baseUrl);
-}
-
-// High-confidence media only: an enclosure or the largest media:content variant. Both are
-// normally full-size images/video meant to represent the article, safe to trust as-is.
-function extractPrimaryFeedMedia(item: RawFeedItem, baseUrl: string) {
-  const candidates = [firstMedia(item.enclosure), bestMedia(item.mediaContent)];
-  for (const candidate of candidates) {
-    const url = absolutizeMediaUrl(candidate.url, baseUrl);
-    if (looksLikeMedia(url, candidate.type)) return url;
-  }
-  return null;
-}
-
-// Low-confidence media: media:thumbnail is explicitly a small preview image, and a scraped
-// inline <img> from the feed's HTML body is often a logo or unrelated icon. Only used as a
-// last resort when neither the feed nor the article page itself yields anything better.
-function extractFallbackFeedMedia(item: RawFeedItem, baseUrl: string) {
-  const candidates = [
-    bestMedia(item.mediaThumbnail),
-    { url: extractHtmlMedia(item.contentEncoded ?? item["content:encoded"] ?? item.content, baseUrl), type: null }
-  ];
-  for (const candidate of candidates) {
-    const url = absolutizeMediaUrl(candidate.url, baseUrl);
-    if (looksLikeMedia(url, candidate.type)) return url;
-  }
-  return null;
-}
-
-function extractMetaMedia(html: string, baseUrl: string) {
-  const patterns = [
-    /<meta[^>]+property=["']og:video(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+name=["']twitter:player:stream["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+property=["']og:image(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video(?::secure_url|:url)?["']/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url|:url)?["']/i
-  ];
-  for (const pattern of patterns) {
-    const url = absolutizeMediaUrl(html.match(pattern)?.[1] ?? null, baseUrl);
-    if (isHttpUrl(url)) return url;
-  }
-  const inline = extractHtmlMedia(html, baseUrl);
-  return looksLikeMedia(inline) ? inline : null;
-}
-
-async function fetchPageMedia(link: string) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8_000);
-  try {
-    const response = await safeFetch(link, {
-      signal: controller.signal,
-      headers: {
-        "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)"
-      }
-    });
-    if (!response.ok) return null;
-    const html = await readTextResponse(response, 500_000);
-    return extractMetaMedia(html.slice(0, 250_000), link);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Priority: (1) enclosure / largest media:content -- already known-good, full-size. (2) the
-// article page's own og:image/og:video -- a "share card" image, reliably full-size/high-res
-// since it's designed to look good large. (3) RSS media:thumbnail / an inline <img> scraped
-// from the feed body -- both are explicitly small previews, only used if nothing better exists.
-async function resolveArticleMedia(item: FeedItem) {
-  if (item.mediaUrl) return item.mediaUrl;
-  const pageMedia = await fetchPageMedia(item.link);
-  if (pageMedia) return pageMedia;
-  return item.fallbackMediaUrl ?? null;
 }
 
 // The cheap word-overlap check above catches near-identical headlines but misses the same
@@ -404,10 +228,12 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
         role: "system",
         content:
           "You are a news editor for an Uzbek news portal called Jahon Xabarlari. Given a news item's title and " +
-          "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief based on it: a " +
-          "punchy title, and a 3-5 sentence body covering the key facts in your own words (do not translate " +
-          "word-for-word). Then choose exactly one category from availableCategories that best fits. Respond ONLY " +
-          "with strict JSON: {\"title\": string, \"content\": string, \"category\": string, \"isBreaking\": boolean}."
+          "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief in LATIN SCRIPT. " +
+          "Use 5-8 complete sentences, preserve every name, number and attribution from the source, and never invent " +
+          "a fact that is not present in the supplied text. Choose exactly one category and 2-6 concise Uzbek tags. " +
+          "Set confidence from 0 to 1 based on whether the supplied source text contains enough facts for a reliable " +
+          "brief. Respond ONLY with strict JSON: {\"title\": string, \"content\": string, \"category\": string, " +
+          "\"isBreaking\": boolean, \"confidence\": number, \"tags\": string[]}."
       },
       {
         role: "user",
@@ -423,13 +249,36 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
 
   const text = completion.choices[0]?.message?.content;
   if (!text) throw new Error("AI javob bermadi");
-  const parsed = JSON.parse(text) as { title: string; content: string; category: string; isBreaking?: boolean };
+  const parsed = z
+    .object({
+      title: z.string().trim().min(3).max(220),
+      content: z.string().trim().min(20).max(20_000),
+      category: z.string().trim().min(1).max(100),
+      isBreaking: z.boolean().optional(),
+      confidence: z.number().min(0).max(1).optional(),
+      tags: z.array(z.string()).max(12).optional()
+    })
+    .parse(JSON.parse(text));
 
   const category = categories.find((c) => c.name.toLowerCase() === parsed.category?.toLowerCase()) ?? categories[0];
   const summary = parsed.content.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ").slice(0, 220);
   const slug = await uniqueArticleSlug(parsed.title);
-  const status = env.NEWS_AGGREGATOR_STATUS;
   const mainImage = await resolveArticleMedia(item);
+  const quality = inspectArticleQuality({
+    title: parsed.title,
+    content: parsed.content,
+    sourceUrl: item.link,
+    mainImage,
+    confidence: parsed.confidence
+  });
+  const requestedStatus = env.NEWS_AGGREGATOR_STATUS;
+  const status =
+    requestedStatus === "DRAFT"
+      ? "DRAFT"
+      : requestedStatus === "PUBLISHED" && env.NEWS_AGGREGATOR_AUTO_PUBLISH && quality.publishable
+        ? "PUBLISHED"
+        : "REVIEW";
+  const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
   const article = await prisma.article.create({
     data: {
@@ -448,13 +297,35 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
     }
   });
 
+  if (tagNames.length) {
+    const tags = await Promise.all(
+      tagNames.map((name) => {
+        const tagSlug = slugify(name, { lower: true, strict: true });
+        return prisma.tag.upsert({ where: { slug: tagSlug }, update: { name }, create: { name, slug: tagSlug } });
+      })
+    );
+    await prisma.articleTag.createMany({
+      data: tags.map((tag) => ({ articleId: article.id, tagId: tag.id })),
+      skipDuplicates: true
+    });
+  }
+
   await prisma.auditLog.create({
     data: {
       userId: authorId,
       action: "ARTICLE_AGGREGATED",
       entity: "Article",
       entityId: article.id,
-      metadata: { sourceName: item.sourceName, sourceUrl: item.link }
+      metadata: {
+        sourceName: item.sourceName,
+        sourceUrl: item.link,
+        requestedStatus,
+        finalStatus: status,
+        confidence: parsed.confidence ?? null,
+        qualityScore: quality.score,
+        qualityIssues: quality.issues,
+        tags: tagNames
+      }
     }
   });
 

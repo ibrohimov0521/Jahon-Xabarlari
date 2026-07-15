@@ -2,6 +2,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
+import crypto from "node:crypto";
 // Patches Express 4 so throws/rejections inside async route handlers (e.g. a zod .parse()
 // failure) reach the error middleware below instead of hanging the request unanswered.
 import "express-async-errors";
@@ -28,11 +29,27 @@ import { closeAggregatorJobs } from "./services/aggregator-jobs.js";
 import { prisma } from "./config/prisma.js";
 import { closePushJobs } from "./services/push.js";
 import { closeTranslationJobs } from "./services/translate.js";
-import { closeRedisLockConnection } from "./services/redis.js";
+import { closeRedisLockConnection, pingRedis } from "./services/redis.js";
+import { logger } from "./services/logger.js";
 
 const app = express();
 
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  const incoming = req.get("x-request-id");
+  const requestId = incoming && /^[a-zA-Z0-9._-]{8,100}$/.test(incoming) ? incoming : crypto.randomUUID();
+  const startedAt = performance.now();
+  res.set("X-Request-ID", requestId);
+  res.on("finish", () => {
+    const durationMs = Math.round(performance.now() - startedAt);
+    if (res.statusCode >= 400 || durationMs >= 1_500) {
+      const level = res.statusCode >= 500 ? "error" : "warn";
+      logger[level]("http_request", { requestId, method: req.method, path: req.originalUrl, status: res.statusCode, durationMs });
+    }
+  });
+  next();
+});
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: frontendOrigins, credentials: true }));
 app.use(compression());
@@ -50,13 +67,19 @@ app.use(
   })
 );
 
+app.get("/api/live", (_req, res) => {
+  res.set("Cache-Control", "no-store").json({ ok: true, uptimeSeconds: Math.round(process.uptime()) });
+});
 app.get("/api/health", async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, database: "up", name: "Jahon Xabarlari API" });
-  } catch {
-    res.status(503).json({ ok: false, database: "down", name: "Jahon Xabarlari API" });
-  }
+  const [database, redis] = await Promise.allSettled([prisma.$queryRaw`SELECT 1`, pingRedis()]);
+  const ok = database.status === "fulfilled" && redis.status === "fulfilled";
+  res.status(ok ? 200 : 503).set("Cache-Control", "no-store").json({
+    ok,
+    database: database.status === "fulfilled" ? "up" : "down",
+    redis: redis.status === "fulfilled" ? "up" : "down",
+    uptimeSeconds: Math.round(process.uptime()),
+    name: "Jahon Xabarlari API"
+  });
 });
 app.use("/api/auth", authRouter);
 app.use("/api", articleRouter);
@@ -77,7 +100,7 @@ app.use((_req, res) => res.status(404).json({ message: "Topilmadi" }));
 // Centralized error handler -- without this, an async route handler that throws (a zod
 // validation failure, a Prisma "not found", anything else) would otherwise leak Express's
 // default HTML error page (with a full stack trace) straight to the client.
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof ZodError) {
     return res.status(400).json({ message: "Kiritilgan ma'lumotlar noto'g'ri", issues: error.issues });
   }
@@ -90,8 +113,9 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
     return res.status(409).json({ message: "Bog'langan ma'lumot sabab amalni bajarib bo'lmaydi" });
   }
-  console.error("[server] Kutilmagan xatolik:", error);
-  res.status(500).json({ message: "Serverda kutilmagan xatolik yuz berdi" });
+  const requestId = res.getHeader("X-Request-ID")?.toString();
+  logger.error("unhandled_request_error", { requestId, method: req.method, path: req.originalUrl, error });
+  res.status(500).json({ message: "Serverda kutilmagan xatolik yuz berdi", requestId });
 });
 
 const server = app.listen(apiPort, () => {

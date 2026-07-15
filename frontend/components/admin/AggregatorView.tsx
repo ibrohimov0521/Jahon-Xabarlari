@@ -9,6 +9,7 @@ type AggregatorStatus = {
   enabled: boolean;
   intervalMinutes: number;
   publishStatus: string;
+  autoPublishEnabled: boolean;
   openaiConfigured: boolean;
   sources: AggregatorSource[];
 };
@@ -136,7 +137,10 @@ export function AggregatorView() {
               <strong>Avtomatik rejim:</strong> {status.enabled ? `Yoqilgan (har ${status.intervalMinutes} daqiqada)` : "O'chirilgan"}
             </p>
             <p className="mt-1">
-              <strong>Nashr holati:</strong> {status.publishStatus}
+              <strong>Nashr holati:</strong> {status.publishStatus === "PUBLISHED" && !status.autoPublishEnabled ? "REVIEW (xavfsiz rejim)" : status.publishStatus}
+            </p>
+            <p className="mt-1">
+              <strong>Avto-publish:</strong> {status.autoPublishEnabled ? "Faqat sifat tekshiruvidan o'tganlar" : "O'chirilgan"}
             </p>
             <p className="mt-1">
               <strong>OpenAI kaliti:</strong> {status.openaiConfigured ? "Sozlangan ✅" : "Sozlanmagan ❌"}

@@ -90,7 +90,7 @@ body {
    content -- comments, the "load more" message at the very bottom, etc. Desktop hides the nav. */
 @media (max-width: 1023px) {
   body {
-    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -251,6 +251,255 @@ body > footer {
   height: auto;
   max-height: 82vh;
   object-fit: contain;
+}
+
+.article-category-badge,
+.article-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.article-category-badge {
+  background: #1767f5;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.article-tag {
+  border: 1px solid var(--border);
+  background: var(--glass-bg-soft);
+  color: var(--muted);
+}
+
+.article-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.article-trust-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.article-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.article-actions button,
+.article-actions a {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--glass-bg-soft);
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.article-actions button:hover,
+.article-actions a:hover {
+  border-color: #1767f5;
+  color: #1767f5;
+  transform: translateY(-1px);
+}
+
+.article-copy {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.85;
+  letter-spacing: 0;
+}
+
+.article-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  border-left: 3px solid #1767f5;
+  border-radius: 0 10px 10px 0;
+  background: var(--glass-bg-soft);
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.article-source span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.article-source a,
+.article-source strong {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.article-source a:hover {
+  color: #1767f5;
+}
+
+.article-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  padding: 18px 20px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.article-next span {
+  display: grid;
+  gap: 4px;
+}
+
+.article-next small {
+  color: #1767f5;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.article-next strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.article-report-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 8, 18, 0.78);
+  backdrop-filter: blur(18px) saturate(80%);
+}
+
+.article-report-dialog {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg), var(--page-bg);
+  padding: 20px;
+  color: var(--text);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+}
+
+.article-dialog-close {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--glass-bg-soft);
+}
+
+.article-report-dialog input,
+.article-report-dialog select,
+.article-report-dialog textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--glass-bg-soft);
+  padding: 11px 12px;
+  color: var(--text);
+  outline: none;
+}
+
+.article-report-dialog input:focus,
+.article-report-dialog select:focus,
+.article-report-dialog textarea:focus {
+  border-color: #1767f5;
+  box-shadow: 0 0 0 3px rgba(23, 103, 245, 0.14);
+}
+
+.article-report-submit {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  background: #1767f5;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.comment-toggle-button {
+  border: 1px solid rgba(23, 103, 245, 0.3);
+  background: rgba(23, 103, 245, 0.1);
+  color: #0f4fbf;
+  box-shadow: 0 6px 18px rgba(23, 103, 245, 0.08);
+}
+
+.comment-toggle-button:hover {
+  border-color: rgba(23, 103, 245, 0.6);
+  background: rgba(23, 103, 245, 0.16);
+}
+
+:root[data-theme="dark"] .comment-toggle-button {
+  border-color: rgba(103, 213, 255, 0.32);
+  background: rgba(35, 164, 226, 0.14);
+  color: #d9f5ff;
+}
+
+.comment-panel {
+  border-color: var(--border);
+  background: var(--glass-bg-soft);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .article-copy {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .article-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .article-actions button,
+  .article-actions a {
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .article-actions button:first-child,
+  .article-actions button:last-child {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 640px) {

@@ -1,6 +1,6 @@
-import { ArticleStatus } from "@prisma/client";
+import { ArticleReportStatus, ArticleStatus, Prisma } from "@prisma/client";
 import crypto from "crypto";
-import { Router, type Request } from "express";
+import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import slugify from "slugify";
 import { z } from "zod";
@@ -52,6 +52,10 @@ const aiShortDescriptionSchema = z.object({
   content: z.string().trim().min(20).max(250_000)
 });
 const VIEW_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+function setPublicCache(res: Response, seconds = 60) {
+  res.set("Cache-Control", `public, max-age=${Math.min(seconds, 60)}, s-maxage=${seconds}, stale-while-revalidate=${seconds * 4}`);
+}
 
 const aiGenerationLimit = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -113,6 +117,7 @@ articleRouter.get("/articles", async (req, res) => {
     }),
     prisma.article.count({ where })
   ]);
+  setPublicCache(res, 60);
   res.json({ items: items.map((item) => applyTranslation(item, lang)), total, page, pages: Math.ceil(total / take) });
 });
 
@@ -146,6 +151,7 @@ articleRouter.get("/articles/trending", async (req, res) => {
   const order = new Map(ids.map((id, index) => [id, index]));
   const sorted = articles.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).slice(0, take);
 
+  setPublicCache(res, 60);
   res.json({ items: sorted.map((item) => applyTranslation(item, lang)) });
 });
 
@@ -165,6 +171,7 @@ articleRouter.get("/articles/popular", async (req, res) => {
     take
   });
 
+  setPublicCache(res, 120);
   res.json({ items: items.map((item) => applyTranslation(item, lang)) });
 });
 
@@ -173,7 +180,7 @@ articleRouter.get("/articles/sitemap", async (_req, res) => {
     where: { deletedAt: null, status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
     take: 50_000,
-    select: { slug: true, updatedAt: true, publishedAt: true }
+    select: { slug: true, title: true, updatedAt: true, publishedAt: true }
   });
   res.json({ items });
 });
@@ -185,12 +192,62 @@ articleRouter.get("/articles/:slug", async (req, res) => {
     include: {
       category: true,
       author: { select: { name: true } },
+      tags: { include: { tag: true } },
       ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
     }
   });
   if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
 
+  setPublicCache(res, 60);
   res.json(applyTranslation(article, lang));
+});
+
+articleRouter.get("/articles/:slug/context", async (req, res) => {
+  const lang = req.query.lang?.toString();
+  const current = await prisma.article.findUnique({
+    where: { slug: req.params.slug },
+    include: { tags: { select: { tagId: true } } }
+  });
+  if (!current || current.deletedAt || current.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
+
+  const tagIds = current.tags.map((item) => item.tagId);
+  const categoryIds = [current.categoryId, ...current.extraCategoryIds];
+  const related = await prisma.article.findMany({
+    where: {
+      id: { not: current.id },
+      deletedAt: null,
+      status: "PUBLISHED",
+      OR: [
+        { categoryId: { in: categoryIds } },
+        { extraCategoryIds: { hasSome: categoryIds } },
+        ...(tagIds.length ? [{ tags: { some: { tagId: { in: tagIds } } } }] : [])
+      ]
+    },
+    include: {
+      category: true,
+      author: { select: { name: true } },
+      tags: { include: { tag: true } },
+      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
+    },
+    orderBy: [{ publishedAt: "desc" }, { viewsCount: "desc" }],
+    take: 6
+  });
+
+  const next = current.publishedAt
+    ? await prisma.article.findFirst({
+        where: { id: { not: current.id }, deletedAt: null, status: "PUBLISHED", publishedAt: { lt: current.publishedAt } },
+        include: {
+          category: true,
+          author: { select: { name: true } },
+          tags: { include: { tag: true } },
+          ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
+        },
+        orderBy: { publishedAt: "desc" }
+      })
+    : null;
+
+  setPublicCache(res, 120);
+  res.json({ related: related.map((item) => applyTranslation(item, lang)), next: next ? applyTranslation(next, lang) : null });
 });
 
 const viewRateLimit = rateLimit({
@@ -206,23 +263,31 @@ articleRouter.post("/articles/:id/view", viewRateLimit, async (req, res) => {
   const bucket = Math.floor(Date.now() / VIEW_WINDOW_MS);
   const viewId = crypto.createHash("sha256").update(`${articleId}:${ipHash}:${bucket}`).digest("hex");
 
-  const result = await prisma.$transaction(async (tx) => {
-    const inserted = await tx.articleView.createMany({
-      data: [{ id: viewId, articleId, ipHash }],
-      skipDuplicates: true
-    });
-    if (!inserted.count) {
-      return tx.article.findFirst({
+  let result: { viewsCount: number } | null;
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const inserted = await tx.articleView.createMany({
+        data: [{ id: viewId, articleId, ipHash }],
+        skipDuplicates: true
+      });
+      if (!inserted.count) {
+        return tx.article.findFirst({
+          where: { id: articleId, status: "PUBLISHED", deletedAt: null },
+          select: { viewsCount: true }
+        });
+      }
+      return tx.article.update({
         where: { id: articleId, status: "PUBLISHED", deletedAt: null },
+        data: { viewsCount: { increment: 1 } },
         select: { viewsCount: true }
       });
-    }
-    return tx.article.update({
-      where: { id: articleId, status: "PUBLISHED", deletedAt: null },
-      data: { viewsCount: { increment: 1 } },
-      select: { viewsCount: true }
     });
-  });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2003" || error.code === "P2025")) {
+      return res.status(404).json({ message: "Maqola topilmadi" });
+    }
+    throw error;
+  }
 
   if (!result) return res.status(404).json({ message: "Maqola topilmadi" });
   res.json({ viewsCount: result.viewsCount });
@@ -241,6 +306,20 @@ const commentRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Juda ko'p izoh yuborildi, birozdan keyin qayta urinib ko'ring" }
+});
+
+const reportSchema = z.object({
+  reason: z.enum(["FACT_ERROR", "TYPO", "COPYRIGHT", "INAPPROPRIATE", "OTHER"]),
+  details: z.string().trim().min(10).max(1_500),
+  email: z.string().trim().email().max(320).optional().or(z.literal(""))
+});
+
+const reportRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Xabarlar soni cheklangan, keyinroq qayta urinib ko'ring" }
 });
 
 articleRouter.get("/articles/:id/comments", async (req, res) => {
@@ -262,6 +341,25 @@ articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) 
     data: { articleId: article.id, name: data.name, body: data.body, status: "PENDING" }
   });
   res.status(201).json({ id: comment.id, message: "Izohingiz yuborildi, moderatsiyadan so'ng ko'rinadi" });
+});
+
+articleRouter.post("/articles/:id/reports", reportRateLimit, async (req, res) => {
+  const data = reportSchema.parse(req.body);
+  const article = await prisma.article.findFirst({
+    where: { id: req.params.id, status: "PUBLISHED", deletedAt: null },
+    select: { id: true }
+  });
+  if (!article) return res.status(404).json({ message: "Maqola topilmadi" });
+  await prisma.articleReport.create({
+    data: {
+      articleId: article.id,
+      reason: data.reason,
+      details: data.details,
+      email: data.email || null,
+      ipHash: viewerHash(req)
+    }
+  });
+  res.status(201).json({ message: "Xabaringiz tahririyatga yuborildi" });
 });
 
 const searchRateLimit = rateLimit({
@@ -326,6 +424,32 @@ articleRouter.get("/search", searchRateLimit, async (req, res) => {
   const hasMore = rows.length > take;
   const items = rows.slice(0, take);
   res.json({ items: items.map((item) => applyTranslation(item, lang)), nextCursor: hasMore ? items.at(-1)?.id ?? null : null });
+});
+
+articleRouter.get("/admin/article-reports", requireAuth, permit("comments.manage"), async (req, res) => {
+  const statusRaw = req.query.status?.toString();
+  const statusResult = statusRaw ? z.nativeEnum(ArticleReportStatus).safeParse(statusRaw) : null;
+  if (statusResult && !statusResult.success) return res.status(400).json({ message: "Noto'g'ri status" });
+  const { page, take, skip } = pagination(req.query, { limit: 30, max: 100 });
+  const where = statusResult?.data ? { status: statusResult.data } : {};
+  const [items, total] = await Promise.all([
+    prisma.articleReport.findMany({
+      where,
+      include: { article: { select: { id: true, title: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take
+    }),
+    prisma.articleReport.count({ where })
+  ]);
+  res.json({ items, total, page, pages: Math.ceil(total / take) });
+});
+
+articleRouter.patch("/admin/article-reports/:id/status", requireAuth, permit("comments.manage"), async (req, res) => {
+  const { status } = z.object({ status: z.nativeEnum(ArticleReportStatus) }).parse(req.body);
+  const report = await prisma.articleReport.update({ where: { id: req.params.id }, data: { status } });
+  await audit(req, "ARTICLE_REPORT_STATUS", "ArticleReport", report.id, { status });
+  res.json(report);
 });
 
 articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async (req, res) => {

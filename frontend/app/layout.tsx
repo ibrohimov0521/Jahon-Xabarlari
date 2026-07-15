@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ArticleModal } from "../components/ArticleModal";
+import { Analytics } from "../components/Analytics";
 import BottomNav from "../components/BottomNav";
 import { MobileCurrencyExperience } from "../components/MobileCurrency";
 import SearchExperience from "../components/SearchExperience";
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uz" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
+        <Analytics />
         <div className="site-backdrop" aria-hidden="true" />
         <script
           type="application/ld+json"

@@ -64,3 +64,7 @@ export async function withRedisLock<T>(key: string, ttlMs: number, task: () => P
 export async function closeRedisLockConnection() {
   await lockRedis.quit().catch(() => lockRedis.disconnect());
 }
+
+export async function pingRedis() {
+  return lockRedis.ping();
+}

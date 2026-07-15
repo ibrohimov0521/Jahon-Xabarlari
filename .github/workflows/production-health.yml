@@ -1,0 +1,22 @@
+name: Production health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public website
+        run: curl --fail --location --silent --show-error --retry 3 --max-time 20 https://www.jahonxabarlari.uz/ > /dev/null
+      - name: Check API dependencies
+        run: |
+          response=$(curl --fail --silent --show-error --retry 3 --max-time 20 https://backend-production-8124.up.railway.app/api/health)
+          echo "$response"
+          echo "$response" | grep -q '"ok":true'

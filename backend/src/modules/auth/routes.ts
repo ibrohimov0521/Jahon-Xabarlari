@@ -7,12 +7,22 @@ import { z } from "zod";
 import { env, frontendOrigins } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
+import {
+  generateRecoveryCodes,
+  generateTotpSecret,
+  hashRecoveryCode,
+  openTotpSecret,
+  sealTotpSecret,
+  totpUri,
+  verifyTotp
+} from "../../services/totp.js";
 
 export const authRouter = Router();
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
-  password: z.string().min(8).max(128)
+  password: z.string().min(8).max(128),
+  otp: z.string().trim().max(32).optional()
 });
 const refreshBodySchema = z.object({ refreshToken: z.string().max(4_096).optional() });
 
@@ -31,6 +41,14 @@ const telegramLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Juda ko'p urinish qilindi, keyinroq urinib ko'ring" }
+});
+
+const twoFactorLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Tasdiqlash urinishlari ko'payib ketdi. Keyinroq qayta urinib ko'ring" }
 });
 
 // Constant-time compare so a mismatched bot secret can't be recovered by timing the response.
@@ -85,11 +103,37 @@ async function revokeRefreshToken(token: string) {
   await prisma.refreshToken.updateMany({ where: { tokenHash: hashToken(token), revokedAt: null }, data: { revokedAt: new Date() } });
 }
 
+async function verifySecondFactor(user: { id: string; twoFactorSecret: string | null; twoFactorRecoveryHashes: string[] }, code: string) {
+  if (!user.twoFactorSecret) return false;
+  let secret: string;
+  try {
+    secret = openTotpSecret(user.twoFactorSecret, env.JWT_REFRESH_SECRET);
+  } catch {
+    return false;
+  }
+  if (verifyTotp(secret, code)) return true;
+
+  const candidate = hashRecoveryCode(code, env.JWT_REFRESH_SECRET);
+  const matched = user.twoFactorRecoveryHashes.find((hash) => safeEqual(hash, candidate));
+  if (!matched) return false;
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { twoFactorRecoveryHashes: user.twoFactorRecoveryHashes.filter((hash) => hash !== matched) }
+  });
+  return true;
+}
+
 authRouter.post("/login", loginLimiter, async (req, res) => {
   const data = loginSchema.parse(req.body);
   const user = await prisma.user.findUnique({ where: { email: data.email }, include: { role: true } });
   if (!user || !(await bcrypt.compare(data.password, user.passwordHash))) {
     return res.status(401).json({ message: "Email yoki parol noto'g'ri" });
+  }
+  if (user.twoFactorEnabled) {
+    if (!data.otp) return res.status(202).json({ requiresTwoFactor: true });
+    if (!(await verifySecondFactor(user, data.otp))) {
+      return res.status(401).json({ message: "Tasdiqlash kodi noto'g'ri" });
+    }
   }
   const { accessToken, refreshToken } = await issueTokens(user.id);
   res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
@@ -147,4 +191,78 @@ authRouter.post("/logout", requireTrustedOrigin, async (req, res) => {
 
 authRouter.get("/me", requireAuth, async (req, res) => {
   res.json({ user: req.user });
+});
+
+authRouter.get("/2fa/status", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.user!.id },
+    select: { twoFactorEnabled: true, twoFactorSecret: true, twoFactorRecoveryHashes: true }
+  });
+  res.json({
+    enabled: user.twoFactorEnabled,
+    setupPending: Boolean(user.twoFactorSecret && !user.twoFactorEnabled),
+    recoveryCodesRemaining: user.twoFactorRecoveryHashes.length
+  });
+});
+
+authRouter.post("/2fa/setup", twoFactorLimiter, requireAuth, async (req, res) => {
+  const { password } = z.object({ password: z.string().min(8).max(128) }).parse(req.body);
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.user!.id },
+    select: { email: true, passwordHash: true, twoFactorEnabled: true }
+  });
+  if (user.twoFactorEnabled) return res.status(409).json({ message: "Ikki bosqichli himoya allaqachon yoqilgan" });
+  if (!(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ message: "Joriy parol noto'g'ri" });
+  const secret = generateTotpSecret();
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { twoFactorSecret: sealTotpSecret(secret, env.JWT_REFRESH_SECRET), twoFactorRecoveryHashes: [] }
+  });
+  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "AUTH_2FA_SETUP_STARTED", entity: "User", entityId: req.user!.id, ip: req.ip } });
+  res.json({ secret, uri: totpUri(secret, user.email) });
+});
+
+authRouter.post("/2fa/enable", twoFactorLimiter, requireAuth, async (req, res) => {
+  const { code } = z.object({ code: z.string().trim().regex(/^\d{6}$/) }).parse(req.body);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id }, select: { twoFactorSecret: true } });
+  if (!user.twoFactorSecret) return res.status(409).json({ message: "Avval 2FA sozlashni boshlang" });
+  let secret: string;
+  try {
+    secret = openTotpSecret(user.twoFactorSecret, env.JWT_REFRESH_SECRET);
+  } catch {
+    return res.status(409).json({ message: "2FA sozlamasi eskirgan. Qayta sozlang" });
+  }
+  if (!verifyTotp(secret, code)) return res.status(400).json({ message: "Tasdiqlash kodi noto'g'ri" });
+  const recoveryCodes = generateRecoveryCodes();
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: {
+      twoFactorEnabled: true,
+      twoFactorRecoveryHashes: recoveryCodes.map((item) => hashRecoveryCode(item, env.JWT_REFRESH_SECRET))
+    }
+  });
+  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "AUTH_2FA_ENABLED", entity: "User", entityId: req.user!.id, ip: req.ip } });
+  res.json({ enabled: true, recoveryCodes });
+});
+
+authRouter.post("/2fa/disable", twoFactorLimiter, requireAuth, async (req, res) => {
+  const { password, code } = z.object({ password: z.string().min(8).max(128), code: z.string().trim().max(32) }).parse(req.body);
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.user!.id },
+    select: { id: true, passwordHash: true, twoFactorEnabled: true, twoFactorSecret: true, twoFactorRecoveryHashes: true }
+  });
+  if (!user.twoFactorEnabled) return res.status(409).json({ message: "Ikki bosqichli himoya yoqilmagan" });
+  if (!(await bcrypt.compare(password, user.passwordHash)) || !(await verifySecondFactor(user, code))) {
+    return res.status(401).json({ message: "Parol yoki tasdiqlash kodi noto'g'ri" });
+  }
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryHashes: [] }
+    }),
+    prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    prisma.auditLog.create({ data: { userId: user.id, action: "AUTH_2FA_DISABLED", entity: "User", entityId: user.id, ip: req.ip } })
+  ]);
+  res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
+  res.json({ enabled: false, reauthenticate: true });
 });

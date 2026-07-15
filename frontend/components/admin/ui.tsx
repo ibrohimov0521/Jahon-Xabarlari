@@ -258,7 +258,7 @@ export function SelectFilter<T extends string>({
 }: {
   value: T | "";
   onChange: (value: T | "") => void;
-  options: readonly T[];
+  options: readonly (T | { value: T; label: string })[];
   allLabel?: string;
 }) {
   return (
@@ -268,11 +268,11 @@ export function SelectFilter<T extends string>({
       onChange={(e) => onChange(e.target.value as T | "")}
     >
       <option value="">{allLabel}</option>
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
+      {options.map((option) => {
+        const value = typeof option === "string" ? option : option.value;
+        const label = typeof option === "string" ? option : option.label;
+        return <option key={value} value={value}>{label}</option>;
+      })}
     </select>
   );
 }

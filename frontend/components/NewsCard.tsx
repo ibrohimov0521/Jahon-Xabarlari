@@ -17,7 +17,7 @@ export function NewsCard({ article }: { article: Article }) {
             {article.category.name}
           </span>
         )}
-        <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-black leading-tight sm:mt-2 sm:text-[16px] sm:leading-snug">{article.title}</h3>
+        <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-extrabold leading-tight sm:mt-2 sm:text-[16px] sm:leading-snug">{article.title}</h3>
 
         {/* Mobile: original summary only (no AI). Desktop: AI short description when available. */}
         {article.summary && (

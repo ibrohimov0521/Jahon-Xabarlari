@@ -34,7 +34,13 @@ const schema = z.object({
     .optional()
     .transform((value) => value === "true"),
   NEWS_AGGREGATOR_INTERVAL_MINUTES: z.coerce.number().min(1).default(5),
-  NEWS_AGGREGATOR_STATUS: z.enum(["PUBLISHED", "REVIEW", "DRAFT"]).default("PUBLISHED")
+  NEWS_AGGREGATOR_STATUS: z.enum(["PUBLISHED", "REVIEW", "DRAFT"]).default("REVIEW"),
+  // Auto-publishing is a separate explicit opt-in. A legacy PUBLISHED status alone no longer
+  // bypasses editorial review when a deployment picks up the safer pipeline.
+  NEWS_AGGREGATOR_AUTO_PUBLISH: z
+    .string()
+    .optional()
+    .transform((value) => value === "true")
 });
 
 export const env = schema.parse(process.env);

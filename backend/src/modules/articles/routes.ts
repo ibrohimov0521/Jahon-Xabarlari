@@ -13,6 +13,7 @@ import { queueArticlePush } from "../../services/push.js";
 import { withRedisLock } from "../../services/redis.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 import { pagination, positiveInt } from "../../utils/query.js";
+import { buildSeoDescription, buildSeoTitle } from "../../utils/seo.js";
 import { daysAgoFromTashkentDay, startOfTashkentDay } from "../../utils/time.js";
 
 export const articleRouter = Router();
@@ -514,6 +515,8 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
       ...data,
       mainImage: data.mainImage || null,
       gallery: data.gallery ?? [],
+      seoTitle: data.seoTitle || buildSeoTitle(data.title),
+      seoDescription: data.seoDescription || buildSeoDescription(data.shortDescription, data.summary),
       extraCategoryIds: (data.extraCategoryIds ?? []).filter((id) => id !== data.categoryId),
       authorId: req.user!.id,
       slug: data.slug || slugify(data.title, { lower: true, strict: true }),
@@ -539,6 +542,10 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
       ...data,
       ...(data.mainImage !== undefined ? { mainImage: data.mainImage || null } : {}),
       ...(data.gallery !== undefined ? { gallery: data.gallery } : {}),
+      ...(data.seoTitle !== undefined ? { seoTitle: data.seoTitle || (data.title ? buildSeoTitle(data.title) : null) } : {}),
+      ...(data.seoDescription !== undefined
+        ? { seoDescription: data.seoDescription || (data.summary ? buildSeoDescription(data.shortDescription, data.summary) : null) }
+        : {}),
       ...(statusChangedToPublished ? { publishedAt: new Date(), scheduledAt: null } : {}),
       ...(statusChangedAwayFromPublished ? { publishedAt: null, scheduledAt: null } : {}),
       ...(data.extraCategoryIds || data.categoryId

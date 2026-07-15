@@ -92,3 +92,14 @@ export function openTotpSecret(value: string, keyMaterial: string) {
   decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
   return Buffer.concat([decipher.update(Buffer.from(encryptedValue, "base64url")), decipher.final()]).toString("utf8");
 }
+
+export function resolveTotpSetupSecret(sealedSecret: string | null | undefined, keyMaterial: string) {
+  if (sealedSecret) {
+    try {
+      return { secret: openTotpSecret(sealedSecret, keyMaterial), resumed: true };
+    } catch {
+      // Only an unreadable pending setup is replaced; a valid secret must stay stable.
+    }
+  }
+  return { secret: generateTotpSecret(), resumed: false };
+}

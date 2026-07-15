@@ -8,28 +8,83 @@ import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
 
-const categoryTabs = [
-  ["Barchasi", "/"],
-  ["O'zbekiston", "/category/ozbekiston"],
-  ["Dunyo", "/category/dunyo"],
-  ["Siyosat", "/category/siyosat"],
-  ["Iqtisodiyot", "/category/iqtisodiyot"],
-  ["Texnologiya", "/category/texnologiya"],
-  ["Sport", "/category/sport"],
-  ["Madaniyat", "/category/madaniyat"]
-];
+const homeCopy = {
+  uz: {
+    categories: { all: "Barchasi", ozbekiston: "O'zbekiston", dunyo: "Dunyo", siyosat: "Siyosat", iqtisodiyot: "Iqtisodiyot", texnologiya: "Texnologiya", sport: "Sport", madaniyat: "Madaniyat" },
+    noNews: "Yangiliklar hali qo'shilmagan",
+    noNewsHelp: "Admin panel orqali yangi maqola qo'shing. Published qilingan xabarlar shu yerda avtomatik ko'rinadi.",
+    admin: "Admin panelga o'tish",
+    readMore: "Batafsil o'qish",
+    todayTrend: "Bugungi trend",
+    fourDayPopular: "4 kunlik ko'p o'qilganlar",
+    all: "Barchasi",
+    trend: "Trend bo'layotgan",
+    noTrend: "Bugun trend xabarlar hali shakllanmadi.",
+    allPopular: "Barcha mashhur yangiliklar",
+    latest: "So'nggi yangiliklar",
+    editorChoice: "Muharrir tanlovi",
+    moreNews: "Ko'proq yangiliklar",
+    filter: "Saralash",
+    popular: "Eng ko'p o'qilganlar",
+    noPopular: "Oxirgi 4 kunda ko'p o'qilganlar hali yo'q."
+  },
+  ru: {
+    categories: { all: "Все", ozbekiston: "Узбекистан", dunyo: "Мир", siyosat: "Политика", iqtisodiyot: "Экономика", texnologiya: "Технологии", sport: "Спорт", madaniyat: "Культура" },
+    noNews: "Новостей пока нет",
+    noNewsHelp: "Опубликованные материалы автоматически появятся здесь.",
+    admin: "Открыть админ-панель",
+    readMore: "Читать далее",
+    todayTrend: "Сегодня в тренде",
+    fourDayPopular: "Популярное за 4 дня",
+    all: "Все",
+    trend: "В тренде",
+    noTrend: "Сегодня трендовые новости еще не сформировались.",
+    allPopular: "Все популярные новости",
+    latest: "Последние новости",
+    editorChoice: "Выбор редакции",
+    moreNews: "Больше новостей",
+    filter: "Фильтр",
+    popular: "Самые читаемые",
+    noPopular: "За последние 4 дня популярных новостей пока нет."
+  },
+  en: {
+    categories: { all: "All", ozbekiston: "Uzbekistan", dunyo: "World", siyosat: "Politics", iqtisodiyot: "Business", texnologiya: "Technology", sport: "Sport", madaniyat: "Culture" },
+    noNews: "No news has been published yet",
+    noNewsHelp: "Published articles will appear here automatically.",
+    admin: "Open admin panel",
+    readMore: "Read more",
+    todayTrend: "Trending today",
+    fourDayPopular: "Popular over 4 days",
+    all: "All",
+    trend: "Trending",
+    noTrend: "Today's trending stories have not formed yet.",
+    allPopular: "All popular news",
+    latest: "Latest news",
+    editorChoice: "Editor's choice",
+    moreNews: "More news",
+    filter: "Filter",
+    popular: "Most read",
+    noPopular: "There are no popular stories from the last 4 days yet."
+  }
+} as const;
 
-const categorySections = [
-  { title: "O'zbekiston", slug: "ozbekiston" },
-  { title: "Dunyo", slug: "dunyo" },
-  { title: "Iqtisodiyot", slug: "iqtisodiyot" },
-  { title: "Sport", slug: "sport" },
-  { title: "Texnologiya", slug: "texnologiya" },
-  { title: "Madaniyat", slug: "madaniyat" }
-];
+const categorySlugs = ["ozbekiston", "dunyo", "iqtisodiyot", "sport", "texnologiya", "madaniyat"] as const;
 
 export default async function Home() {
   const lang = await getRequestLang();
+  const copy = homeCopy[lang];
+  const categoryTabs = [
+    [copy.categories.all, "/"],
+    [copy.categories.ozbekiston, "/category/ozbekiston"],
+    [copy.categories.dunyo, "/category/dunyo"],
+    [copy.categories.siyosat, "/category/siyosat"],
+    [copy.categories.iqtisodiyot, "/category/iqtisodiyot"],
+    [copy.categories.texnologiya, "/category/texnologiya"],
+    [copy.categories.sport, "/category/sport"],
+    [copy.categories.madaniyat, "/category/madaniyat"]
+  ];
+  const categorySections = categorySlugs.map((slug) => ({ title: copy.categories[slug], slug }));
+  const categoryName = (category?: { name: string; slug: string }) => category ? copy.categories[category.slug as keyof typeof copy.categories] ?? category.name : "";
   const [articles, trending, popular] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8), getPopularArticles(lang, 8, 4)]);
 
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
@@ -69,12 +124,10 @@ export default async function Home() {
         <Header />
         <section className="container-page py-16">
           <div className="rounded-lg border border-slate-200 bg-white p-10 text-center news-shadow">
-            <h1 className="text-3xl font-black">Yangiliklar hali qo'shilmagan</h1>
-            <p className="mx-auto mt-3 max-w-xl text-slate-500">
-              Admin panel orqali yangi maqola qo'shing. Published qilingan xabarlar shu yerda avtomatik ko'rinadi.
-            </p>
+            <h1 className="text-3xl font-black">{copy.noNews}</h1>
+            <p className="mx-auto mt-3 max-w-xl text-slate-500">{copy.noNewsHelp}</p>
             <Link href="/admin" className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-brand px-5 font-black text-white">
-              Admin panelga o'tish
+              {copy.admin}
             </Link>
           </div>
         </section>
@@ -90,12 +143,12 @@ export default async function Home() {
           <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-5 sm:p-7">
-            <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{hero.category?.name}</span>
-            <p className="text-[14px] font-bold text-white/90 sm:text-[15px]">{formatArticleDateTime(hero.publishedAt)} · {formatViews(hero.viewsCount)}</p>
+            <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{categoryName(hero.category)}</span>
+            <p className="text-[14px] font-bold text-white/90 sm:text-[15px]">{formatArticleDateTime(hero.publishedAt, lang)} · {formatViews(hero.viewsCount, lang)}</p>
             <h1 className="mt-2 max-w-[610px] text-[25px] font-black leading-[1.14] sm:mt-3 sm:text-[34px] sm:leading-[1.2]">{hero.title}</h1>
             <p className="mt-2 max-w-[620px] line-clamp-3 text-[14px] leading-6 text-white/92 sm:mt-3 sm:text-[17px] sm:leading-7">{hero.shortDescription || hero.summary}</p>
             <span className="mt-5 flex h-[44px] w-fit items-center gap-4 rounded-md border border-white/45 px-5 text-[14px] font-black transition hover:bg-white hover:text-ink sm:mt-6 sm:h-[46px]">
-              Batafsil o'qish <ArrowRight size={18} />
+              {copy.readMore} <ArrowRight size={18} />
             </span>
           </div>
         </Link>
@@ -103,7 +156,7 @@ export default async function Home() {
         <div className="grid gap-3 lg:hidden">
           <section className="news-shadow rounded-lg border border-cyan-300/20 bg-slate-950/35 p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[18px] font-black text-white">Bugungi trend</h2>
+              <h2 className="text-[18px] font-black text-white">{copy.todayTrend}</h2>
               <TrendingUp className="text-brand" size={20} />
             </div>
             <div className="grid gap-2">
@@ -112,7 +165,7 @@ export default async function Home() {
                   <span className="grid size-7 place-items-center rounded-full bg-brand text-[12px] font-black text-white">{index + 1}</span>
                   <span className="min-w-0">
                     <span className="line-clamp-2 text-[14px] font-black leading-snug text-white">{item.title}</span>
-                    <span className="mt-1 block text-[12px] font-bold text-slate-300">{formatViews(item.viewsCount)}</span>
+                    <span className="mt-1 block text-[12px] font-bold text-slate-300">{formatViews(item.viewsCount, lang)}</span>
                   </span>
                   <MediaView src={item.mainImage} className="h-14 w-16 rounded-md object-cover" />
                 </Link>
@@ -124,8 +177,8 @@ export default async function Home() {
 
           <section className="news-shadow rounded-lg border border-cyan-300/20 bg-slate-950/35 p-4 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[18px] font-black text-white">4 kunlik ko'p o'qilganlar</h2>
-              <Link href="/popular" className="text-[12px] font-black text-brand">Barchasi</Link>
+              <h2 className="text-[18px] font-black text-white">{copy.fourDayPopular}</h2>
+              <Link href="/popular" className="text-[12px] font-black text-brand">{copy.all}</Link>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(popularItems.length ? popularItems : latest).slice(0, 4).map((item) => (
@@ -133,7 +186,7 @@ export default async function Home() {
                   <MediaView src={item.mainImage} className="h-20 w-full object-cover" />
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-[12.5px] font-black leading-snug text-white">{item.title}</h3>
-                    <p className="mt-1 text-[11px] font-bold text-slate-300">{formatViews(item.viewsCount)}</p>
+                    <p className="mt-1 text-[11px] font-bold text-slate-300">{formatViews(item.viewsCount, lang)}</p>
                   </div>
                 </Link>
               ))}
@@ -150,9 +203,9 @@ export default async function Home() {
             >
               <MediaView src={item.mainImage} className="home-side-media h-24 w-[92px] rounded-md object-cover sm:h-[130px] sm:w-[138px]" />
               <div className="min-w-0 py-1">
-                <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
+                <span className="text-[12px] font-black uppercase text-brand">{categoryName(item.category)}</span>
                 <h3 className="mt-2 line-clamp-2 text-[15px] font-black leading-snug sm:mt-3 sm:text-[16px]">{item.title}</h3>
-                <p className="mt-2 text-[12px] font-bold text-slate-500 sm:mt-4 sm:text-[14px]">{formatArticleDateTime(item.publishedAt)}</p>
+                <p className="mt-2 text-[12px] font-bold text-slate-500 sm:mt-4 sm:text-[14px]">{formatArticleDateTime(item.publishedAt, lang)}</p>
               </div>
             </Link>
           ))}
@@ -160,11 +213,11 @@ export default async function Home() {
         <div className="home-trend-rail hidden flex-col gap-4 xl:sticky xl:top-24 xl:flex xl:self-start">
           <aside className="home-glass-panel home-trend-panel news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-[22px] font-black">Trend bo'layotgan</h2>
+            <h2 className="text-[22px] font-black">{copy.trend}</h2>
               <TrendingUp className="text-brand" />
             </div>
             <div className="grid gap-3">
-              {!trendingItems.length && <p className="home-empty-state rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Bugun trend xabarlar hali shakllanmadi.</p>}
+              {!trendingItems.length && <p className="home-empty-state rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">{copy.noTrend}</p>}
               {trendingItems.map((item, index) => (
                 <Link
                   key={item.id}
@@ -174,27 +227,27 @@ export default async function Home() {
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
-                    <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount)}</p>
+                    <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount, lang)}</p>
                   </div>
                   <MediaView src={item.mainImage} className="hidden h-[78px] w-[80px] rounded-md object-cover sm:block" />
                 </Link>
               ))}
             </div>
             <Link href="/popular" className="home-outline-action mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">
-              Barcha mashhur yangiliklar <ArrowRight size={17} />
+              {copy.allPopular} <ArrowRight size={17} />
             </Link>
           </aside>
         </div>
 
         <div className="home-latest-block lg:col-span-2">
           <div className="home-section-head mb-4 flex flex-wrap items-center gap-2">
-            <h2 className="section-title mr-auto text-[27px] font-black">So'nggi yangiliklar</h2>
+            <h2 className="section-title mr-auto text-[27px] font-black">{copy.latest}</h2>
             {categoryTabs.map(([item, href], index) => (
               <Link key={item} href={href} className={`home-filter-chip flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "is-active border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
             ))}
           </div>
           <div className="home-news-grid grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {latest.map((item) => <NewsCard key={item.id} article={item} />)}
+            {latest.map((item) => <NewsCard key={item.id} article={item} language={lang} />)}
           </div>
         </div>
       </section>
@@ -207,11 +260,11 @@ export default async function Home() {
                 <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                 <div className="relative flex min-h-[360px] flex-col justify-end p-7">
-                  <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{editorLead.category?.name}</span>
-                  <h2 className="max-w-2xl text-[30px] font-black leading-tight">Muharrir tanlovi: {editorLead.title}</h2>
+                  <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{categoryName(editorLead.category)}</span>
+                  <h2 className="max-w-2xl text-[30px] font-black leading-tight">{copy.editorChoice}: {editorLead.title}</h2>
                   <p className="mt-3 max-w-2xl text-[16px] leading-7 text-white/90">{editorLead.shortDescription || editorLead.summary}</p>
                   <span className="mt-5 flex h-11 w-fit items-center gap-3 rounded-md border border-white/45 px-5 text-sm font-black transition hover:bg-white hover:text-ink">
-                    Batafsil o'qish <ArrowRight size={17} />
+                    {copy.readMore} <ArrowRight size={17} />
                   </span>
                 </div>
               </Link>
@@ -220,9 +273,9 @@ export default async function Home() {
                   <Link key={item.id} href={`/articles/${item.slug}`} className="home-side-card home-editor-item news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                     <MediaView src={item.mainImage} className="home-side-media h-24 w-24 shrink-0 rounded-md object-cover sm:w-28" />
                     <div className="min-w-0">
-                      <span className="text-[12px] font-black uppercase text-brand">{item.category?.name}</span>
+                      <span className="text-[12px] font-black uppercase text-brand">{categoryName(item.category)}</span>
                       <h3 className="mt-2 line-clamp-2 text-[16px] font-black leading-snug">{item.title}</h3>
-                      <p className="mt-2 text-[13px] text-slate-500">{formatArticleDateTime(item.publishedAt)}</p>
+                      <p className="mt-2 text-[13px] text-slate-500">{formatArticleDateTime(item.publishedAt, lang)}</p>
                     </div>
                   </Link>
                 ))}
@@ -236,7 +289,7 @@ export default async function Home() {
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 className="text-[22px] font-black">{section.title}</h2>
                   <Link href={`/category/${section.slug}`} className="flex items-center gap-2 text-sm font-black text-brand">
-                    Barchasi <ArrowRight size={16} />
+                    {copy.all} <ArrowRight size={16} />
                   </Link>
                 </div>
                 <div className="grid gap-3">
@@ -263,13 +316,13 @@ export default async function Home() {
           {!!extraStream.length && (
             <section>
               <div className="home-section-head mb-4 flex items-center justify-between gap-3">
-                <h2 className="section-title text-[27px] font-black">Ko'proq yangiliklar</h2>
+                <h2 className="section-title text-[27px] font-black">{copy.moreNews}</h2>
                 <Link href="/search" className="home-outline-action flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
-                  Saralash <ArrowRight size={16} />
+                  {copy.filter} <ArrowRight size={16} />
                 </Link>
               </div>
               <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {extraStream.map((item) => <NewsCard key={item.id} article={item} />)}
+                {extraStream.map((item) => <NewsCard key={item.id} article={item} language={lang} />)}
               </div>
             </section>
           )}
@@ -278,17 +331,17 @@ export default async function Home() {
         <aside className="home-popular-rail hidden content-start gap-4 lg:sticky lg:top-24 lg:grid lg:self-start">
           <section className="home-popular-panel home-glass-panel news-shadow rounded-lg border border-slate-200 bg-white p-6">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-[22px] font-black">Eng ko'p o'qilganlar</h2>
+              <h2 className="text-[22px] font-black">{copy.popular}</h2>
               <TrendingUp className="text-brand" />
             </div>
             <div className="grid gap-4">
-              {!popularItems.length && <p className="home-empty-state rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">Oxirgi 4 kunda ko'p o'qilganlar hali yo'q.</p>}
+              {!popularItems.length && <p className="home-empty-state rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">{copy.noPopular}</p>}
               {popularItems.map((item, index) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className="home-rank-card grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                   <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <span>
                     <span className="line-clamp-2 text-[15px] font-black leading-snug">{item.title}</span>
-                    <span className="mt-1 block text-[13px] text-slate-500">{formatViews(item.viewsCount)}</span>
+                    <span className="mt-1 block text-[13px] text-slate-500">{formatViews(item.viewsCount, lang)}</span>
                   </span>
                 </Link>
               ))}

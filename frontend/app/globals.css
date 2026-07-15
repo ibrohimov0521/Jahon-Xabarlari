@@ -577,6 +577,220 @@ button.bg-white {
     rgba(5, 17, 33, 0.58) !important;
 }
 
+/* Admin action menus must fully cover the rows behind them. */
+.admin-menu-surface {
+  background: #f7fbff !important;
+  border-color: #cbd9ea !important;
+  color: #07132f;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 22px 54px rgba(15, 36, 64, 0.24) !important;
+  isolation: isolate;
+}
+
+:root[data-theme="dark"] .admin-menu-surface {
+  background: #0c1c2f !important;
+  border-color: #28445f !important;
+  color: #eaf1ff;
+  box-shadow: 0 24px 60px rgba(0, 5, 15, 0.62) !important;
+}
+
+.admin-security-status,
+.admin-security-section,
+.admin-security-recovery,
+.admin-security-danger {
+  border: 1px solid #c9d8e8;
+  border-radius: 8px;
+  background: #f7fbff;
+  color: #07132f;
+  padding: 16px;
+}
+
+.admin-security-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-security-status.is-disabled {
+  border-color: #e8cf84;
+  background: #fff9e8;
+}
+
+.admin-security-status.is-enabled {
+  border-color: #8cd2bd;
+  background: #effcf7;
+}
+
+.admin-security-status-icon,
+.admin-password-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: #e1effd;
+  color: #0867df;
+}
+
+.admin-security-status.is-disabled .admin-security-status-icon {
+  background: #ffe8a9;
+  color: #9a5a00;
+}
+
+.admin-security-status.is-enabled .admin-security-status-icon {
+  background: #d3f4e8;
+  color: #08775c;
+}
+
+.admin-security-status h4,
+.admin-security-section h4,
+.admin-security-recovery h4,
+.admin-security-danger h4 {
+  color: inherit;
+  font-weight: 900;
+}
+
+.admin-security-status p,
+.admin-security-section p,
+.admin-security-recovery p,
+.admin-security-danger p {
+  margin-top: 4px;
+  color: #50657d;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.admin-security-section {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-security-step {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #e3f0ff;
+  padding: 4px 9px;
+  color: #0867df;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-qr-frame {
+  display: grid;
+  width: min(224px, 100%);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #bed1e5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0867df;
+  box-shadow: 0 14px 34px rgba(7, 19, 47, 0.12);
+}
+
+.admin-qr-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.admin-secret-code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border: 1px solid #c9d8e8;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 9px 11px;
+  color: #0867df;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-security-recovery {
+  border-color: #e8cf84;
+  background: #fff9e8;
+}
+
+.admin-security-recovery code {
+  border: 1px solid #ead9a7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px;
+  color: #553b00;
+}
+
+.admin-security-danger {
+  display: grid;
+  gap: 14px;
+  border-color: #efb1b7;
+  background: #fff5f5;
+}
+
+.admin-security-danger h4 {
+  color: #b42332;
+}
+
+:root[data-theme="dark"] .admin-security-status,
+:root[data-theme="dark"] .admin-security-section,
+:root[data-theme="dark"] .admin-security-recovery,
+:root[data-theme="dark"] .admin-security-danger {
+  border-color: #29465f;
+  background: #0d2132;
+  color: #f4f8ff;
+}
+
+:root[data-theme="dark"] .admin-security-status.is-disabled {
+  border-color: #6f5b27;
+  background: #211f18;
+}
+
+:root[data-theme="dark"] .admin-security-status.is-enabled {
+  border-color: #245f54;
+  background: #102923;
+}
+
+:root[data-theme="dark"] .admin-security-status p,
+:root[data-theme="dark"] .admin-security-section p,
+:root[data-theme="dark"] .admin-security-recovery p,
+:root[data-theme="dark"] .admin-security-danger p {
+  color: #aec0d4;
+}
+
+:root[data-theme="dark"] .admin-security-step {
+  background: #113a63;
+  color: #8fc5ff;
+}
+
+:root[data-theme="dark"] .admin-secret-code {
+  border-color: #31516e;
+  background: #071725;
+  color: #87c4ff;
+}
+
+:root[data-theme="dark"] .admin-security-recovery {
+  border-color: #655628;
+  background: #211f18;
+}
+
+:root[data-theme="dark"] .admin-security-recovery code {
+  border-color: #5c5030;
+  background: #151914;
+  color: #ffe49a;
+}
+
+:root[data-theme="dark"] .admin-security-danger {
+  border-color: #71343d;
+  background: #2a151b;
+}
+
+:root[data-theme="dark"] .admin-security-danger h4 {
+  color: #ff9ca8;
+}
+
 .social-icon {
   display: grid;
   width: 26px;

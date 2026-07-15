@@ -24,6 +24,22 @@ function readingMinutes(content: string) {
   return Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 180));
 }
 
+function localizedArticleUrl(slug: string, lang: "uz" | "ru" | "en") {
+  const url = `${SITE_URL}/articles/${slug}`;
+  return lang === "uz" ? url : `${url}?lang=${lang}`;
+}
+
+const articleCopy = {
+  uz: { editorial: "tahririyati", read: "daqiqa o'qish", source: "Manba", continue: "Mavzuni davom ettiring", related: "O'xshash yangiliklar", all: "Barchasi", next: "Keyingi yangilik" },
+  ru: { editorial: "редакция", read: "мин. чтения", source: "Источник", continue: "Продолжить тему", related: "Похожие новости", all: "Все", next: "Следующая новость" },
+  en: { editorial: "editorial team", read: "min read", source: "Source", continue: "Continue this topic", related: "Related news", all: "All", next: "Next story" }
+} as const;
+
+const articleCategoryLabels: Record<"ru" | "en", Record<string, string>> = {
+  ru: { ozbekiston: "Узбекистан", dunyo: "Мир", siyosat: "Политика", iqtisodiyot: "Экономика", texnologiya: "Технологии", sport: "Спорт", madaniyat: "Культура" },
+  en: { ozbekiston: "Uzbekistan", dunyo: "World", siyosat: "Politics", iqtisodiyot: "Business", texnologiya: "Technology", sport: "Sport", madaniyat: "Culture" }
+};
+
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
   const lang = await getRequestLang();
@@ -31,20 +47,25 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   if (!article) return {};
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.shortDescription || article.summary;
-  const url = `${SITE_URL}/articles/${article.slug}`;
+  const url = localizedArticleUrl(article.slug, lang);
+  const baseUrl = `${SITE_URL}/articles/${article.slug}`;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
 
   return {
     title,
     description,
     keywords: article.seoKeywords?.split(",").map((item) => item.trim()).filter(Boolean),
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      languages: { uz: baseUrl, ru: `${baseUrl}?lang=ru`, en: `${baseUrl}?lang=en`, "x-default": baseUrl }
+    },
     openGraph: {
       title,
       description,
       url,
       type: "article",
       siteName: SITE_NAME,
+      locale: lang === "uz" ? "uz_UZ" : lang === "ru" ? "ru_RU" : "en_US",
       images: images.length ? images.map((image) => ({ url: image, alt: article.title })) : [{ url: SITE_OG_IMAGE, alt: SITE_NAME }],
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
@@ -61,7 +82,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const article = await getArticle(slug, lang);
   if (!article) notFound();
 
-  const articleUrl = `${SITE_URL}/articles/${article.slug}`;
+  const copy = articleCopy[lang];
+  const categoryName = lang === "uz" ? article.category?.name : articleCategoryLabels[lang][article.category?.slug ?? ""] ?? article.category?.name;
+  const articleUrl = localizedArticleUrl(article.slug, lang);
   const articleDescription = article.shortDescription || article.summary;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
   const [comments, context] = await Promise.all([getComments(article.id), getArticleContext(article.slug, lang)]);
@@ -83,6 +106,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             image: images.length ? images : undefined,
             datePublished: article.publishedAt,
             dateModified: article.updatedAt ?? article.publishedAt,
+            inLanguage: lang,
             mainEntityOfPage: articleUrl,
             author: article.author?.name
               ? { "@type": "Person", name: article.author.name }
@@ -100,16 +124,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <article className="container-page article-page max-w-5xl py-6 sm:py-9">
         <header className="article-detail-panel rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-8">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="article-category-badge">{article.category?.name}</span>
+            <span className="article-category-badge">{categoryName}</span>
             {tags.slice(0, 4).map((tag) => <span className="article-tag" key={tag.slug}>#{tag.name}</span>)}
           </div>
           <h1 className="article-title mt-4 text-[27px] font-black leading-tight sm:text-4xl lg:text-[44px]">{article.title}</h1>
           <p className="article-summary mt-4 text-base leading-7 sm:text-lg">{articleDescription}</p>
           <div className="article-trust-row mt-5">
-            <span><UserRound size={15} /> {article.author?.name || `${SITE_NAME} tahririyati`}</span>
-            <span><Clock3 size={15} /> {formatArticleDateTime(article.publishedAt)}</span>
-            <span><Eye size={15} /> {formatViews(article.viewsCount)}</span>
-            <span>{readTime} daqiqa o'qish</span>
+            <span><UserRound size={15} /> {article.author?.name || `${SITE_NAME} ${copy.editorial}`}</span>
+            <span><Clock3 size={15} /> {formatArticleDateTime(article.publishedAt, lang)}</span>
+            <span><Eye size={15} /> {formatViews(article.viewsCount, lang)}</span>
+            <span>{readTime} {copy.read}</span>
           </div>
           <ArticleActions articleId={article.id} title={article.title} url={articleUrl} />
         </header>
@@ -133,7 +157,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <div className="article-copy whitespace-pre-line">{article.content}</div>
           {(article.sourceName || article.sourceUrl) && (
             <div className="article-source mt-8">
-              <span>Manba</span>
+              <span>{copy.source}</span>
               {article.sourceUrl ? (
                 <a href={article.sourceUrl} target="_blank" rel="nofollow noreferrer">{article.sourceName || new URL(article.sourceUrl).hostname}</a>
               ) : <strong>{article.sourceName}</strong>}
@@ -146,20 +170,20 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <section className="mt-9" aria-labelledby="related-title">
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase text-brand">Mavzuni davom ettiring</p>
-                <h2 id="related-title" className="mt-1 text-2xl font-black">O'xshash yangiliklar</h2>
+                <p className="text-xs font-black uppercase text-brand">{copy.continue}</p>
+                <h2 id="related-title" className="mt-1 text-2xl font-black">{copy.related}</h2>
               </div>
-              {article.category?.slug && <Link href={`/category/${article.category.slug}`} className="hidden items-center gap-2 text-sm font-black text-brand sm:inline-flex">Barchasi <ArrowRight size={16} /></Link>}
+              {article.category?.slug && <Link href={`/category/${article.category.slug}`} className="hidden items-center gap-2 text-sm font-black text-brand sm:inline-flex">{copy.all} <ArrowRight size={16} /></Link>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {context.related.slice(0, 6).map((item) => <NewsCard article={item} key={item.id} />)}
+              {context.related.slice(0, 6).map((item) => <NewsCard article={item} language={lang} key={item.id} />)}
             </div>
           </section>
         )}
 
         {context.next && (
           <Link href={`/articles/${context.next.slug}`} className="article-next mt-7">
-            <span><small>Keyingi yangilik</small><strong>{context.next.title}</strong></span>
+            <span><small>{copy.next}</small><strong>{context.next.title}</strong></span>
             <ArrowRight size={22} />
           </Link>
         )}

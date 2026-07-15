@@ -3,21 +3,28 @@
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef } from "react";
+import { useUi } from "../lib/ui-context";
 
-const CATEGORIES: [string, string][] = [
-  ["", "Barcha bo'limlar"],
-  ["ozbekiston", "O'zbekiston"],
-  ["dunyo", "Dunyo"],
-  ["siyosat", "Siyosat"],
-  ["iqtisodiyot", "Iqtisodiyot"],
-  ["texnologiya", "Texnologiya"],
-  ["sport", "Sport"],
-  ["madaniyat", "Madaniyat"]
-];
+const copy = {
+  uz: { search: "Yangilik qidirish", all: "Barcha bo'limlar", latest: "Eng yangilari", popular: "Ko'p o'qilganlar" },
+  ru: { search: "Поиск новостей", all: "Все разделы", latest: "Сначала новые", popular: "Самые читаемые" },
+  en: { search: "Search news", all: "All categories", latest: "Latest", popular: "Most read" }
+} as const;
 
 export function SearchFilterForm({ q, category, sort }: { q: string; category: string; sort: string }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const { language, t } = useUi();
+  const categories: [string, string][] = [
+    ["", copy[language].all],
+    ["ozbekiston", t.nav.uzbekistan],
+    ["dunyo", t.nav.world],
+    ["siyosat", t.nav.politics],
+    ["iqtisodiyot", t.nav.economy],
+    ["texnologiya", t.nav.technology],
+    ["sport", t.nav.sport],
+    ["madaniyat", t.nav.culture]
+  ];
 
   function submitNow() {
     if (!formRef.current) return;
@@ -44,7 +51,7 @@ export function SearchFilterForm({ q, category, sort }: { q: string; category: s
           name="q"
           defaultValue={q}
           className="h-12 min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:text-slate-400"
-          placeholder="Yangilik qidirish"
+          placeholder={copy[language].search}
         />
       </label>
       <select
@@ -53,7 +60,7 @@ export function SearchFilterForm({ q, category, sort }: { q: string; category: s
         onChange={submitNow}
         className="h-12 rounded-xl border border-slate-200 bg-white px-3 font-bold text-ink outline-none"
       >
-        {CATEGORIES.map(([value, label]) => (
+        {categories.map(([value, label]) => (
           <option key={value} value={value}>
             {label}
           </option>
@@ -65,8 +72,8 @@ export function SearchFilterForm({ q, category, sort }: { q: string; category: s
         onChange={submitNow}
         className="h-12 rounded-xl border border-slate-200 bg-white px-3 font-bold text-ink outline-none"
       >
-        <option value="latest">Eng yangilari</option>
-        <option value="popular">Ko'p o'qilganlar</option>
+        <option value="latest">{copy[language].latest}</option>
+        <option value="popular">{copy[language].popular}</option>
       </select>
     </form>
   );

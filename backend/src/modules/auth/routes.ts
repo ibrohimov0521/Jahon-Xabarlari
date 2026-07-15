@@ -9,9 +9,9 @@ import { prisma } from "../../config/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import {
   generateRecoveryCodes,
-  generateTotpSecret,
   hashRecoveryCode,
   openTotpSecret,
+  resolveTotpSetupSecret,
   sealTotpSecret,
   totpUri,
   verifyTotp
@@ -25,6 +25,14 @@ const loginSchema = z.object({
   otp: z.string().trim().max(32).optional()
 });
 const refreshBodySchema = z.object({ refreshToken: z.string().max(4_096).optional() });
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8).max(128),
+  newPassword: z.string().min(12).max(128)
+    .regex(/[a-z]/, "Yangi parolda kichik harf bo'lishi kerak")
+    .regex(/[A-Z]/, "Yangi parolda katta harf bo'lishi kerak")
+    .regex(/\d/, "Yangi parolda raqam bo'lishi kerak"),
+  code: z.string().trim().max(32).optional()
+});
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60_000,
@@ -49,6 +57,14 @@ const twoFactorLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Tasdiqlash urinishlari ko'payib ketdi. Keyinroq qayta urinib ko'ring" }
+});
+
+const accountSecurityLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Xavfsizlik amallari ko'payib ketdi. Keyinroq qayta urinib ko'ring" }
 });
 
 // Constant-time compare so a mismatched bot secret can't be recovered by timing the response.
@@ -209,17 +225,21 @@ authRouter.post("/2fa/setup", twoFactorLimiter, requireAuth, async (req, res) =>
   const { password } = z.object({ password: z.string().min(8).max(128) }).parse(req.body);
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: req.user!.id },
-    select: { email: true, passwordHash: true, twoFactorEnabled: true }
+    select: { email: true, passwordHash: true, twoFactorEnabled: true, twoFactorSecret: true }
   });
   if (user.twoFactorEnabled) return res.status(409).json({ message: "Ikki bosqichli himoya allaqachon yoqilgan" });
   if (!(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ message: "Joriy parol noto'g'ri" });
-  const secret = generateTotpSecret();
-  await prisma.user.update({
-    where: { id: req.user!.id },
-    data: { twoFactorSecret: sealTotpSecret(secret, env.JWT_REFRESH_SECRET), twoFactorRecoveryHashes: [] }
-  });
-  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "AUTH_2FA_SETUP_STARTED", entity: "User", entityId: req.user!.id, ip: req.ip } });
-  res.json({ secret, uri: totpUri(secret, user.email) });
+  const { secret, resumed } = resolveTotpSetupSecret(user.twoFactorSecret, env.JWT_REFRESH_SECRET);
+  if (!resumed) {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user!.id },
+        data: { twoFactorSecret: sealTotpSecret(secret, env.JWT_REFRESH_SECRET), twoFactorRecoveryHashes: [] }
+      }),
+      prisma.auditLog.create({ data: { userId: req.user!.id, action: "AUTH_2FA_SETUP_STARTED", entity: "User", entityId: req.user!.id, ip: req.ip } })
+    ]);
+  }
+  res.json({ secret, uri: totpUri(secret, user.email), resumed });
 });
 
 authRouter.post("/2fa/enable", twoFactorLimiter, requireAuth, async (req, res) => {
@@ -265,4 +285,30 @@ authRouter.post("/2fa/disable", twoFactorLimiter, requireAuth, async (req, res) 
   ]);
   res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
   res.json({ enabled: false, reauthenticate: true });
+});
+
+authRouter.post("/password/change", accountSecurityLimiter, requireTrustedOrigin, requireAuth, async (req, res) => {
+  const data = changePasswordSchema.parse(req.body);
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: req.user!.id },
+    select: { id: true, passwordHash: true, twoFactorEnabled: true, twoFactorSecret: true, twoFactorRecoveryHashes: true }
+  });
+  if (!(await bcrypt.compare(data.currentPassword, user.passwordHash))) {
+    return res.status(401).json({ message: "Joriy parol noto'g'ri" });
+  }
+  if (await bcrypt.compare(data.newPassword, user.passwordHash)) {
+    return res.status(409).json({ message: "Yangi parol joriy paroldan farq qilishi kerak" });
+  }
+  if (user.twoFactorEnabled && (!data.code || !(await verifySecondFactor(user, data.code)))) {
+    return res.status(401).json({ message: "Authenticator yoki tiklash kodi noto'g'ri" });
+  }
+
+  const passwordHash = await bcrypt.hash(data.newPassword, 12);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+    prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    prisma.auditLog.create({ data: { userId: user.id, action: "AUTH_PASSWORD_CHANGED", entity: "User", entityId: user.id, ip: req.ip } })
+  ]);
+  res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
+  res.json({ changed: true, reauthenticate: true });
 });

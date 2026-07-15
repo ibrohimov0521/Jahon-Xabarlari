@@ -142,27 +142,18 @@ type UiContextValue = {
 
 const UiContext = createContext<UiContextValue | null>(null);
 
-export function UiProvider({ children }: { children: ReactNode }) {
+export function UiProvider({ children, initialLanguage = "uz" }: { children: ReactNode; initialLanguage?: Language }) {
   const router = useRouter();
-  const [language, setLanguageState] = useState<Language>("uz");
+  const [language, setLanguageState] = useState<Language>(initialLanguage);
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const storedLanguage = localStorage.getItem("language") as Language | null;
     const storedTheme = localStorage.getItem("theme") as Theme | null;
-    if (storedLanguage && dictionaries[storedLanguage]) {
-      setLanguageState(storedLanguage);
-      // Backfill the cookie for users who picked a language before cookie-based SSR
-      // translation existed, so the very next server render already matches. The current
-      // page was just SSR'd against the (missing/stale) cookie, so refresh it now too --
-      // otherwise server-rendered content stays in the wrong language until the next navigation.
-      if (!document.cookie.includes(`lang=${storedLanguage}`)) {
-        document.cookie = `lang=${storedLanguage}; path=/; max-age=31536000`;
-        router.refresh();
-      }
-    }
+    setLanguageState(initialLanguage);
+    localStorage.setItem("language", initialLanguage);
+    document.documentElement.lang = initialLanguage;
     if (storedTheme === "dark" || storedTheme === "light") setTheme(storedTheme);
-  }, []);
+  }, [initialLanguage]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -186,7 +177,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
       setTheme((current) => (current === "dark" ? "light" : "dark"));
     },
     t: dictionaries[language]
-  }), [language, theme]);
+  }), [language, router, theme]);
 
   return <UiContext.Provider value={value}>{children}</UiContext.Provider>;
 }

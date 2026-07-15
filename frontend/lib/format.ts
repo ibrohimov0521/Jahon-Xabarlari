@@ -1,17 +1,22 @@
 const TASHKENT_TIME_ZONE = "Asia/Tashkent";
 
-export function formatArticleDateTime(value?: string | null) {
-  if (!value) return "Sana kiritilmagan";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Sana kiritilmagan";
+type Language = "uz" | "ru" | "en";
 
-  const dateText = new Intl.DateTimeFormat("uz-UZ", {
+const locales: Record<Language, string> = { uz: "uz-UZ", ru: "ru-RU", en: "en-GB" };
+const missingDate: Record<Language, string> = { uz: "Sana kiritilmagan", ru: "Дата не указана", en: "Date not provided" };
+
+export function formatArticleDateTime(value?: string | null, language: Language = "uz") {
+  if (!value) return missingDate[language];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return missingDate[language];
+
+  const dateText = new Intl.DateTimeFormat(locales[language], {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: TASHKENT_TIME_ZONE
   }).format(date);
-  const timeText = new Intl.DateTimeFormat("uz-UZ", {
+  const timeText = new Intl.DateTimeFormat(locales[language], {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -21,14 +26,13 @@ export function formatArticleDateTime(value?: string | null) {
   return `${dateText} • ${timeText}`;
 }
 
-// Compact metadata for dense mobile cards: "10-iyl • 14:26" (no year).
-export function formatDateCompact(value?: string | null) {
+export function formatDateCompact(value?: string | null, language: Language = "uz") {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const d = new Intl.DateTimeFormat("uz-UZ", { day: "numeric", month: "short", timeZone: TASHKENT_TIME_ZONE }).format(date);
-  const t = new Intl.DateTimeFormat("uz-UZ", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TASHKENT_TIME_ZONE }).format(date);
-  return `${d} • ${t}`;
+  const dateText = new Intl.DateTimeFormat(locales[language], { day: "numeric", month: "short", timeZone: TASHKENT_TIME_ZONE }).format(date);
+  const timeText = new Intl.DateTimeFormat(locales[language], { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TASHKENT_TIME_ZONE }).format(date);
+  return `${dateText} • ${timeText}`;
 }
 
 export function formatViewsCompact(count = 0) {
@@ -37,11 +41,13 @@ export function formatViewsCompact(count = 0) {
   return (thousands >= 10 ? Math.round(thousands).toString() : thousands.toFixed(1).replace(".", ",")) + "K";
 }
 
-export function formatViews(count = 0) {
-  if (count < 1000) return `${count} ko'rish`;
+export function formatViews(count = 0, language: Language = "uz") {
+  const viewLabel = language === "uz" ? "ko'rish" : language === "ru" ? "просмотров" : "views";
+  if (count < 1000) return `${count} ${viewLabel}`;
   const thousands = count / 1000;
   const rounded = thousands >= 10 ? Math.round(thousands).toString() : thousands.toFixed(1).replace(".", ",");
-  return `${rounded} ming ko'rish`;
+  const thousandLabel = language === "uz" ? "ming ko'rish" : language === "ru" ? "тыс. просмотров" : "K views";
+  return `${rounded} ${thousandLabel}`;
 }
 
 export function getTashkentDateParts(date = new Date()) {

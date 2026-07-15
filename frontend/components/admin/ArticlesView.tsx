@@ -310,7 +310,7 @@ export function ArticlesView({
                         <MoreVertical size={16} />
                       </button>
                       {openStatusId === item.id && (
-                        <div className="absolute right-0 top-12 z-[160] w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
+                        <div className="admin-menu-surface absolute right-0 top-12 z-[160] w-72 overflow-hidden rounded-xl border p-2 shadow-2xl">
                           {scheduleTargetId === item.id ? (
                             <div className="p-2">
                               <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Nashr sanasini belgilang</div>

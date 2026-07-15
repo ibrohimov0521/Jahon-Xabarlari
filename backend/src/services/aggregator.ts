@@ -6,6 +6,7 @@ import slugify from "slugify";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
+import { buildSeoDescription, buildSeoTitle } from "../utils/seo.js";
 import { extractFallbackFeedMedia, extractPrimaryFeedMedia, resolveArticleMedia } from "./aggregator-media.js";
 import { inspectArticleQuality, normalizeArticleTags } from "./article-quality.js";
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
@@ -286,6 +287,8 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
       slug,
       summary,
       content: parsed.content,
+      seoTitle: buildSeoTitle(parsed.title),
+      seoDescription: buildSeoDescription(null, summary),
       categoryId: category.id,
       authorId,
       status,

@@ -1,12 +1,43 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Paperclip, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest, uploadAdminMedia } from "../../lib/admin-api";
+import { MediaView } from "../MediaView";
 import { ARTICLE_STATUSES, type Article, type ArticleFlags, type ArticleFormState, type Category, FLAG_LABELS, emptyArticleForm } from "./types";
 import { Button, ErrorBanner, Input, Panel, Select, Textarea, Toggle } from "./ui";
 
 const EDITOR_STATUSES = ARTICLE_STATUSES.filter((status) => status !== "SCHEDULED");
+
+function trimSeoText(value: string, maxLength: number) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= maxLength) return normalized;
+  const shortened = normalized.slice(0, maxLength + 1);
+  const lastSpace = shortened.lastIndexOf(" ");
+  return `${shortened.slice(0, lastSpace > maxLength * 0.65 ? lastSpace : maxLength).trim()}...`;
+}
+
+function automaticSeoTitle(title: string) {
+  return trimSeoText(title, 68);
+}
+
+function automaticSeoDescription(shortDescription: string, summary: string) {
+  return trimSeoText(shortDescription.trim() || summary, 160);
+}
+
+function updateWithAutomaticSeo(current: ArticleFormState, updates: Partial<ArticleFormState>): ArticleFormState {
+  const currentAutoTitle = automaticSeoTitle(current.title);
+  const currentAutoDescription = automaticSeoDescription(current.shortDescription, current.summary);
+  const next = { ...current, ...updates };
+  return {
+    ...next,
+    seoTitle: !current.seoTitle.trim() || current.seoTitle === currentAutoTitle ? automaticSeoTitle(next.title) : current.seoTitle,
+    seoDescription:
+      !current.seoDescription.trim() || current.seoDescription === currentAutoDescription
+        ? automaticSeoDescription(next.shortDescription, next.summary)
+        : current.seoDescription
+  };
+}
 
 function toFormState(article: Article): ArticleFormState {
   return {
@@ -19,8 +50,8 @@ function toFormState(article: Article): ArticleFormState {
     categoryId: article.categoryId ?? "",
     extraCategoryIds: article.extraCategoryIds ?? [],
     status: article.status,
-    seoTitle: article.seoTitle ?? "",
-    seoDescription: article.seoDescription ?? "",
+    seoTitle: article.seoTitle?.trim() || automaticSeoTitle(article.title),
+    seoDescription: article.seoDescription?.trim() || automaticSeoDescription(article.shortDescription ?? "", article.summary),
     isBreaking: article.isBreaking,
     isFeatured: article.isFeatured,
     isEditorChoice: article.isEditorChoice,
@@ -80,10 +111,15 @@ export function ArticleEditor({
     setSaving(true);
     setError("");
     try {
+      const payload: ArticleFormState = {
+        ...form,
+        seoTitle: form.seoTitle.trim() || automaticSeoTitle(form.title),
+        seoDescription: form.seoDescription.trim() || automaticSeoDescription(form.shortDescription, form.summary)
+      };
       if (articleId) {
-        await adminRequest(`/admin/articles/${articleId}`, { method: "PUT", body: JSON.stringify(form) });
+        await adminRequest(`/admin/articles/${articleId}`, { method: "PUT", body: JSON.stringify(payload) });
       } else {
-        await adminRequest("/admin/articles", { method: "POST", body: JSON.stringify(form) });
+        await adminRequest("/admin/articles", { method: "POST", body: JSON.stringify(payload) });
       }
       onSaved();
     } catch (err) {
@@ -119,7 +155,7 @@ export function ArticleEditor({
           content: form.content
         })
       });
-      setForm((current) => ({ ...current, shortDescription: result.shortDescription }));
+      setForm((current) => updateWithAutomaticSeo(current, { shortDescription: result.shortDescription }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI qisqa izoh yaratilmadi");
     } finally {
@@ -140,10 +176,15 @@ export function ArticleEditor({
       <Panel title={articleId ? "Maqolani tahrirlash" : "Yangi maqola"}>
         <ErrorBanner message={error} />
         <div className="grid gap-4">
-          <Input label="Sarlavha" value={form.title} onChange={(value) => setForm({ ...form, title: value })} />
-          <Input label="Qisqa tavsif" value={form.summary} onChange={(value) => setForm({ ...form, summary: value })} />
+          <Input label="Sarlavha" value={form.title} onChange={(value) => setForm((current) => updateWithAutomaticSeo(current, { title: value }))} />
+          <Input label="Qisqa tavsif" value={form.summary} onChange={(value) => setForm((current) => updateWithAutomaticSeo(current, { summary: value }))} />
           <div className="grid gap-2">
-            <Input label="AI qisqa izoh" value={form.shortDescription} onChange={(value) => setForm({ ...form, shortDescription: value })} required={false} />
+            <Input
+              label="AI qisqa izoh"
+              value={form.shortDescription}
+              onChange={(value) => setForm((current) => updateWithAutomaticSeo(current, { shortDescription: value }))}
+              required={false}
+            />
             <button
               type="button"
               onClick={generateShortDescription}
@@ -157,19 +198,53 @@ export function ArticleEditor({
           <Textarea label="Asosiy matn" value={form.content} onChange={(value) => setForm({ ...form, content: value })} rows={12} />
           <div className="grid gap-2">
             <Input label="Rasm/video URL" value={form.mainImage} onChange={(value) => setForm({ ...form, mainImage: value })} required={false} />
-            <label className="flex cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-black transition hover:border-brand hover:text-brand">
-              {uploading ? "Fayl yuklanmoqda..." : "Fayl biriktirish (rasm/video)"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
-                className="hidden"
-                disabled={uploading}
-                onChange={(event) => uploadMainFile(event.target.files?.[0])}
-              />
-            </label>
+            {form.mainImage ? (
+              <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-950/95 p-2">
+                <MediaView
+                  src={form.mainImage}
+                  alt={form.title || "Maqola media fayli"}
+                  className="mx-auto max-h-72 w-full rounded-md object-contain"
+                  videoClassName="mx-auto max-h-72 w-full rounded-md bg-black object-contain"
+                  optimizedWidth={1200}
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, mainImage: "" }))}
+                  className="absolute right-3 top-3 grid size-9 place-items-center rounded-full border border-white/20 bg-slate-950/85 text-white shadow-lg transition hover:bg-red-600"
+                  aria-label="Media faylni olib tashlash"
+                  title="Media faylni olib tashlash"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex h-9 w-fit cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 transition hover:border-brand hover:text-brand">
+                <Paperclip size={15} />
+                {uploading ? "Yuklanmoqda..." : "Fayl tanlash"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    void uploadMainFile(file);
+                  }}
+                />
+              </label>
+              <span className="text-xs font-semibold text-slate-500">JPG, PNG, WebP, GIF, MP4, WebM yoki MOV</span>
+            </div>
           </div>
-          <Input label="SEO sarlavha" value={form.seoTitle} onChange={(value) => setForm({ ...form, seoTitle: value })} required={false} />
-          <Input label="SEO tavsif" value={form.seoDescription} onChange={(value) => setForm({ ...form, seoDescription: value })} required={false} />
+          <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+            <div>
+              <p className="text-sm font-black text-slate-800">SEO</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">Sarlavha va tavsifdan avtomatik to'ladi. Kerak bo'lsa qo'lda o'zgartirish mumkin.</p>
+            </div>
+            <Input label="SEO sarlavha" value={form.seoTitle} onChange={(value) => setForm({ ...form, seoTitle: value })} required={false} />
+            <Input label="SEO tavsif" value={form.seoDescription} onChange={(value) => setForm({ ...form, seoDescription: value })} required={false} />
+          </div>
         </div>
       </Panel>
       <Panel title="Ko'rinishi">

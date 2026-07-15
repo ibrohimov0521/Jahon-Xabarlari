@@ -35,7 +35,7 @@ import { ReportsView } from "../../components/admin/ReportsView";
 import { SecurityView } from "../../components/admin/SecurityView";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
-import { Button, ErrorBanner, Input, LoadingBlock, Toast } from "../../components/admin/ui";
+import { Button, ErrorBanner, IconButton, Input, LoadingBlock, Toast } from "../../components/admin/ui";
 import {
   AdminApiError,
   adminRequest,
@@ -75,7 +75,6 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [sessionNotice, setSessionNotice] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "", otp: "" });
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
@@ -262,7 +261,6 @@ export default function AdminPage() {
 
   async function selectView(nextView: View) {
     setView(nextView);
-    setMobileMenuOpen(false);
     if (nextView === "new") setEditingArticleId(null);
     if (nextView !== "articles") {
       setArticleStatusFilter("");
@@ -450,12 +448,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 text-ink lg:flex">
-      {mobileMenuOpen && <button aria-label="Menyuni yopish" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-30 bg-black/40 lg:hidden" />}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-ink p-6 text-white transition-transform duration-200 lg:static lg:min-h-screen lg:translate-x-0 ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <aside className="hidden w-72 shrink-0 bg-ink p-6 text-white lg:block lg:min-h-screen">
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
           <div className="flex items-center gap-1">
@@ -464,9 +457,6 @@ export default function AdminPage() {
             </button>
             <button onClick={handleLogout} className="rounded-md p-2 hover:bg-white/10" title="Chiqish">
               <LogOut size={20} />
-            </button>
-            <button onClick={() => setMobileMenuOpen(false)} className="rounded-md p-2 hover:bg-white/10 lg:hidden" title="Yopish">
-              <X size={20} />
             </button>
           </div>
         </div>
@@ -492,9 +482,7 @@ export default function AdminPage() {
       <section className="flex-1">
         <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMobileMenuOpen(true)} className="rounded-md border border-slate-200 p-2 lg:hidden" aria-label="Menyuni ochish">
-              <Menu size={20} />
-            </button>
+            <Image src={SITE_LOGO} alt="" width={44} height={44} priority className="h-10 w-10 rounded-md object-contain lg:hidden" />
             <div>
               <h2 className="text-xl font-black sm:text-2xl">{currentTitle}</h2>
               <p className="hidden text-sm text-slate-500 sm:block">
@@ -503,21 +491,27 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => refreshAll(view)} icon={<RefreshCcw size={18} />}>
+            <Button variant="secondary" className="hidden lg:inline-flex" onClick={() => refreshAll(view)} icon={<RefreshCcw size={18} />}>
               Yangilash
             </Button>
-            <Button
+            <IconButton
+              variant="secondary"
+              className="lg:hidden"
+              onClick={() => refreshAll(view)}
+              icon={<RefreshCcw size={18} />}
+              label="Yangilash"
+            />
+            <IconButton
               variant="secondary"
               className="lg:hidden"
               onClick={toggleTheme}
               icon={theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            >
-              {theme === "dark" ? "Kunduz" : "Tun"}
-            </Button>
+              label={theme === "dark" ? "Kunduzgi rejim" : "Tungi rejim"}
+            />
           </div>
         </header>
 
-        <div className="p-4 sm:p-5">
+        <div className="p-4 pb-24 sm:p-5 sm:pb-24 lg:pb-5">
           <ErrorBanner message={error} />
           <Toast message={message} onClose={() => setMessage("")} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}
@@ -629,6 +623,180 @@ export default function AdminPage() {
           {view === "security" && <SecurityView onReauthenticate={() => { void handleLogout(); setSessionNotice("Xavfsizlik sozlamasi o'zgardi. Qaytadan kiring."); }} />}
         </div>
       </section>
+
+      <AdminMobileNav
+        view={view}
+        theme={theme}
+        onSelect={(nextView) => { void selectView(nextView); }}
+        onToggleTheme={toggleTheme}
+        onLogout={() => { void handleLogout(); }}
+      />
     </main>
+  );
+}
+
+const mobilePrimaryMenu: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "dashboard", label: "Asosiy", icon: LayoutDashboard },
+  { id: "articles", label: "Yangiliklar", icon: Newspaper },
+  { id: "new", label: "Yangi", icon: FilePlus2 },
+  { id: "comments", label: "Izohlar", icon: MessageCircle }
+];
+
+const mobilePrimaryIds = new Set<View>(["dashboard", "articles", "new", "comments"]);
+const mobileMoreMenu = menu.filter((item) => !mobilePrimaryIds.has(item.id));
+
+function AdminMobileNav({
+  view,
+  theme,
+  onSelect,
+  onToggleTheme,
+  onLogout
+}: {
+  view: View;
+  theme: string;
+  onSelect: (view: View) => void;
+  onToggleTheme: () => void;
+  onLogout: () => void;
+}) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [moreOpen]);
+
+  const select = (nextView: View) => {
+    setMoreOpen(false);
+    onSelect(nextView);
+  };
+
+  const isActive = (id: View) => {
+    if (id === "dashboard") return view === "dashboard" || view === "stats";
+    if (id === "articles") return view === "articles" || view === "edit" || view === "preview";
+    return view === id;
+  };
+
+  const moreActive = moreOpen || (!mobilePrimaryIds.has(view) && view !== "edit" && view !== "preview" && view !== "stats");
+
+  return (
+    <>
+      {moreOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[70] bg-slate-950/65 backdrop-blur-sm lg:hidden"
+            onClick={() => setMoreOpen(false)}
+            aria-label="Admin menyusini yopish"
+          />
+          <section
+            id="admin-mobile-more"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Boshqa admin bo'limlari"
+            className="fixed inset-x-3 z-[90] max-h-[68dvh] overflow-y-auto rounded-lg border border-cyan-300/20 bg-[#071827] p-3 text-white shadow-2xl shadow-black/50 lg:hidden"
+            style={{ bottom: "calc(4.9rem + env(safe-area-inset-bottom))" }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <p className="text-sm font-black">Admin bo'limlari</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-400">Boshqaruv va xavfsizlik vositalari</p>
+              </div>
+              <IconButton
+                icon={<X size={18} />}
+                label="Menyuni yopish"
+                variant="ghost"
+                className="text-slate-300 hover:bg-white/10 hover:text-white"
+                onClick={() => setMoreOpen(false)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {mobileMoreMenu.map(({ id, label, icon: Icon }) => (
+                <button
+                  type="button"
+                  key={id}
+                  onClick={() => select(id)}
+                  className={`flex min-h-14 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-black transition ${
+                    isActive(id)
+                      ? "border-brand bg-brand text-white"
+                      : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-300/30 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  <Icon size={18} className="shrink-0" />
+                  <span className="min-w-0 leading-4">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="flex h-11 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.04] text-xs font-black text-slate-200 transition hover:bg-white/[0.08]"
+              >
+                {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+                {theme === "dark" ? "Kunduz" : "Tun"}
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex h-11 items-center justify-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 text-xs font-black text-red-300 transition hover:bg-red-500/20"
+              >
+                <LogOut size={17} />
+                Chiqish
+              </button>
+            </div>
+          </section>
+        </>
+      )}
+
+      <nav
+        className="fixed inset-x-3 z-[100] grid h-16 grid-cols-5 overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#071827]/95 px-1 text-slate-400 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden"
+        style={{ bottom: "max(0.7rem, env(safe-area-inset-bottom))" }}
+        aria-label="Admin mobil navigatsiyasi"
+      >
+        {mobilePrimaryMenu.map(({ id, label, icon: Icon }) => {
+          const active = isActive(id);
+          return (
+            <button
+              type="button"
+              key={id}
+              onClick={() => select(id)}
+              className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md transition ${
+                active ? "bg-brand/15 text-white" : "hover:bg-white/[0.05] hover:text-slate-200"
+              }`}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon size={id === "new" ? 22 : 20} className={active || id === "new" ? "text-blue-400" : ""} />
+              <span className="max-w-full truncate px-1 text-[10px] font-black leading-none">{label}</span>
+              {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-400" />}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setMoreOpen((open) => !open)}
+          className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md transition ${
+            moreActive ? "bg-brand/15 text-white" : "hover:bg-white/[0.05] hover:text-slate-200"
+          }`}
+          aria-expanded={moreOpen}
+          aria-controls="admin-mobile-more"
+        >
+          <Menu size={20} className={moreActive ? "text-blue-400" : ""} />
+          <span className="text-[10px] font-black leading-none">Boshqa</span>
+          {moreActive && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-400" />}
+        </button>
+      </nav>
+    </>
   );
 }

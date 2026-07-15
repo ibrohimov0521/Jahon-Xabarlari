@@ -1,9 +1,13 @@
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.jahonxabarlari.uz").replace(/\/$/, "");
+const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://jahonxabarlari.uz";
+
+export const SITE_URL = configuredSiteUrl
+  .replace(/^http:\/\/(?:www\.)?jahonxabarlari\.uz/i, "https://jahonxabarlari.uz")
+  .replace(/^https:\/\/www\.jahonxabarlari\.uz/i, "https://jahonxabarlari.uz")
+  .replace(/\/$/, "");
 
 export const SITE_NAME = "Jahon Xabarlari";
 export const SITE_FULL_NAME = "Jahon Xabarlari";
 export const SITE_ALTERNATE_NAME = "JX";
-export const SITE_DOMAIN_NAME = "jahonxabarlari.uz";
 export const SITE_TAGLINE = "Yangilik. AI. Hayot.";
 export const SITE_TITLE = "Jahon Xabarlari - O'zbekiston va Dunyo Yangiliklari";
 export const SITE_DESCRIPTION = "Jahon Xabarlari - O'zbekiston va dunyodagi eng muhim yangiliklarni tezkor, ishonchli va xolis yorituvchi yangiliklar portali.";

@@ -1,8 +1,8 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, X } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Shared form/action primitives. Every admin button and field should come from
@@ -122,7 +122,7 @@ export function SuccessBanner({ message }: { message: string }) {
 export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   if (!message) return null;
   return (
-    <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-md rounded-lg border border-green-200 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-900/20 sm:inset-x-auto sm:right-6 sm:mx-0">
+    <div className="fixed inset-x-4 bottom-20 z-[110] mx-auto max-w-md rounded-lg border border-green-200 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-900/20 sm:inset-x-auto sm:right-6 sm:mx-0 lg:bottom-5">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-green-50 text-green-700">
           <CheckCircle2 size={20} />
@@ -162,18 +162,38 @@ export function Input({
   required?: boolean;
   placeholder?: string;
 }) {
+  const inputId = useId();
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const isPassword = type === "password";
+  const resolvedType = isPassword && passwordVisible ? "text" : type;
+
   return (
-    <label className="grid gap-2 text-sm font-bold">
-      {label}
-      <input
-        className="rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        type={type}
-        required={required}
-        placeholder={placeholder}
-      />
-    </label>
+    <div className="grid gap-2 text-sm font-bold">
+      <label htmlFor={inputId}>{label}</label>
+      <div className="relative">
+        <input
+          id={inputId}
+          className={`w-full rounded-md border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-brand ${isPassword ? "pr-12" : ""}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          type={resolvedType}
+          required={required}
+          placeholder={placeholder}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setPasswordVisible((visible) => !visible)}
+            className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+            aria-label={passwordVisible ? "Parolni yashirish" : "Parolni ko'rsatish"}
+            title={passwordVisible ? "Parolni yashirish" : "Parolni ko'rsatish"}
+            aria-pressed={passwordVisible}
+          >
+            {passwordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

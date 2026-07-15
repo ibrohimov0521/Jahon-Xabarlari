@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SITE_LOGO, SITE_NAME } from "../lib/site";
 import { SubscribeBox } from "./SubscribeBox";
 
@@ -13,6 +16,10 @@ const info = [
 ];
 
 export function SiteFooter() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) return null;
+
   return (
     <footer className="site-footer">
       <div className="container-page site-footer-bar">

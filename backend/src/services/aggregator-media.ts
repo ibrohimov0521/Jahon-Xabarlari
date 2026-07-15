@@ -215,7 +215,7 @@ async function fetchPageMedia(link: string) {
   try {
     const response = await safeFetch(link, {
       signal: controller.signal,
-      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)" }
+      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://jahonxabarlari.uz)" }
     });
     if (!response.ok) return null;
     const html = await readTextResponse(response, 500_000);

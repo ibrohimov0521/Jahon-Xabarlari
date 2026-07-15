@@ -73,7 +73,7 @@ export default function BottomNav() {
   const { sheet, setSheet } = useNav();
 
   useEffect(() => {
-    if (!sheet) return;
+    if (pathname.startsWith("/admin") || !sheet) return;
     const prev = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSheet(null);
@@ -86,7 +86,9 @@ export default function BottomNav() {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [setSheet, sheet]);
+  }, [pathname, setSheet, sheet]);
+
+  if (pathname.startsWith("/admin")) return null;
 
   // Only ONE tab is active at a time. While the Search overlay is open, Search
   // owns the active state; otherwise it follows the current page / open sheet.

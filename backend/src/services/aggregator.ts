@@ -175,7 +175,7 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
     // parser.parseURL, which would fetch the editor-supplied URL directly with no host checks.
     const response = await safeFetch(source.feedUrl, {
       signal: controller.signal,
-      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://www.jahonxabarlari.uz)" }
+      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://jahonxabarlari.uz)" }
     });
     if (!response.ok) return [];
     const feed = await parser.parseString(await readTextResponse(response, 2_000_000));

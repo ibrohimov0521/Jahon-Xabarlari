@@ -12,7 +12,7 @@ import { NavProvider } from "../lib/nav-context";
 import { SearchProvider } from "../lib/search-context";
 import { getRequestLang } from "../lib/server-lang";
 import { UiProvider } from "../lib/ui-context";
-import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_DOMAIN_NAME, SITE_FULL_NAME, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_FULL_NAME, SITE_KEYWORDS, SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_SOCIAL_LINKS, SITE_TITLE, SITE_URL } from "../lib/site";
 import "./globals.css";
 
 const localizedSeo = {
@@ -47,13 +47,12 @@ export async function generateMetadata(): Promise<Metadata> {
     formatDetection: { email: false, address: false, telephone: false },
     icons: {
       icon: [
-        { url: SITE_LOGO_SQUARE, sizes: "512x512", type: "image/png" },
+        { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
         { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-        { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
-        { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" }
+        { url: SITE_LOGO_SQUARE, sizes: "512x512", type: "image/png" }
       ],
       apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-      shortcut: ["/favicon-96x96.png"]
+      shortcut: ["/favicon.ico"]
     },
     appleWebApp: { capable: true, title: SITE_FULL_NAME, statusBarStyle: "black-translucent" },
     alternates: {
@@ -111,7 +110,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               "@id": `${SITE_URL}/#organization`,
               name: SITE_NAME,
               legalName: SITE_FULL_NAME,
-              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari.uz", SITE_DOMAIN_NAME],
+              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari"],
               url: `${SITE_URL}/`,
               logo: {
                 "@type": "ImageObject",
@@ -132,7 +131,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
               name: SITE_NAME,
-              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari.uz", SITE_DOMAIN_NAME],
+              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari"],
               url: `${SITE_URL}/`,
               inLanguage: lang,
               publisher: { "@id": `${SITE_URL}/#organization` },

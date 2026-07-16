@@ -22,6 +22,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AdsView } from "../../components/admin/AdsView";
 import { AggregatorView } from "../../components/admin/AggregatorView";
 import { ArticleEditor } from "../../components/admin/ArticleEditor";
@@ -659,6 +660,11 @@ function AdminMobileNav({
   onLogout: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -687,7 +693,9 @@ function AdminMobileNav({
 
   const moreActive = moreOpen || (!mobilePrimaryIds.has(view) && view !== "edit" && view !== "preview" && view !== "stats");
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {moreOpen && (
         <>
@@ -760,8 +768,7 @@ function AdminMobileNav({
       )}
 
       <nav
-        className="fixed inset-x-3 z-[100] grid h-16 grid-cols-5 overflow-hidden rounded-2xl border border-cyan-300/20 bg-[#071827]/95 px-1 text-slate-400 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden"
-        style={{ bottom: "max(0.7rem, env(safe-area-inset-bottom))" }}
+        className="bottom-nav admin-bottom-nav lg:hidden"
         aria-label="Admin mobil navigatsiyasi"
       >
         {mobilePrimaryMenu.map(({ id, label, icon: Icon }) => {
@@ -771,14 +778,11 @@ function AdminMobileNav({
               type="button"
               key={id}
               onClick={() => select(id)}
-              className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md transition ${
-                active ? "bg-brand/15 text-white" : "hover:bg-white/[0.05] hover:text-slate-200"
-              }`}
+              className={`bottom-nav-item ${active ? "is-active" : ""}`}
               aria-current={active ? "page" : undefined}
             >
-              <Icon size={id === "new" ? 22 : 20} className={active || id === "new" ? "text-blue-400" : ""} />
-              <span className="max-w-full truncate px-1 text-[10px] font-black leading-none">{label}</span>
-              {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-400" />}
+              <span className="bottom-nav-ico"><Icon size={id === "new" ? 22 : 20} strokeWidth={2.2} /></span>
+              <span className="bottom-nav-label">{label}</span>
             </button>
           );
         })}
@@ -786,17 +790,15 @@ function AdminMobileNav({
         <button
           type="button"
           onClick={() => setMoreOpen((open) => !open)}
-          className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-md transition ${
-            moreActive ? "bg-brand/15 text-white" : "hover:bg-white/[0.05] hover:text-slate-200"
-          }`}
+          className={`bottom-nav-item ${moreActive ? "is-active" : ""}`}
           aria-expanded={moreOpen}
           aria-controls="admin-mobile-more"
         >
-          <Menu size={20} className={moreActive ? "text-blue-400" : ""} />
-          <span className="text-[10px] font-black leading-none">Boshqa</span>
-          {moreActive && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-blue-400" />}
+          <span className="bottom-nav-ico"><Menu size={20} strokeWidth={2.2} /></span>
+          <span className="bottom-nav-label">Boshqa</span>
         </button>
       </nav>
-    </>
+    </>,
+    document.body
   );
 }

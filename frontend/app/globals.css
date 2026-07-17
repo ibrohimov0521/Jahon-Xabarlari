@@ -90,7 +90,7 @@ body {
    content -- comments, the "load more" message at the very bottom, etc. Desktop hides the nav. */
 @media (max-width: 1023px) {
   body {
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(62px + clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
   }
 }
 
@@ -993,7 +993,7 @@ button.bg-white {
   position: fixed;
   left: max(12px, env(safe-area-inset-left, 0px));
   right: max(12px, env(safe-area-inset-right, 0px));
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  bottom: clamp(8px, env(safe-area-inset-bottom, 0px), 34px);
   z-index: 130;
   display: flex;
   align-items: center;
@@ -1011,6 +1011,18 @@ button.bg-white {
   backdrop-filter: blur(24px) saturate(165%);
   -webkit-backdrop-filter: blur(24px) saturate(165%);
   isolation: isolate;
+}
+
+.admin-status-overlay {
+  background: rgba(2, 8, 18, 0.48);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.admin-status-sheet {
+  bottom: calc(54px + clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
+  max-height: calc(100dvh - 78px - clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
+  overscroll-behavior: contain;
 }
 
 :root[data-theme="dark"] .bottom-nav {

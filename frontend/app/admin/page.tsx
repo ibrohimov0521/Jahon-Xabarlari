@@ -459,7 +459,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 text-ink lg:flex">
+    <main className="min-h-[100svh] bg-slate-100 text-ink lg:flex">
       <aside className="hidden w-72 shrink-0 bg-ink p-6 text-white lg:block lg:min-h-screen">
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
@@ -523,7 +523,7 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <div className="p-4 pb-24 sm:p-5 sm:pb-24 lg:pb-5">
+        <div className="p-4 sm:p-5">
           <ErrorBanner message={error} />
           <Toast message={message} onClose={() => setMessage("")} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}

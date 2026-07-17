@@ -209,6 +209,50 @@ export function ArticlesView({
     setOpenStatusId(null);
   }
 
+  const bulkStatusMenuContent = scheduleTargetId === BULK_STATUS_ID ? (
+    <div className="p-2">
+      <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Umumiy nashr sanasi</div>
+      <input
+        type="datetime-local"
+        value={scheduleValue}
+        onChange={(event) => setScheduleValue(event.target.value)}
+        min={localDateTimeValue(Date.now() + 60_000)}
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
+      />
+      <div className="mt-2 flex gap-2">
+        <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
+          Bekor qilish
+        </Button>
+        <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={confirmBulkSchedule}>
+          Rejalashtirish
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <>
+      <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Barchasiga status berish</div>
+      {ARTICLE_STATUSES.map((nextStatus) => {
+        const meta = STATUS_META[nextStatus];
+        const Icon = meta.icon;
+        return (
+          <button
+            key={nextStatus}
+            onClick={() => changeBulkStatus(nextStatus)}
+            className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
+          >
+            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
+              <Icon size={16} />
+            </span>
+            <span>
+              <span className="block text-sm font-black">{meta.label}</span>
+              <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
+            </span>
+          </button>
+        );
+      })}
+    </>
+  );
+
   return (
     <Panel
       title={trashed ? "Trash" : "Yangiliklar"}
@@ -263,51 +307,32 @@ export function ArticlesView({
                     <Send size={15} /> Status <MoreVertical size={15} />
                   </button>
                   {openStatusId === BULK_STATUS_ID && (
-                    <div className="admin-menu-surface absolute right-0 top-11 z-[170] max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border p-2 shadow-2xl">
-                      {scheduleTargetId === BULK_STATUS_ID ? (
-                        <div className="p-2">
-                          <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Umumiy nashr sanasi</div>
-                          <input
-                            type="datetime-local"
-                            value={scheduleValue}
-                            onChange={(event) => setScheduleValue(event.target.value)}
-                            min={localDateTimeValue(Date.now() + 60_000)}
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
-                          />
-                          <div className="mt-2 flex gap-2">
-                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
-                              Bekor qilish
-                            </Button>
-                            <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={confirmBulkSchedule}>
-                              Rejalashtirish
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Barchasiga status berish</div>
-                          {ARTICLE_STATUSES.map((nextStatus) => {
-                            const meta = STATUS_META[nextStatus];
-                            const Icon = meta.icon;
-                            return (
-                              <button
-                                key={nextStatus}
-                                onClick={() => changeBulkStatus(nextStatus)}
-                                className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
-                              >
-                                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
-                                  <Icon size={16} />
-                                </span>
-                                <span>
-                                  <span className="block text-sm font-black">{meta.label}</span>
-                                  <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
-                    </div>
+                    <>
+                      <div className="admin-menu-surface absolute right-0 top-11 z-[170] hidden max-h-[70vh] w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block">
+                        {bulkStatusMenuContent}
+                      </div>
+                      {mounted &&
+                        createPortal(
+                          <>
+                            <button
+                              type="button"
+                              aria-label="Status oynasini yopish"
+                              className="admin-status-overlay fixed inset-0 z-[175] lg:hidden"
+                              onClick={() => {
+                                setOpenStatusId(null);
+                                setScheduleTargetId(null);
+                              }}
+                            />
+                            <div
+                              className="admin-menu-surface admin-status-sheet fixed inset-x-3 z-[180] overflow-y-auto rounded-xl border p-2 shadow-2xl lg:hidden"
+                              data-status-menu
+                            >
+                              {bulkStatusMenuContent}
+                            </div>
+                          </>,
+                          document.body
+                        )}
+                    </>
                   )}
                 </div>
                 <button
@@ -374,7 +399,7 @@ export function ArticlesView({
           return (
             <article
               key={item.id}
-              className={`group relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand/60 hover:shadow-xl ${
+              className={`group relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-brand/60 hover:shadow-xl lg:hover:-translate-y-0.5 ${
                 openStatusId === item.id ? "z-[140]" : "z-0"
               }`}
             >
@@ -449,13 +474,23 @@ export function ArticlesView({
                           </div>
                           {mounted &&
                             createPortal(
-                              <div
-                                className="admin-menu-surface fixed inset-x-3 z-[180] max-h-[calc(100dvh-80px)] overflow-y-auto rounded-xl border p-2 shadow-2xl lg:hidden"
-                                style={{ bottom: "calc(62px + env(safe-area-inset-bottom, 0px))" }}
-                                data-status-menu
-                              >
-                                {statusMenuContent}
-                              </div>,
+                              <>
+                                <button
+                                  type="button"
+                                  aria-label="Status oynasini yopish"
+                                  className="admin-status-overlay fixed inset-0 z-[175] lg:hidden"
+                                  onClick={() => {
+                                    setOpenStatusId(null);
+                                    setScheduleTargetId(null);
+                                  }}
+                                />
+                                <div
+                                  className="admin-menu-surface admin-status-sheet fixed inset-x-3 z-[180] overflow-y-auto rounded-xl border p-2 shadow-2xl lg:hidden"
+                                  data-status-menu
+                                >
+                                  {statusMenuContent}
+                                </div>
+                              </>,
                               document.body
                             )}
                         </>

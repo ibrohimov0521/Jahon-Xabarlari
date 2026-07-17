@@ -2,6 +2,7 @@
 
 import { Archive, CheckCircle2, Clock3, Edit3, Eye, FileText, Languages, MoreVertical, RotateCcw, Send, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { adminRequest } from "../../lib/admin-api";
 import { formatArticleDateTime } from "../../lib/format";
 import { ARTICLE_STATUSES, type Article, type ArticleStatus } from "./types";
@@ -16,6 +17,7 @@ function localDateTimeValue(ms: number) {
 }
 
 const TRANSLATION_TONE: Record<string, "green" | "amber" | "red"> = { READY: "green", PENDING: "amber", FAILED: "red" };
+const BULK_STATUS_ID = "__bulk_status__";
 
 const STATUS_META: Record<ArticleStatus, { label: string; tone: "brand" | "green" | "red" | "amber" | "slate"; icon: typeof FileText; hint: string }> = {
   DRAFT: { label: "Draft", tone: "slate", icon: FileText, hint: "Ichki tayyorlanayotgan maqola" },
@@ -64,6 +66,7 @@ export function ArticlesView({
   onPermanentDelete,
   onBulkTrash,
   onBulkRestore,
+  onBulkStatus,
   onEdit,
   onPreview,
   onRegenerateTranslation,
@@ -84,6 +87,7 @@ export function ArticlesView({
   onPermanentDelete: (id: string) => void;
   onBulkTrash: (ids: string[]) => void;
   onBulkRestore: (ids: string[]) => void;
+  onBulkStatus: (ids: string[], status: ArticleStatus, scheduledAt?: string) => void;
   onEdit: (id: string) => void;
   onPreview: (article: Article) => void;
   onRegenerateTranslation: (id: string, lang: string) => void;
@@ -101,7 +105,12 @@ export function ArticlesView({
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [scheduleTargetId, setScheduleTargetId] = useState<string | null>(null);
   const [scheduleValue, setScheduleValue] = useState("");
+  const [mounted, setMounted] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setStatus(initialStatus);
@@ -181,6 +190,25 @@ export function ArticlesView({
     setOpenStatusId(null);
   }
 
+  function changeBulkStatus(nextStatus: ArticleStatus) {
+    if (nextStatus === "SCHEDULED") {
+      setScheduleTargetId(BULK_STATUS_ID);
+      setScheduleValue("");
+      return;
+    }
+    onBulkStatus(selected, nextStatus);
+    setSelected([]);
+    setOpenStatusId(null);
+  }
+
+  function confirmBulkSchedule() {
+    if (!scheduleValue) return;
+    onBulkStatus(selected, "SCHEDULED", new Date(scheduleValue).toISOString());
+    setSelected([]);
+    setScheduleTargetId(null);
+    setOpenStatusId(null);
+  }
+
   return (
     <Panel
       title={trashed ? "Trash" : "Yangiliklar"}
@@ -221,15 +249,77 @@ export function ArticlesView({
                 Tiklash
               </button>
             ) : (
-              <button
-                onClick={() => {
-                  onBulkTrash(selected);
-                  setSelected([]);
-                }}
-                className="rounded-full bg-red-600 px-4 py-2 text-white"
-              >
-                Trashga yuborish
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative" data-status-menu>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScheduleTargetId(null);
+                      setOpenStatusId((current) => (current === BULK_STATUS_ID ? null : BULK_STATUS_ID));
+                    }}
+                    className="inline-flex h-9 items-center gap-2 rounded-full border border-brand/30 bg-white px-4 text-sm font-black text-brand transition hover:border-brand"
+                    aria-expanded={openStatusId === BULK_STATUS_ID}
+                  >
+                    <Send size={15} /> Status <MoreVertical size={15} />
+                  </button>
+                  {openStatusId === BULK_STATUS_ID && (
+                    <div className="admin-menu-surface absolute right-0 top-11 z-[170] max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border p-2 shadow-2xl">
+                      {scheduleTargetId === BULK_STATUS_ID ? (
+                        <div className="p-2">
+                          <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Umumiy nashr sanasi</div>
+                          <input
+                            type="datetime-local"
+                            value={scheduleValue}
+                            onChange={(event) => setScheduleValue(event.target.value)}
+                            min={localDateTimeValue(Date.now() + 60_000)}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
+                          />
+                          <div className="mt-2 flex gap-2">
+                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
+                              Bekor qilish
+                            </Button>
+                            <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={confirmBulkSchedule}>
+                              Rejalashtirish
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Barchasiga status berish</div>
+                          {ARTICLE_STATUSES.map((nextStatus) => {
+                            const meta = STATUS_META[nextStatus];
+                            const Icon = meta.icon;
+                            return (
+                              <button
+                                key={nextStatus}
+                                onClick={() => changeBulkStatus(nextStatus)}
+                                className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
+                              >
+                                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
+                                  <Icon size={16} />
+                                </span>
+                                <span>
+                                  <span className="block text-sm font-black">{meta.label}</span>
+                                  <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    onBulkTrash(selected);
+                    setSelected([]);
+                  }}
+                  className="rounded-full bg-red-600 px-4 py-2 text-white"
+                >
+                  Trashga yuborish
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -238,6 +328,49 @@ export function ArticlesView({
       <div className="grid gap-3">
         {filtered.map((item) => {
           const nextStatuses = ARTICLE_STATUSES.filter((nextStatus) => nextStatus !== item.status);
+          const statusMenuContent = scheduleTargetId === item.id ? (
+            <div className="p-2">
+              <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Nashr sanasini belgilang</div>
+              <input
+                type="datetime-local"
+                value={scheduleValue}
+                onChange={(event) => setScheduleValue(event.target.value)}
+                min={localDateTimeValue(Date.now() + 60_000)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
+              />
+              <div className="mt-2 flex gap-2">
+                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
+                  Bekor qilish
+                </Button>
+                <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={() => confirmSchedule(item.id)}>
+                  Rejalashtirish
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Statusni o'zgartirish</div>
+              {nextStatuses.map((nextStatus) => {
+                const meta = STATUS_META[nextStatus];
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={nextStatus}
+                    onClick={() => changeStatus(item.id, nextStatus)}
+                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
+                  >
+                    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
+                      <Icon size={16} />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-black">{meta.label}</span>
+                      <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          );
           return (
             <article
               key={item.id}
@@ -310,51 +443,22 @@ export function ArticlesView({
                         <MoreVertical size={16} />
                       </button>
                       {openStatusId === item.id && (
-                        <div className="admin-menu-surface absolute right-0 top-12 z-[160] w-72 overflow-hidden rounded-xl border p-2 shadow-2xl">
-                          {scheduleTargetId === item.id ? (
-                            <div className="p-2">
-                              <div className="px-1 pb-2 text-xs font-black uppercase tracking-wide text-slate-500">Nashr sanasini belgilang</div>
-                              <input
-                                type="datetime-local"
-                                value={scheduleValue}
-                                onChange={(event) => setScheduleValue(event.target.value)}
-                                min={localDateTimeValue(Date.now() + 60_000)}
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
-                              />
-                              <div className="mt-2 flex gap-2">
-                                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
-                                  Bekor qilish
-                                </Button>
-                                <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={() => confirmSchedule(item.id)}>
-                                  Rejalashtirish
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-500">Statusni o'zgartirish</div>
-                              {nextStatuses.map((nextStatus) => {
-                                const meta = STATUS_META[nextStatus];
-                                const Icon = meta.icon;
-                                return (
-                                  <button
-                                    key={nextStatus}
-                                    onClick={() => changeStatus(item.id, nextStatus)}
-                                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50 hover:text-brand"
-                                  >
-                                    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-blue-50 text-brand">
-                                      <Icon size={16} />
-                                    </span>
-                                    <span>
-                                      <span className="block text-sm font-black">{meta.label}</span>
-                                      <span className="mt-0.5 block text-xs font-semibold leading-4 text-slate-500">{meta.hint}</span>
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </>
-                          )}
-                        </div>
+                        <>
+                          <div className="admin-menu-surface absolute right-0 top-12 z-[160] hidden max-h-[70vh] w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block">
+                            {statusMenuContent}
+                          </div>
+                          {mounted &&
+                            createPortal(
+                              <div
+                                className="admin-menu-surface fixed inset-x-3 z-[180] max-h-[calc(100dvh-80px)] overflow-y-auto rounded-xl border p-2 shadow-2xl lg:hidden"
+                                style={{ bottom: "calc(62px + env(safe-area-inset-bottom, 0px))" }}
+                                data-status-menu
+                              >
+                                {statusMenuContent}
+                              </div>,
+                              document.body
+                            )}
+                        </>
                       )}
                     </div>
                   )}

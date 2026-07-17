@@ -47,6 +47,10 @@ const articleSchema = z.object({
 });
 
 const idsSchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(100) });
+const bulkStatusSchema = idsSchema.extend({
+  status: z.nativeEnum(ArticleStatus),
+  scheduledAt: z.coerce.date().optional()
+});
 const aiShortDescriptionSchema = z.object({
   title: z.string().trim().min(3).max(220),
   summary: z.string().trim().max(2_000).optional(),
@@ -634,6 +638,39 @@ articleRouter.post("/admin/articles/bulk-restore", requireAuth, permit("articles
   await prisma.article.updateMany({ where: { id: { in: ids } }, data: { deletedAt: null } });
   await audit(req, "ARTICLE_BULK_RESTORE", "Article", undefined, { ids });
   res.json({ ok: true, count: ids.length });
+});
+
+articleRouter.post("/admin/articles/bulk-status", requireAuth, permit("articles.publish"), async (req, res) => {
+  const { ids, status, scheduledAt } = bulkStatusSchema.parse(req.body);
+  if (status === "SCHEDULED" && (!scheduledAt || scheduledAt <= new Date())) {
+    return res.status(400).json({ message: "Rejalashtirish uchun kelajakdagi sana kerak" });
+  }
+
+  const current = await prisma.article.findMany({
+    where: { id: { in: ids }, deletedAt: null },
+    select: { id: true, status: true }
+  });
+  const targetIds = current.filter((article) => article.status !== status || status === "SCHEDULED").map((article) => article.id);
+  const publishedAt = status === "PUBLISHED" ? new Date() : null;
+
+  if (targetIds.length) {
+    await prisma.article.updateMany({
+      where: { id: { in: targetIds }, deletedAt: null },
+      data: {
+        status,
+        publishedAt,
+        scheduledAt: status === "SCHEDULED" ? scheduledAt : null
+      }
+    });
+  }
+
+  await audit(req, "ARTICLE_BULK_STATUS", "Article", undefined, { ids: targetIds, status, scheduledAt, count: targetIds.length });
+
+  if (status === "PUBLISHED" && targetIds.length) {
+    targetIds.forEach((id) => queueArticlePush({ id, status, publishedAt }));
+  }
+
+  res.json({ ok: true, count: targetIds.length });
 });
 
 articleRouter.post("/admin/articles/:id/translations/:lang/regenerate", requireAuth, permit("articles.update"), async (req, res) => {

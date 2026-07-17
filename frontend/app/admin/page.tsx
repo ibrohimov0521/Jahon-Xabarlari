@@ -358,6 +358,17 @@ export default function AdminPage() {
     });
   }
 
+  async function bulkArticleStatus(ids: string[], status: ArticleStatus, scheduledAt?: string) {
+    await withErrorHandling(async () => {
+      const result = await adminRequest<{ count: number }>("/admin/articles/bulk-status", {
+        method: "POST",
+        body: JSON.stringify({ ids, status, scheduledAt })
+      });
+      flash(`${result.count} ta maqola statusi ${status} qilindi`);
+      await loadArticles();
+    });
+  }
+
   async function regenerateTranslation(id: string, lang: string) {
     await withErrorHandling(async () => {
       await adminRequest(`/admin/articles/${id}/translations/${lang}/regenerate`, { method: "POST" });
@@ -552,6 +563,7 @@ export default function AdminPage() {
               onPermanentDelete={permanentDelete}
               onBulkTrash={bulkTrash}
               onBulkRestore={bulkRestore}
+              onBulkStatus={bulkArticleStatus}
               onEdit={openEditor}
               onPreview={openPreviewFromArticle}
               onRegenerateTranslation={regenerateTranslation}

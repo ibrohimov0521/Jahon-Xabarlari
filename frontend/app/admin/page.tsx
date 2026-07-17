@@ -459,7 +459,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-[100svh] bg-slate-100 text-ink lg:flex">
+    <main className="min-h-[100svh] overflow-x-clip overscroll-x-none bg-slate-100 text-ink lg:flex">
       <aside className="hidden w-72 shrink-0 bg-ink p-6 text-white lg:block lg:min-h-screen">
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />

@@ -32,6 +32,10 @@ export default function SwipeNav() {
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
 
   useEffect(() => {
+    // The admin panel has its own mobile navigation. Public-site swipe gestures
+    // must never change routes or open public overlays while an admin is working.
+    if (pathname.startsWith("/admin")) return;
+
     const isNewsPath = pathname.startsWith("/category") || pathname.startsWith("/articles");
     const isSearchPath = pathname.startsWith("/search");
     const isMorePath = ["/editor-choice", "/about", "/ads", "/contact"].some((path) => pathname.startsWith(path));

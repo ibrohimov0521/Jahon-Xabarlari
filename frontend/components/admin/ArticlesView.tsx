@@ -106,7 +106,9 @@ export function ArticlesView({
   const [scheduleTargetId, setScheduleTargetId] = useState<string | null>(null);
   const [scheduleValue, setScheduleValue] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [bulkMenuPosition, setBulkMenuPosition] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bulkStatusButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -146,6 +148,46 @@ export function ArticlesView({
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+    };
+  }, [openStatusId]);
+
+  useEffect(() => {
+    if (openStatusId !== BULK_STATUS_ID) {
+      setBulkMenuPosition(null);
+      return;
+    }
+
+    function updatePosition() {
+      const anchor = bulkStatusButtonRef.current;
+      if (!anchor) return;
+
+      const viewportPadding = 16;
+      const menuGap = 8;
+      const menuWidth = Math.min(288, window.innerWidth - viewportPadding * 2);
+      const rect = anchor.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - menuGap;
+      const spaceAbove = rect.top - viewportPadding - menuGap;
+      const placeAbove = spaceBelow < 320 && spaceAbove > spaceBelow;
+      const left = Math.min(
+        Math.max(viewportPadding, rect.right - menuWidth),
+        window.innerWidth - menuWidth - viewportPadding
+      );
+
+      setBulkMenuPosition({
+        left,
+        ...(placeAbove
+          ? { bottom: window.innerHeight - rect.top + menuGap }
+          : { top: rect.bottom + menuGap }),
+        maxHeight: Math.max(180, placeAbove ? spaceAbove : spaceBelow)
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [openStatusId]);
 
@@ -296,6 +338,7 @@ export function ArticlesView({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative" data-status-menu>
                   <button
+                    ref={bulkStatusButtonRef}
                     type="button"
                     onClick={() => {
                       setScheduleTargetId(null);
@@ -308,12 +351,18 @@ export function ArticlesView({
                   </button>
                   {openStatusId === BULK_STATUS_ID && (
                     <>
-                      <div className="admin-menu-surface absolute right-0 top-11 z-[170] hidden max-h-[70vh] w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block">
-                        {bulkStatusMenuContent}
-                      </div>
                       {mounted &&
                         createPortal(
                           <>
+                            {bulkMenuPosition && (
+                              <div
+                                className="admin-menu-surface fixed z-[220] hidden w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block"
+                                style={bulkMenuPosition}
+                                data-status-menu
+                              >
+                                {bulkStatusMenuContent}
+                              </div>
+                            )}
                             <button
                               type="button"
                               aria-label="Status oynasini yopish"

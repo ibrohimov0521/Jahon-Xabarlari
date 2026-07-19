@@ -90,21 +90,7 @@ export function Header() {
     const savedRegion = localStorage.getItem("weather_region");
     if (savedRegion) {
       setRegion(findRegionByName(savedRegion));
-      return;
     }
-    // No saved preference yet: try to detect the user's own viloyat via geolocation, falling
-    // back to Tashkent (the default state) if permission is denied or unavailable.
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        // The permission prompt/lookup can resolve well after mount -- if the user has since
-        // picked a region manually (selectRegion writes this key immediately), don't clobber it.
-        if (localStorage.getItem("weather_region")) return;
-        setRegion(nearestRegion(position.coords.latitude, position.coords.longitude));
-      },
-      () => {},
-      { timeout: 8000 }
-    );
   }, []);
 
   useEffect(() => {
@@ -155,6 +141,15 @@ export function Header() {
   function selectRegion(next: UzRegion) {
     setRegion(next);
     localStorage.setItem("weather_region", next.name);
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => selectRegion(nearestRegion(position.coords.latitude, position.coords.longitude)),
+      () => {},
+      { timeout: 8000, maximumAge: 10 * 60 * 1000 }
+    );
   }
 
   const tickerSlides = weather
@@ -342,6 +337,7 @@ export function Header() {
         region={region}
         regions={UZ_REGIONS}
         onSelectRegion={selectRegion}
+        onUseCurrentLocation={useCurrentLocation}
       />
     </>
   );

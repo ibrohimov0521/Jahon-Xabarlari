@@ -10,7 +10,7 @@ test("homepage renders usable news content without horizontal overflow", async (
 
 test("mobile navigation sheet opens, traps the visual layer and closes", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "mobile-only interaction");
-  await page.goto("/");
+  await page.goto("/?lang=uz");
   const newsButton = page.getByRole("button", { name: /Yangiliklar/i });
   await newsButton.click();
   await expect(page.getByRole("dialog", { name: /Bo'limlar|Yangiliklar/i })).toBeVisible();

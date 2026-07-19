@@ -18,7 +18,12 @@ export function NewsCard({ article, language = "uz" }: { article: Article; langu
       href={`/articles/${article.slug}`}
       className="news-card-modern news-shadow flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:-translate-y-0.5"
     >
-      <MediaView src={article.mainImage} className="news-card-media h-[130px] w-full object-cover sm:h-[152px]" />
+      <MediaView
+        src={article.mainImage}
+        className="news-card-media h-[130px] w-full object-cover sm:h-[152px]"
+        sizes="(max-width: 639px) calc(100vw - 20px), (max-width: 1279px) 50vw, 33vw"
+        optimizedWidth={828}
+      />
       <div className="news-card-body flex flex-1 flex-col p-2.5 sm:p-4">
         {categoryName && (
           <span className="news-card-badge w-fit rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-brand">

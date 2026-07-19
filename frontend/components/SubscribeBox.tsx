@@ -53,7 +53,7 @@ export function SubscribeBox({ variant = "card" }: { variant?: "card" | "inline"
       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/10 text-brand">
         <Send size={18} fill="currentColor" />
       </span>
-      <h3 className="mt-3 text-[15px] font-black leading-snug text-white">{t.subscribe.title}</h3>
+      <p className="mt-3 text-[15px] font-black leading-snug text-white">{t.subscribe.title}</p>
       <p className="mt-1.5 text-[13px] leading-5 text-slate-300">{t.subscribe.body}</p>
       <form onSubmit={submit} className="mt-4 grid gap-2">
         <input

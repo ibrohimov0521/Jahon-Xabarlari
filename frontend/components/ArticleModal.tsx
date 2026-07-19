@@ -106,7 +106,13 @@ export function ArticleModal() {
           {loading && <div className="p-10 text-center text-lg font-black text-ink">Maqola yuklanmoqda...</div>}
           {article && (
             <div className="p-5 sm:p-7">
-              <MediaView src={article.mainImage} alt={article.title} className="max-h-[58vh] w-full rounded-xl bg-black/80 object-contain" priority />
+              <MediaView
+                src={article.mainImage}
+                alt={article.title}
+                className="max-h-[58vh] h-auto w-full rounded-xl bg-black/80 object-contain"
+                priority
+                sizes="(max-width: 1024px) calc(100vw - 48px), 960px"
+              />
               <p className="mt-5 text-sm font-bold text-slate-500">
                 {formatArticleDateTime(article.publishedAt)} · {formatViews(article.viewsCount)}
               </p>

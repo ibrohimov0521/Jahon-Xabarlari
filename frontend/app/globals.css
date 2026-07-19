@@ -108,7 +108,7 @@ body {
   background:
     linear-gradient(rgba(227, 237, 251, 0.08), rgba(227, 237, 251, 0.14)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
-    url("/brand/site-background.png") center / cover no-repeat,
+    url("/brand/site-background.webp") center / cover no-repeat,
     var(--page-bg);
 }
 
@@ -116,7 +116,7 @@ body {
   background:
     linear-gradient(rgba(7, 16, 31, 0.08), rgba(7, 16, 31, 0.18)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
-    url("/brand/site-background.png") center / cover no-repeat,
+    url("/brand/site-background.webp") center / cover no-repeat,
     var(--page-bg);
 }
 
@@ -145,6 +145,15 @@ body > footer {
 
 .news-shadow {
   box-shadow: var(--shadow);
+}
+
+.mobile-home-rail {
+  background: rgba(3, 14, 28, 0.94);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.mobile-home-rail .text-slate-300 {
+  color: #dbeafe;
 }
 
 .topbar {

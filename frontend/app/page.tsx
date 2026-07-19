@@ -140,7 +140,13 @@ export default async function Home() {
       <Header />
       <section className="home-lead-grid container-page grid gap-4 py-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)] lg:gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.95fr)_minmax(300px,0.9fr)]">
         <Link href={`/articles/${hero.slug}`} className="home-hero relative block h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
-          <MediaView src={hero.mainImage} className="absolute inset-0 h-full w-full object-cover" priority />
+          <MediaView
+            src={hero.mainImage}
+            alt={hero.title}
+            className="absolute inset-0 h-full w-full object-cover"
+            priority
+            sizes="(max-width: 900px) calc(100vw - 20px), (max-width: 1279px) 62vw, 46vw"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-5 sm:p-7">
             <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{categoryName(hero.category)}</span>
@@ -154,7 +160,7 @@ export default async function Home() {
         </Link>
 
         <div className="grid gap-3 lg:hidden">
-          <section className="news-shadow rounded-lg border border-cyan-300/20 bg-slate-950/35 p-4 backdrop-blur-xl">
+          <section className="mobile-home-rail news-shadow rounded-lg border border-cyan-300/20 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[18px] font-black text-white">{copy.todayTrend}</h2>
               <TrendingUp className="text-brand" size={20} />
@@ -167,7 +173,7 @@ export default async function Home() {
                     <span className="line-clamp-2 text-[14px] font-black leading-snug text-white">{item.title}</span>
                     <span className="mt-1 block text-[12px] font-bold text-slate-300">{formatViews(item.viewsCount, lang)}</span>
                   </span>
-                  <MediaView src={item.mainImage} className="h-14 w-16 rounded-md object-cover" />
+                  <MediaView src={item.mainImage} className="h-14 w-16 rounded-md object-cover" sizes="64px" optimizedWidth={256} />
                 </Link>
               ))}
             </div>
@@ -175,7 +181,7 @@ export default async function Home() {
 
           <MobileCurrencyCard />
 
-          <section className="news-shadow rounded-lg border border-cyan-300/20 bg-slate-950/35 p-4 backdrop-blur-xl">
+          <section className="mobile-home-rail news-shadow rounded-lg border border-cyan-300/20 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[18px] font-black text-white">{copy.fourDayPopular}</h2>
               <Link href="/popular" className="text-[12px] font-black text-brand">{copy.all}</Link>
@@ -183,7 +189,7 @@ export default async function Home() {
             <div className="grid grid-cols-2 gap-2">
               {(popularItems.length ? popularItems : latest).slice(0, 4).map((item) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className="overflow-hidden rounded-lg border border-cyan-300/15 bg-white/6 transition active:scale-[0.98]">
-                  <MediaView src={item.mainImage} className="h-20 w-full object-cover" />
+                  <MediaView src={item.mainImage} className="h-20 w-full object-cover" sizes="calc((100vw - 44px) / 2)" optimizedWidth={640} />
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-[12.5px] font-black leading-snug text-white">{item.title}</h3>
                     <p className="mt-1 text-[11px] font-bold text-slate-300">{formatViews(item.viewsCount, lang)}</p>
@@ -201,10 +207,10 @@ export default async function Home() {
               href={`/articles/${item.slug}`}
               className={`home-side-card news-shadow grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[92px_1fr] sm:h-[157px] sm:grid-cols-[138px_1fr]" : "grid-cols-1"}`}
             >
-              <MediaView src={item.mainImage} className="home-side-media h-24 w-[92px] rounded-md object-cover sm:h-[130px] sm:w-[138px]" />
+              <MediaView src={item.mainImage} className="home-side-media h-24 w-[92px] rounded-md object-cover sm:h-[130px] sm:w-[138px]" sizes="138px" optimizedWidth={384} />
               <div className="min-w-0 py-1">
                 <span className="text-[12px] font-black uppercase text-brand">{categoryName(item.category)}</span>
-                <h3 className="mt-2 line-clamp-2 text-[15px] font-black leading-snug sm:mt-3 sm:text-[16px]">{item.title}</h3>
+                <p className="mt-2 line-clamp-2 text-[15px] font-black leading-snug sm:mt-3 sm:text-[16px]">{item.title}</p>
                 <p className="mt-2 text-[12px] font-bold text-slate-500 sm:mt-4 sm:text-[14px]">{formatArticleDateTime(item.publishedAt, lang)}</p>
               </div>
             </Link>
@@ -229,7 +235,7 @@ export default async function Home() {
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
                     <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount, lang)}</p>
                   </div>
-                  <MediaView src={item.mainImage} className="hidden h-[78px] w-[80px] rounded-md object-cover sm:block" />
+                  <MediaView src={item.mainImage} className="hidden h-[78px] w-[80px] rounded-md object-cover sm:block" sizes="80px" optimizedWidth={256} />
                 </Link>
               ))}
             </div>
@@ -257,7 +263,7 @@ export default async function Home() {
           {editorLead && (
             <section className="home-editor-section grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
               <Link href={`/articles/${editorLead.slug}`} className="home-editor-lead relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
-                <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" />
+                <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" sizes="(max-width: 1023px) calc(100vw - 20px), 55vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                 <div className="relative flex min-h-[360px] flex-col justify-end p-7">
                   <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{categoryName(editorLead.category)}</span>
@@ -271,7 +277,7 @@ export default async function Home() {
               <div className="grid gap-3">
                 {editorList.map((item) => (
                   <Link key={item.id} href={`/articles/${item.slug}`} className="home-side-card home-editor-item news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
-                    <MediaView src={item.mainImage} className="home-side-media h-24 w-24 shrink-0 rounded-md object-cover sm:w-28" />
+                    <MediaView src={item.mainImage} className="home-side-media h-24 w-24 shrink-0 rounded-md object-cover sm:w-28" sizes="112px" optimizedWidth={384} />
                     <div className="min-w-0">
                       <span className="text-[12px] font-black uppercase text-brand">{categoryName(item.category)}</span>
                       <h3 className="mt-2 line-clamp-2 text-[16px] font-black leading-snug">{item.title}</h3>
@@ -301,7 +307,12 @@ export default async function Home() {
                         item.mainImage ? (index === 0 ? "sm:grid-cols-[160px_1fr]" : "sm:grid-cols-[92px_1fr]") : "grid-cols-1"
                       }`}
                     >
-                      <MediaView src={item.mainImage} className={`${index === 0 ? "h-32 sm:w-40" : "h-32 w-full sm:h-20 sm:w-[92px]"} rounded-md object-cover`} />
+                      <MediaView
+                        src={item.mainImage}
+                        className={`${index === 0 ? "h-32 sm:w-40" : "h-32 w-full sm:h-20 sm:w-[92px]"} rounded-md object-cover`}
+                        sizes={index === 0 ? "160px" : "92px"}
+                        optimizedWidth={384}
+                      />
                       <div className="min-w-0 py-1">
                         <h3 className={`${index === 0 ? "text-[18px]" : "text-[15px]"} line-clamp-2 font-black leading-snug`}>{item.title}</h3>
                         <p className="mt-2 line-clamp-2 text-sm text-slate-500">{item.shortDescription || item.summary}</p>

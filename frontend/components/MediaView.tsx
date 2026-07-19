@@ -14,9 +14,25 @@ type MediaViewProps = {
   priority?: boolean;
   avoidUpscale?: boolean;
   optimizedWidth?: number;
+  sizes?: string;
+  intrinsicWidth?: number;
+  intrinsicHeight?: number;
 };
 
-export function MediaView({ src, alt = "", className = "", videoClassName, priority, avoidUpscale = true, optimizedWidth = 1200 }: MediaViewProps) {
+const NEXT_IMAGE_WIDTHS = [256, 384, 640, 750, 828, 1080, 1200, 1920] as const;
+
+export function MediaView({
+  src,
+  alt = "",
+  className = "",
+  videoClassName,
+  priority,
+  avoidUpscale = true,
+  optimizedWidth = 1200,
+  sizes = "(max-width: 640px) calc(100vw - 20px), (max-width: 1279px) 50vw, 33vw",
+  intrinsicWidth = 1200,
+  intrinsicHeight = 675
+}: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
   const [naturalWidth, setNaturalWidth] = useState(0);
   const [retried, setRetried] = useState(false);
@@ -37,11 +53,6 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
       </video>
     );
   }
-  // A key photo (priority) must never collapse to a 0-height gap that reveals the page backdrop
-  // while it downloads on a slow connection (no intrinsic height until the bytes arrive) -- reserve
-  // a dark placeholder box so the frame stays put, then the loaded image fills it. Landscape news
-  // photos are taller than this, so there is no visible letterboxing in practice. Applied
-  // unconditionally (not gated on an onLoad flag, which never fires for already-cached images).
   const style: CSSProperties = {};
   if (isSmallImage) {
     style.objectFit = "contain";
@@ -51,18 +62,27 @@ export function MediaView({ src, alt = "", className = "", videoClassName, prior
       style.marginInline = "auto";
     }
   }
-  if (priority) {
-    style.minHeight = "240px";
-  }
-  const optimizedSrc = toOptimizedImageSrc(src, optimizedWidth, 85);
   const isRemoteImage = /^https?:\/\//i.test(src);
+  const responsiveWidths = NEXT_IMAGE_WIDTHS.filter((width) => width <= optimizedWidth);
+  if (!responsiveWidths.length) responsiveWidths.push(NEXT_IMAGE_WIDTHS[0]);
+  const largestWidth = responsiveWidths.at(-1) ?? 1200;
+  const optimizedSrc = toOptimizedImageSrc(src, largestWidth, 75);
   const finalSrc = useDirectSrc ? src : optimizedSrc;
+  const srcSet = isRemoteImage && !useDirectSrc
+    ? responsiveWidths.map((width) => `${toOptimizedImageSrc(src, width, 75)} ${width}w`).join(", ")
+    : undefined;
+
   return (
     <img
       src={finalSrc}
+      srcSet={srcSet}
+      sizes={srcSet ? sizes : undefined}
+      width={intrinsicWidth}
+      height={intrinsicHeight}
       alt={alt}
       className={className}
       loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
       decoding="async"
       onLoad={(event) => {
         if (!avoidUpscale) return;

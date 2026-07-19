@@ -32,7 +32,7 @@ const localizedSeo = {
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getRequestLang();
   const seo = localizedSeo[lang];
-  const canonical = lang === "uz" ? "/" : `/?lang=${lang}`;
+  const canonical = `${SITE_URL}/`;
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -57,7 +57,12 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: { capable: true, title: SITE_FULL_NAME, statusBarStyle: "black-translucent" },
     alternates: {
       canonical,
-      languages: { uz: "/", ru: "/?lang=ru", en: "/?lang=en", "x-default": "/" }
+      languages: {
+        uz: canonical,
+        ru: `${SITE_URL}/?lang=ru`,
+        en: `${SITE_URL}/?lang=en`,
+        "x-default": canonical
+      }
     },
     robots: {
       index: true,

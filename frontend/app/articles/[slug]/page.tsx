@@ -14,10 +14,23 @@ import { serializeJsonLd } from "../../../lib/json-ld";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 
-type ArticlePageProps = { params: Promise<{ slug: string }> };
+type ArticlePageProps = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ lang?: string | string[] }>;
+};
 
 function ArticleMedia({ src, alt, className = "", eager = false }: { src?: string | null; alt: string; className?: string; eager?: boolean }) {
-  return <MediaView src={src} alt={alt} className={className} videoClassName={className} priority={eager} optimizedWidth={1920} />;
+  return (
+    <MediaView
+      src={src}
+      alt={alt}
+      className={className}
+      videoClassName={className}
+      priority={eager}
+      optimizedWidth={1920}
+      sizes="(max-width: 1024px) calc(100vw - 20px), 960px"
+    />
+  );
 }
 
 function readingMinutes(content: string) {
@@ -40,14 +53,16 @@ const articleCategoryLabels: Record<"ru" | "en", Record<string, string>> = {
   en: { ozbekiston: "Uzbekistan", dunyo: "World", siyosat: "Politics", iqtisodiyot: "Business", texnologiya: "Technology", sport: "Sport", madaniyat: "Culture" }
 };
 
-export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
   const lang = await getRequestLang();
+  const requestedLang = (await searchParams).lang;
+  const canonicalLang = requestedLang === "ru" || requestedLang === "en" ? requestedLang : "uz";
   const article = await getArticle(slug, lang);
   if (!article) return {};
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.shortDescription || article.summary;
-  const url = localizedArticleUrl(article.slug, lang);
+  const url = localizedArticleUrl(article.slug, canonicalLang);
   const baseUrl = `${SITE_URL}/articles/${article.slug}`;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
 

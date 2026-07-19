@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, Moon, Sun, Wind, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, LocateFixed, Moon, Sun, Wind, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useUi } from "../lib/ui-context";
 import {
@@ -77,13 +77,15 @@ export function WeatherModal({
   onClose,
   region,
   regions,
-  onSelectRegion
+  onSelectRegion,
+  onUseCurrentLocation
 }: {
   open: boolean;
   onClose: () => void;
   region: UzRegion;
   regions: UzRegion[];
   onSelectRegion: (region: UzRegion) => void;
+  onUseCurrentLocation: () => void;
 }) {
   const { language } = useUi();
   const [weather, setWeather] = useState<FullWeather | null>(null);
@@ -160,6 +162,15 @@ export function WeatherModal({
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={onUseCurrentLocation}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/25"
+          >
+            <LocateFixed size={14} />
+            {language === "ru" ? "Моё местоположение" : language === "en" ? "Use my location" : "Joylashuvimdan foydalanish"}
+          </button>
 
           {visibleAlerts.length > 0 && (
             <div className="mt-4 space-y-2">

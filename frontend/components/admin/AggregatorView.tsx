@@ -1,15 +1,16 @@
 "use client";
 
-import { CheckCircle2, Loader2, Plus, PlayCircle, RefreshCcw, Rss, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, PlayCircle, RefreshCcw, Rss, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
 
+type AggregatorPublishStatus = "PUBLISHED" | "REVIEW";
+
 type AggregatorStatus = {
   enabled: boolean;
   intervalMinutes: number;
-  publishStatus: string;
-  autoPublishEnabled: boolean;
+  publishStatus: AggregatorPublishStatus;
   openaiConfigured: boolean;
   sources: AggregatorSource[];
 };
@@ -26,6 +27,7 @@ export function AggregatorView() {
   const [limit, setLimit] = useState("40");
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
+  const [savingPublishStatus, setSavingPublishStatus] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [sourceForm, setSourceForm] = useState({ name: "", feedUrl: "" });
@@ -69,6 +71,29 @@ export function AggregatorView() {
       setError(err instanceof Error ? err.message : "Ishga tushirib bo'lmadi");
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function updatePublishStatus(publishStatus: AggregatorPublishStatus) {
+    if (!status || status.publishStatus === publishStatus) return;
+    setSavingPublishStatus(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await adminRequest<{ publishStatus: AggregatorPublishStatus }>("/admin/aggregator/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ publishStatus })
+      });
+      setStatus((current) => (current ? { ...current, publishStatus: result.publishStatus } : current));
+      setMessage(
+        result.publishStatus === "PUBLISHED"
+          ? "Aggregator yangiliklari avtomatik Published qilinadi"
+          : "Aggregator yangiliklari Review holatida saqlanadi"
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nashr holatini saqlab bo'lmadi");
+    } finally {
+      setSavingPublishStatus(false);
     }
   }
 
@@ -136,12 +161,48 @@ export function AggregatorView() {
             <p>
               <strong>Avtomatik rejim:</strong> {status.enabled ? `Yoqilgan (har ${status.intervalMinutes} daqiqada)` : "O'chirilgan"}
             </p>
-            <p className="mt-1">
-              <strong>Nashr holati:</strong> {status.publishStatus === "PUBLISHED" && !status.autoPublishEnabled ? "REVIEW (xavfsiz rejim)" : status.publishStatus}
-            </p>
-            <p className="mt-1">
-              <strong>Avto-publish:</strong> {status.autoPublishEnabled ? "Faqat sifat tekshiruvidan o'tganlar" : "O'chirilgan"}
-            </p>
+            <div className="mt-3">
+              <div className="flex items-center justify-between gap-3">
+                <strong>Yangi maqolalar holati</strong>
+                {savingPublishStatus && <Loader2 size={15} className="animate-spin text-brand" />}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Aggregator maqolalari statusi">
+                <button
+                  type="button"
+                  aria-pressed={status.publishStatus === "PUBLISHED"}
+                  disabled={savingPublishStatus}
+                  onClick={() => updatePublishStatus("PUBLISHED")}
+                  className={`flex min-h-16 items-center gap-2 rounded-md border px-3 py-2 text-left transition disabled:opacity-60 ${
+                    status.publishStatus === "PUBLISHED"
+                      ? "border-green-500 bg-green-50 text-green-800 shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-green-400"
+                  }`}
+                >
+                  <CheckCircle2 size={18} className="shrink-0" />
+                  <span>
+                    <span className="block font-black">Published</span>
+                    <span className="block text-[11px] font-semibold opacity-75">Darhol saytga chiqadi</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={status.publishStatus === "REVIEW"}
+                  disabled={savingPublishStatus}
+                  onClick={() => updatePublishStatus("REVIEW")}
+                  className={`flex min-h-16 items-center gap-2 rounded-md border px-3 py-2 text-left transition disabled:opacity-60 ${
+                    status.publishStatus === "REVIEW"
+                      ? "border-amber-500 bg-amber-50 text-amber-900 shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-amber-400"
+                  }`}
+                >
+                  <ShieldCheck size={18} className="shrink-0" />
+                  <span>
+                    <span className="block font-black">Review</span>
+                    <span className="block text-[11px] font-semibold opacity-75">Admin tasdig'ini kutadi</span>
+                  </span>
+                </button>
+              </div>
+            </div>
             <p className="mt-1">
               <strong>OpenAI kaliti:</strong> {status.openaiConfigured ? "Sozlangan ✅" : "Sozlanmagan ❌"}
             </p>

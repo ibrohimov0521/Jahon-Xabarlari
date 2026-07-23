@@ -33,6 +33,35 @@ const parser = new Parser<Record<string, unknown>, RawFeedItem>({
   }
 });
 const AGGREGATOR_AUTHOR_EMAIL = "aggregator@jahonxabarlari.uz";
+const AGGREGATOR_PUBLISH_STATUS_KEY = "aggregator.publishStatus";
+const DEFAULT_AGGREGATOR_PUBLISH_STATUS = "PUBLISHED" as const;
+
+export type AggregatorPublishStatus = "PUBLISHED" | "REVIEW";
+
+function isAggregatorPublishStatus(value: string): value is AggregatorPublishStatus {
+  return value === "PUBLISHED" || value === "REVIEW";
+}
+
+export async function getAggregatorPublishStatus(): Promise<AggregatorPublishStatus> {
+  const setting = await prisma.setting.findUnique({ where: { key: AGGREGATOR_PUBLISH_STATUS_KEY } });
+  if (setting && isAggregatorPublishStatus(setting.value)) return setting.value;
+
+  await prisma.setting.upsert({
+    where: { key: AGGREGATOR_PUBLISH_STATUS_KEY },
+    update: { value: DEFAULT_AGGREGATOR_PUBLISH_STATUS },
+    create: { key: AGGREGATOR_PUBLISH_STATUS_KEY, value: DEFAULT_AGGREGATOR_PUBLISH_STATUS }
+  });
+  return DEFAULT_AGGREGATOR_PUBLISH_STATUS;
+}
+
+export async function setAggregatorPublishStatus(status: AggregatorPublishStatus): Promise<AggregatorPublishStatus> {
+  await prisma.setting.upsert({
+    where: { key: AGGREGATOR_PUBLISH_STATUS_KEY },
+    update: { value: status },
+    create: { key: AGGREGATOR_PUBLISH_STATUS_KEY, value: status }
+  });
+  return status;
+}
 const DUPLICATE_THRESHOLD = 0.4;
 const DEDUP_WINDOW_MS = 48 * 60 * 60 * 1000;
 
@@ -220,7 +249,12 @@ async function uniqueArticleSlug(title: string): Promise<string> {
   return candidate;
 }
 
-async function processItem(item: FeedItem, categories: { id: string; name: string }[], authorId: string) {
+async function processItem(
+  item: FeedItem,
+  categories: { id: string; name: string }[],
+  authorId: string,
+  publishStatus: AggregatorPublishStatus
+) {
   const completion = await client!.chat.completions.create({
     model: MODEL,
     response_format: { type: "json_object" },
@@ -272,13 +306,7 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
     mainImage,
     confidence: parsed.confidence
   });
-  const requestedStatus = env.NEWS_AGGREGATOR_STATUS;
-  const status =
-    requestedStatus === "DRAFT"
-      ? "DRAFT"
-      : requestedStatus === "PUBLISHED" && env.NEWS_AGGREGATOR_AUTO_PUBLISH && quality.publishable
-        ? "PUBLISHED"
-        : "REVIEW";
+  const status = publishStatus;
   const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
   const article = await prisma.article.create({
@@ -322,7 +350,7 @@ async function processItem(item: FeedItem, categories: { id: string; name: strin
       metadata: {
         sourceName: item.sourceName,
         sourceUrl: item.link,
-        requestedStatus,
+        requestedStatus: publishStatus,
         finalStatus: status,
         confidence: parsed.confidence ?? null,
         qualityScore: quality.score,
@@ -359,7 +387,7 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
   running = true;
   try {
     const result = await withRedisLock("lock:news-aggregator", 30 * 60 * 1000, async () => {
-    const categories = await prisma.category.findMany();
+    const [categories, publishStatus] = await Promise.all([prisma.category.findMany(), getAggregatorPublishStatus()]);
     if (!categories.length) return { published: 0 };
 
     const author = await ensureAggregatorAuthor();
@@ -412,7 +440,7 @@ export async function runAggregatorCycle(options: AggregatorRunOptions = {}): Pr
     for (const item of deduped) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        await processItem(item, categories, author.id);
+        await processItem(item, categories, author.id, publishStatus);
         published += 1;
       } catch (error) {
         console.error(`[aggregator] "${item.title}" ni qayta ishlab bo'lmadi:`, error instanceof Error ? error.message : error);

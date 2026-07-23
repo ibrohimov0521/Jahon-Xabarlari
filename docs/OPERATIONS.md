@@ -2,7 +2,7 @@
 
 ## Deploy gate
 
-Before deployment run `npm test`, `npm run test:bot`, and `npm run test:e2e` from the repository root. Apply Prisma migrations before starting the new backend image. Never enable `NEWS_AGGREGATOR_AUTO_PUBLISH` until REVIEW quality is consistently acceptable.
+Before deployment run `npm test`, `npm run test:bot`, and `npm run test:e2e` from the repository root. Apply Prisma migrations before starting the new backend image. The aggregator destination status is managed from Admin > Aggregator and stored in PostgreSQL; use REVIEW whenever source quality needs manual verification.
 
 ## Backup and restore
 

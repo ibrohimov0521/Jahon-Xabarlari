@@ -5,7 +5,12 @@ import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
 import { getAggregatorJobCounts, queueAggregatorRun } from "../../services/aggregator-jobs.js";
-import { getAggregatorSources, MAX_AGGREGATOR_SOURCES } from "../../services/aggregator.js";
+import {
+  getAggregatorPublishStatus,
+  getAggregatorSources,
+  MAX_AGGREGATOR_SOURCES,
+  setAggregatorPublishStatus
+} from "../../services/aggregator.js";
 import { assertPublicUrl } from "../../services/net-guard.js";
 
 export const aggregatorRouter = Router();
@@ -17,14 +22,18 @@ const sourceSchema = z.object({
   enabled: z.boolean().optional()
 });
 const runSchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() });
+const settingsSchema = z.object({ publishStatus: z.enum(["PUBLISHED", "REVIEW"]) });
 
 aggregatorRouter.get("/status", async (_req, res) => {
-  const [sources, jobs] = await Promise.all([getAggregatorSources(), getAggregatorJobCounts()]);
+  const [sources, jobs, publishStatus] = await Promise.all([
+    getAggregatorSources(),
+    getAggregatorJobCounts(),
+    getAggregatorPublishStatus()
+  ]);
   res.json({
     enabled: env.NEWS_AGGREGATOR_ENABLED,
     intervalMinutes: env.NEWS_AGGREGATOR_INTERVAL_MINUTES,
-    publishStatus: env.NEWS_AGGREGATOR_STATUS,
-    autoPublishEnabled: env.NEWS_AGGREGATOR_AUTO_PUBLISH,
+    publishStatus,
     openaiConfigured: Boolean(env.OPENAI_API_KEY),
     sources,
     jobs
@@ -32,6 +41,17 @@ aggregatorRouter.get("/status", async (_req, res) => {
 });
 
 const ALREADY_RUNNING_MESSAGE = "Aggregator allaqachon ishlamoqda, biroz kutib qayta urinib ko'ring";
+
+aggregatorRouter.patch("/settings", permit("articles.publish"), async (req, res) => {
+  const { publishStatus } = settingsSchema.parse(req.body);
+  const previousStatus = await getAggregatorPublishStatus();
+  const savedStatus = await setAggregatorPublishStatus(publishStatus);
+  await audit(req, "AGGREGATOR_SETTINGS_UPDATE", "Setting", "aggregator.publishStatus", {
+    previousStatus,
+    publishStatus: savedStatus
+  });
+  res.json({ publishStatus: savedStatus });
+});
 
 aggregatorRouter.post("/run", async (req, res) => {
   const maxPerCycle = runSchema.parse(req.body ?? {}).limit;

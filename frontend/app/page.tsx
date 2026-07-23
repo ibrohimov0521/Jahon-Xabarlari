@@ -1,6 +1,8 @@
 import { ArrowRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { cacheLife } from "next/cache";
 import { Header } from "../components/Header";
+import { HomeNewsStream } from "../components/HomeNewsStream";
 import { MediaView } from "../components/MediaView";
 import { MobileCurrencyCard } from "../components/MobileCurrency";
 import { NewsCard } from "../components/NewsCard";
@@ -72,6 +74,13 @@ const categorySlugs = ["ozbekiston", "dunyo", "iqtisodiyot", "sport", "texnologi
 
 export default async function Home() {
   const lang = await getRequestLang();
+  return <CachedHome lang={lang} />;
+}
+
+async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
+  "use cache";
+  cacheLife({ stale: 30, revalidate: 60, expire: 3600 });
+
   const copy = homeCopy[lang];
   const categoryTabs = [
     [copy.categories.all, "/"],
@@ -85,7 +94,7 @@ export default async function Home() {
   ];
   const categorySections = categorySlugs.map((slug) => ({ title: copy.categories[slug], slug }));
   const categoryName = (category?: { name: string; slug: string }) => category ? copy.categories[category.slug as keyof typeof copy.categories] ?? category.name : "";
-  const [articles, trending, popular] = await Promise.all([getArticles("?limit=36", lang), getTrendingArticles(lang, 8), getPopularArticles(lang, 8, 4)]);
+  const [articles, trending, popular] = await Promise.all([getArticles("?limit=20", lang), getTrendingArticles(lang, 8), getPopularArticles(lang, 8, 4)]);
 
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
   const eligible = articles.filter((item) => item.showOnHome !== false);
@@ -107,7 +116,6 @@ export default async function Home() {
   const generalPool = rest.filter((item) => item.showInLatest !== false && !editorIds.has(item.id));
   const side = generalPool.slice(0, 3);
   const latest = generalPool.slice(3, 15);
-  const extraStream = generalPool.slice(15, 27);
 
   const trendingItems = trending;
   const popularItems = popular;
@@ -324,19 +332,7 @@ export default async function Home() {
             ))}
           </div>
 
-          {!!extraStream.length && (
-            <section>
-              <div className="home-section-head mb-4 flex items-center justify-between gap-3">
-                <h2 className="section-title text-[27px] font-black">{copy.moreNews}</h2>
-                <Link href="/search" className="home-outline-action flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
-                  {copy.filter} <ArrowRight size={16} />
-                </Link>
-              </div>
-              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {extraStream.map((item) => <NewsCard key={item.id} article={item} language={lang} />)}
-              </div>
-            </section>
-          )}
+          <HomeNewsStream language={lang} title={copy.moreNews} filterLabel={copy.filter} />
         </div>
 
         <aside className="home-popular-rail hidden content-start gap-4 lg:sticky lg:top-24 lg:grid lg:self-start">

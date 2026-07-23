@@ -31,6 +31,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    useCache: true
+  },
   poweredByHeader: false,
   compress: true,
   images: {

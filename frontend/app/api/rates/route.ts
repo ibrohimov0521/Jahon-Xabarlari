@@ -4,7 +4,7 @@ import { timeoutSignal } from "../../../lib/http";
 
 // Live UZS exchange rates from the Central Bank of Uzbekistan (free, no key).
 // Fetched server-side (avoids CORS) and cached; CBU publishes once per business day.
-export const revalidate = 3600;
+const RATE_REVALIDATE_SECONDS = 3600;
 
 type CbuItem = { Ccy: string; Rate: string; Diff: string; Nominal: string; Date: string; CcyNm_UZ?: string };
 
@@ -13,7 +13,7 @@ export type { CurrencyRate };
 export async function GET() {
   try {
     const res = await fetch("https://cbu.uz/uz/arkhiv-kursov-valyut/json/", {
-      next: { revalidate },
+      next: { revalidate: RATE_REVALIDATE_SECONDS },
       headers: { Accept: "application/json" },
       signal: timeoutSignal(10_000)
     });

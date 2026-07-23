@@ -22,10 +22,13 @@ export default defineConfig({
   webServer: externalBaseUrl
     ? undefined
     : {
-        command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
+        command: "node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3100",
         url: "http://127.0.0.1:3100",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: { NEXT_PUBLIC_API_URL: "http://127.0.0.1:4999/api" }
+        env: {
+          E2E_FIXTURES: "1",
+          NEXT_PUBLIC_API_URL: "http://127.0.0.1:9/api"
+        }
       }
 });

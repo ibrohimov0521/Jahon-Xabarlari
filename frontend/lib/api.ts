@@ -31,6 +31,8 @@ export type Article = {
 import { API_URL } from "./config";
 import { timeoutSignal } from "./http";
 
+const useE2EFixtures = process.env.E2E_FIXTURES === "1";
+
 // "uz" is the native/default content language already stored on the article, so there's
 // no need to ask the backend for a translation in that case.
 function withLang(url: string, lang?: string) {
@@ -39,6 +41,7 @@ function withLang(url: string, lang?: string) {
 }
 
 export async function getArticles(params = "", lang?: string) {
+  if (useE2EFixtures) return demoArticles;
   try {
     const res = await fetch(withLang(`${API_URL}/articles${params}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
@@ -71,6 +74,7 @@ export async function getArticleContext(slug: string, lang?: string): Promise<{ 
 }
 
 export async function getTrendingArticles(lang?: string, limit = 5) {
+  if (useE2EFixtures) return demoArticles.slice(0, limit);
   try {
     const res = await fetch(withLang(`${API_URL}/articles/trending?limit=${limit}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
@@ -81,6 +85,7 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
 }
 
 export async function getPopularArticles(lang?: string, limit = 8, days = 4) {
+  if (useE2EFixtures) return demoArticles.slice(0, limit);
   try {
     const res = await fetch(withLang(`${API_URL}/articles/popular?limit=${limit}&days=${days}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");

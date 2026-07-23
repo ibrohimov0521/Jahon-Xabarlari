@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/rates", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ updated: "17.07.2026", base: "UZS", rates: [] })
+    })
+  );
+});
+
 test("homepage renders usable news content without horizontal overflow", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("header.site-header")).toBeVisible();

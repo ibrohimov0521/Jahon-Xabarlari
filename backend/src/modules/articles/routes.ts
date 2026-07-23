@@ -98,6 +98,44 @@ function applyTranslation<T extends { title: string; summary: string; shortDescr
   };
 }
 
+function articleListSelect(lang?: string) {
+  return {
+    id: true,
+    title: true,
+    slug: true,
+    summary: true,
+    shortDescription: true,
+    mainImage: true,
+    viewsCount: true,
+    publishedAt: true,
+    updatedAt: true,
+    isFeatured: true,
+    isBreaking: true,
+    isEditorChoice: true,
+    showOnHome: true,
+    showInSlider: true,
+    showInSidebar: true,
+    showInLatest: true,
+    showInPopular: true,
+    category: { select: { name: true, slug: true } },
+    author: { select: { name: true } },
+    translations: {
+      where: { lang: isLang(lang) ? lang : "__native__", status: "READY" as const },
+      select: { lang: true, title: true, summary: true, status: true }
+    }
+  } satisfies Prisma.ArticleSelect;
+}
+
+type ArticleListRow = Prisma.ArticleGetPayload<{ select: ReturnType<typeof articleListSelect> }>;
+
+function applyListTranslation(article: ArticleListRow, lang?: string) {
+  const { translations, ...base } = article;
+  if (!isLang(lang)) return base;
+  const translation = translations.find((item) => item.lang === lang && item.status === "READY");
+  if (!translation) return base;
+  return { ...base, title: translation.title, summary: translation.summary };
+}
+
 articleRouter.get("/articles", async (req, res) => {
   const { page, take, skip } = pagination(req.query, { limit: 12, max: 200 });
   const category = req.query.category?.toString().slice(0, 100);
@@ -111,11 +149,7 @@ articleRouter.get("/articles", async (req, res) => {
   const [items, total] = await Promise.all([
     prisma.article.findMany({
       where,
-      include: {
-        category: true,
-        author: { select: { name: true } },
-        ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
-      },
+      select: articleListSelect(lang),
       orderBy: { publishedAt: "desc" },
       skip,
       take
@@ -123,7 +157,7 @@ articleRouter.get("/articles", async (req, res) => {
     prisma.article.count({ where })
   ]);
   setPublicCache(res, 60);
-  res.json({ items: items.map((item) => applyTranslation(item, lang)), total, page, pages: Math.ceil(total / take) });
+  res.json({ items: items.map((item) => applyListTranslation(item, lang)), total, page, pages: Math.ceil(total / take) });
 });
 
 articleRouter.get("/articles/trending", async (req, res) => {
@@ -139,11 +173,6 @@ articleRouter.get("/articles/trending", async (req, res) => {
     take: 100
   });
 
-  const includeArgs = {
-    category: true,
-    ...(isLang(lang) ? { translations: { where: { lang, status: "READY" as const } } } : {})
-  };
-
   if (!grouped.length) return res.json({ items: [] });
 
   const ids = grouped.map((item) => item.articleId);
@@ -151,13 +180,13 @@ articleRouter.get("/articles/trending", async (req, res) => {
   // scopes views to `since`), so an older article being read heavily today must still qualify.
   const articles = await prisma.article.findMany({
     where: { id: { in: ids }, deletedAt: null, status: "PUBLISHED" },
-    include: includeArgs
+    select: articleListSelect(lang)
   });
   const order = new Map(ids.map((id, index) => [id, index]));
   const sorted = articles.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).slice(0, take);
 
   setPublicCache(res, 60);
-  res.json({ items: sorted.map((item) => applyTranslation(item, lang)) });
+  res.json({ items: sorted.map((item) => applyListTranslation(item, lang)) });
 });
 
 articleRouter.get("/articles/popular", async (req, res) => {
@@ -168,16 +197,13 @@ articleRouter.get("/articles/popular", async (req, res) => {
 
   const items = await prisma.article.findMany({
     where: { deletedAt: null, status: "PUBLISHED", publishedAt: { gte: since } },
-    include: {
-      category: true,
-      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" as const } } } : {})
-    },
+    select: articleListSelect(lang),
     orderBy: [{ viewsCount: "desc" }, { publishedAt: "desc" }],
     take
   });
 
   setPublicCache(res, 120);
-  res.json({ items: items.map((item) => applyTranslation(item, lang)) });
+  res.json({ items: items.map((item) => applyListTranslation(item, lang)) });
 });
 
 articleRouter.get("/articles/sitemap", async (_req, res) => {
@@ -211,7 +237,15 @@ articleRouter.get("/articles/:slug/context", async (req, res) => {
   const lang = req.query.lang?.toString();
   const current = await prisma.article.findUnique({
     where: { slug: req.params.slug },
-    include: { tags: { select: { tagId: true } } }
+    select: {
+      id: true,
+      deletedAt: true,
+      status: true,
+      publishedAt: true,
+      categoryId: true,
+      extraCategoryIds: true,
+      tags: { select: { tagId: true } }
+    }
   });
   if (!current || current.deletedAt || current.status !== "PUBLISHED") return res.status(404).json({ message: "Topilmadi" });
 
@@ -228,12 +262,7 @@ articleRouter.get("/articles/:slug/context", async (req, res) => {
         ...(tagIds.length ? [{ tags: { some: { tagId: { in: tagIds } } } }] : [])
       ]
     },
-    include: {
-      category: true,
-      author: { select: { name: true } },
-      tags: { include: { tag: true } },
-      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
-    },
+    select: articleListSelect(lang),
     orderBy: [{ publishedAt: "desc" }, { viewsCount: "desc" }],
     take: 6
   });
@@ -241,18 +270,13 @@ articleRouter.get("/articles/:slug/context", async (req, res) => {
   const next = current.publishedAt
     ? await prisma.article.findFirst({
         where: { id: { not: current.id }, deletedAt: null, status: "PUBLISHED", publishedAt: { lt: current.publishedAt } },
-        include: {
-          category: true,
-          author: { select: { name: true } },
-          tags: { include: { tag: true } },
-          ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
-        },
+        select: articleListSelect(lang),
         orderBy: { publishedAt: "desc" }
       })
     : null;
 
   setPublicCache(res, 120);
-  res.json({ related: related.map((item) => applyTranslation(item, lang)), next: next ? applyTranslation(next, lang) : null });
+  res.json({ related: related.map((item) => applyListTranslation(item, lang)), next: next ? applyListTranslation(next, lang) : null });
 });
 
 const viewRateLimit = rateLimit({
@@ -418,17 +442,15 @@ articleRouter.get("/search", searchRateLimit, async (req, res) => {
         }
       ]
     },
-    include: {
-      category: true,
-      ...(isLang(lang) ? { translations: { where: { lang, status: "READY" } } } : {})
-    },
+    select: articleListSelect(lang),
     orderBy,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     take: take + 1
   });
   const hasMore = rows.length > take;
   const items = rows.slice(0, take);
-  res.json({ items: items.map((item) => applyTranslation(item, lang)), nextCursor: hasMore ? items.at(-1)?.id ?? null : null });
+  setPublicCache(res, 30);
+  res.json({ items: items.map((item) => applyListTranslation(item, lang)), nextCursor: hasMore ? items.at(-1)?.id ?? null : null });
 });
 
 articleRouter.get("/admin/article-reports", requireAuth, permit("comments.manage"), async (req, res) => {

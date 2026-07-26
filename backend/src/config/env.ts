@@ -12,18 +12,31 @@ const strongSecret = (label: string) =>
       message: `${label} standart placeholder qiymatda qolgan — yangi maxfiy kalit o'rnating`
     });
 
+const webOrigin = z.string().trim().url()
+  .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), "Origin http:// yoki https:// bo'lishi kerak")
+  .transform((value) => value.replace(/\/+$/, ""));
+
+const commaSeparatedOrigins = z.string().optional().refine((value) => {
+  if (!value?.trim()) return true;
+  return value.split(",").every((item) => webOrigin.safeParse(item).success);
+}, "FRONTEND_URLS faqat vergul bilan ajratilgan http(s) originlardan iborat bo'lishi kerak");
+
+const port = z.coerce.number().int().min(1).max(65_535);
+
 const schema = z.object({
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().default("redis://localhost:6379"),
+  REDIS_URL: z.string().url()
+    .refine((value) => ["redis:", "rediss:"].includes(new URL(value).protocol), "REDIS_URL redis:// yoki rediss:// bo'lishi kerak")
+    .default("redis://localhost:6379"),
   JWT_ACCESS_SECRET: strongSecret("JWT_ACCESS_SECRET"),
   JWT_REFRESH_SECRET: strongSecret("JWT_REFRESH_SECRET"),
   // Shared secret the Telegram bot must send (X-Bot-Secret header) to use /auth/telegram-login.
   // Optional so the API still boots without it, but the route fails closed when it's unset.
   BOT_SERVICE_SECRET: z.string().min(24).optional(),
-  FRONTEND_URL: z.string().url().default("http://localhost:3000"),
-  FRONTEND_URLS: z.string().optional(),
-  API_PORT: z.coerce.number().optional(),
-  PORT: z.coerce.number().optional(),
+  FRONTEND_URL: webOrigin.default("http://localhost:3000"),
+  FRONTEND_URLS: commaSeparatedOrigins,
+  API_PORT: port.optional(),
+  PORT: port.optional(),
   OPENAI_API_KEY: z.string().optional(),
   WEATHERAPI_API_KEY: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().min(40).optional(),
@@ -34,11 +47,27 @@ const schema = z.object({
     .optional()
     .transform((value) => value === "true"),
   NEWS_AGGREGATOR_INTERVAL_MINUTES: z.coerce.number().min(1).default(5)
+}).superRefine((value, ctx) => {
+  if (value.JWT_ACCESS_SECRET === value.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["JWT_REFRESH_SECRET"],
+      message: "JWT_ACCESS_SECRET va JWT_REFRESH_SECRET har xil bo'lishi kerak"
+    });
+  }
+
+  if (Boolean(value.VAPID_PUBLIC_KEY) !== Boolean(value.VAPID_PRIVATE_KEY)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [value.VAPID_PUBLIC_KEY ? "VAPID_PRIVATE_KEY" : "VAPID_PUBLIC_KEY"],
+      message: "VAPID_PUBLIC_KEY va VAPID_PRIVATE_KEY birga sozlanishi kerak"
+    });
+  }
 });
 
 export const env = schema.parse(process.env);
 export const apiPort = env.PORT ?? env.API_PORT ?? 4000;
 export const frontendOrigins = [
   env.FRONTEND_URL,
-  ...(env.FRONTEND_URLS?.split(",").map((item) => item.trim()).filter(Boolean) ?? [])
+  ...(env.FRONTEND_URLS?.split(",").map((item) => item.trim().replace(/\/+$/, "")).filter(Boolean) ?? [])
 ];

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 type SearchContextValue = {
   open: boolean;
@@ -13,11 +14,19 @@ const SearchContext = createContext<SearchContextValue | null>(null);
 /** Global search state so any button (header, bottom nav) and Ctrl/⌘+K open the
  *  same premium search experience, rendered once in the layout. */
 export function SearchProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const openSearch = useCallback(() => setOpen(true), []);
+  const isAdmin = pathname.startsWith("/admin");
+  const openSearch = useCallback(() => {
+    if (!isAdmin) setOpen(true);
+  }, [isAdmin]);
   const closeSearch = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
+    if (isAdmin) {
+      setOpen(false);
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -26,7 +35,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [isAdmin]);
 
   return <SearchContext.Provider value={{ open, openSearch, closeSearch }}>{children}</SearchContext.Provider>;
 }

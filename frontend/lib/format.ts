@@ -35,19 +35,16 @@ export function formatDateCompact(value?: string | null, language: Language = "u
   return `${dateText} • ${timeText}`;
 }
 
-export function formatViewsCompact(count = 0) {
-  if (count < 1000) return String(count);
-  const thousands = count / 1000;
-  return (thousands >= 10 ? Math.round(thousands).toString() : thousands.toFixed(1).replace(".", ",")) + "K";
+export function formatViewsCompact(count = 0, language: Language = "uz") {
+  return new Intl.NumberFormat(locales[language], {
+    notation: count >= 1000 ? "compact" : "standard",
+    maximumFractionDigits: 1
+  }).format(Math.max(0, count));
 }
 
 export function formatViews(count = 0, language: Language = "uz") {
   const viewLabel = language === "uz" ? "ko'rish" : language === "ru" ? "просмотров" : "views";
-  if (count < 1000) return `${count} ${viewLabel}`;
-  const thousands = count / 1000;
-  const rounded = thousands >= 10 ? Math.round(thousands).toString() : thousands.toFixed(1).replace(".", ",");
-  const thousandLabel = language === "uz" ? "ming ko'rish" : language === "ru" ? "тыс. просмотров" : "K views";
-  return `${rounded} ${thousandLabel}`;
+  return `${formatViewsCompact(count, language)} ${viewLabel}`;
 }
 
 export function getTashkentDateParts(date = new Date()) {

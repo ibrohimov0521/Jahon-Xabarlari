@@ -3,6 +3,7 @@ import { formatDateCompact, formatViewsCompact } from "../lib/format";
 import { Clock, Eye } from "lucide-react";
 import Link from "next/link";
 import { MediaView } from "./MediaView";
+import { localizedHref } from "../lib/localized-href";
 
 type SupportedLanguage = "uz" | "ru" | "en";
 
@@ -15,7 +16,7 @@ export function NewsCard({ article, language = "uz" }: { article: Article; langu
   const categoryName = language === "uz" ? article.category?.name : categoryLabels[language][article.category?.slug ?? ""] ?? article.category?.name;
   return (
     <Link
-      href={`/articles/${article.slug}`}
+      href={localizedHref(`/articles/${article.slug}`, language)}
       className="news-card-modern news-shadow flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition hover:-translate-y-0.5"
     >
       <MediaView
@@ -47,7 +48,7 @@ export function NewsCard({ article, language = "uz" }: { article: Article; langu
             <Clock size={12} /> {formatDateCompact(article.publishedAt, language)}
           </span>
           <span className="inline-flex items-center gap-1">
-            <Eye size={12} /> {formatViewsCompact(article.viewsCount)}
+            <Eye size={12} /> {formatViewsCompact(article.viewsCount, language)}
           </span>
         </p>
       </div>

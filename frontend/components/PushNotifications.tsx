@@ -3,6 +3,7 @@
 import { BellRing, Check, Loader2, Settings2, Smartphone, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL } from "../lib/config";
+import { readStorage, removeStorage, writeStorage } from "../lib/browser-storage";
 import { timeoutSignal } from "../lib/http";
 import { useUi, type Language } from "../lib/ui-context";
 
@@ -57,7 +58,7 @@ const SNOOZE_KEY = "jx_push_prompt_snoozed_until";
 const SETTINGS_EVENT = "jx:push-settings";
 
 export function openPushSettings() {
-  window.dispatchEvent(new Event(SETTINGS_EVENT));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SETTINGS_EVENT));
 }
 
 function toUint8Array(base64Url: string) {
@@ -124,6 +125,20 @@ export function PushNotifications() {
   }, []);
 
   useEffect(() => {
+    if (!settingsOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setSettingsOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [busy, settingsOpen]);
+
+  useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
 
@@ -148,12 +163,12 @@ export function PushNotifications() {
           return;
         }
         setState("default");
-        const snoozedUntil = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+        const snoozedUntil = Number(readStorage(SNOOZE_KEY) || 0);
         if (snoozedUntil <= Date.now()) timer = setTimeout(() => {
           setPromptOpen(true);
           promptHideTimer.current = setTimeout(() => {
             setPromptOpen(false);
-            localStorage.setItem(SNOOZE_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+            writeStorage(SNOOZE_KEY, String(Date.now() + 24 * 60 * 60 * 1000));
           }, 6_500);
         }, 10_000);
       } catch {
@@ -197,7 +212,7 @@ export function PushNotifications() {
       setState("enabled");
       setJustEnabled(true);
       setSettingsOpen(true);
-      localStorage.removeItem(SNOOZE_KEY);
+      removeStorage(SNOOZE_KEY);
       if (successTimer.current) clearTimeout(successTimer.current);
       successTimer.current = setTimeout(() => {
         setSettingsOpen(false);
@@ -230,7 +245,7 @@ export function PushNotifications() {
       setState("default");
       setJustEnabled(false);
       setSettingsOpen(false);
-      localStorage.setItem(SNOOZE_KEY, String(Date.now() + 30 * 24 * 60 * 60 * 1000));
+      writeStorage(SNOOZE_KEY, String(Date.now() + 30 * 24 * 60 * 60 * 1000));
     } catch {
       setMessage(copy.error);
     } finally {
@@ -241,7 +256,7 @@ export function PushNotifications() {
   const snooze = () => {
     if (promptHideTimer.current) clearTimeout(promptHideTimer.current);
     setPromptOpen(false);
-    localStorage.setItem(SNOOZE_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    writeStorage(SNOOZE_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
   };
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { ButtonHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { useId, useState } from "react";
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ export function Empty({ text }: { text: string }) {
 export function ErrorBanner({ message }: { message: string }) {
   if (!message) return null;
   return (
-    <div className="mb-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+    <div className="mb-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
       <span>{message}</span>
     </div>
@@ -122,7 +122,7 @@ export function SuccessBanner({ message }: { message: string }) {
 export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   if (!message) return null;
   return (
-    <div className="fixed inset-x-4 bottom-20 z-[110] mx-auto max-w-md rounded-lg border border-green-200 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-900/20 sm:inset-x-auto sm:right-6 sm:mx-0 lg:bottom-5">
+    <div className="fixed inset-x-4 bottom-20 z-[110] mx-auto max-w-md rounded-lg border border-green-200 bg-white p-4 text-slate-900 shadow-2xl shadow-slate-900/20 sm:inset-x-auto sm:right-6 sm:mx-0 lg:bottom-5" role="status" aria-live="polite">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-green-50 text-green-700">
           <CheckCircle2 size={20} />
@@ -141,7 +141,7 @@ export function Toast({ message, onClose }: { message: string; onClose: () => vo
 
 export function LoadingBlock({ label = "Yuklanmoqda..." }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-blue-50 px-4 py-3 text-sm font-bold text-brand">
+    <div className="flex items-center gap-2 rounded-md bg-blue-50 px-4 py-3 text-sm font-bold text-brand" role="status" aria-live="polite">
       <Loader2 size={16} className="animate-spin" /> {label}
     </div>
   );
@@ -153,14 +153,12 @@ export function Input({
   onChange,
   type = "text",
   required = true,
-  placeholder
-}: {
+  placeholder,
+  ...rest
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
 }) {
   const inputId = useId();
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -179,6 +177,7 @@ export function Input({
           type={resolvedType}
           required={required}
           placeholder={placeholder}
+          {...rest}
         />
         {isPassword && (
           <button
@@ -259,9 +258,10 @@ export function Select<T extends string>({
   );
 }
 
-export function SearchInput({ value, onChange, placeholder = "Qidirish..." }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+export function SearchInput({ value, onChange, placeholder = "Qidirish...", label = "Qidirish" }: { value: string; onChange: (value: string) => void; placeholder?: string; label?: string }) {
   return (
     <input
+      aria-label={label}
       className="w-full max-w-xs rounded-md border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-brand"
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -274,15 +274,18 @@ export function SelectFilter<T extends string>({
   value,
   onChange,
   options,
-  allLabel = "Barchasi"
+  allLabel = "Barchasi",
+  label = "Filtrlash"
 }: {
   value: T | "";
   onChange: (value: T | "") => void;
   options: readonly (T | { value: T; label: string })[];
   allLabel?: string;
+  label?: string;
 }) {
   return (
     <select
+      aria-label={label}
       className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-brand"
       value={value}
       onChange={(e) => onChange(e.target.value as T | "")}
@@ -306,6 +309,7 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? "bg-brand" : "bg-slate-300"}`}
         aria-pressed={checked}
+        aria-label={label}
       >
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${checked ? "left-5" : "left-0.5"}`} />
       </button>

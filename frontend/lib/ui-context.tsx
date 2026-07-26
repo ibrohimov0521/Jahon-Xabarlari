@@ -2,9 +2,28 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { readStorage, writeStorage } from "./browser-storage";
 
 export type Language = "uz" | "ru" | "en";
 export type Theme = "light" | "dark";
+
+function isLanguage(value: string | null): value is Language {
+  return value === "uz" || value === "ru" || value === "en";
+}
+
+function writeLanguageCookie(language: Language) {
+  document.cookie = `lang=${language}; path=/; max-age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+}
+
+function browserLanguage(): Language {
+  const preferences = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const preference of preferences) {
+    const code = preference.toLowerCase().split("-")[0];
+    if (code === "ru" || code === "en") return code;
+    if (code === "uz") return "uz";
+  }
+  return "uz";
+}
 
 const dictionaries = {
   uz: {
@@ -46,6 +65,15 @@ const dictionaries = {
       button: "Obuna bo'lish",
       sent: "Obuna qabul qilindi.",
       error: "Xatolik yuz berdi, qayta urinib ko'ring."
+    },
+    footer: {
+      navigation: "Sayt havolalari",
+      about: "Sayt haqida",
+      ads: "Reklama",
+      contact: "Aloqa",
+      editorial: "Tahririyat siyosati",
+      corrections: "Tuzatishlar",
+      privacy: "Maxfiylik"
     }
   },
   ru: {
@@ -87,6 +115,15 @@ const dictionaries = {
       button: "Подписаться",
       sent: "Подписка принята.",
       error: "Произошла ошибка, попробуйте снова."
+    },
+    footer: {
+      navigation: "Ссылки сайта",
+      about: "О сайте",
+      ads: "Реклама",
+      contact: "Контакты",
+      editorial: "Редакционная политика",
+      corrections: "Исправления",
+      privacy: "Конфиденциальность"
     }
   },
   en: {
@@ -128,6 +165,15 @@ const dictionaries = {
       button: "Subscribe",
       sent: "Subscription received.",
       error: "Something went wrong, please try again."
+    },
+    footer: {
+      navigation: "Site links",
+      about: "About",
+      ads: "Advertising",
+      contact: "Contact",
+      editorial: "Editorial policy",
+      corrections: "Corrections",
+      privacy: "Privacy"
     }
   }
 };
@@ -148,29 +194,55 @@ export function UiProvider({ children, initialLanguage = "uz" }: { children: Rea
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") as Theme | null;
-    setLanguageState(initialLanguage);
-    localStorage.setItem("language", initialLanguage);
-    document.documentElement.lang = initialLanguage;
+    const storedTheme = readStorage("theme") as Theme | null;
+    const urlLanguage = new URLSearchParams(window.location.search).get("lang");
+    const cookieLanguage = document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith("lang="))
+      ?.slice(5) ?? null;
+    const storedLanguage = readStorage("language");
+    const resolvedLanguage = isLanguage(urlLanguage)
+      ? urlLanguage
+      : isLanguage(cookieLanguage)
+        ? cookieLanguage
+        : isLanguage(storedLanguage)
+          ? storedLanguage
+          : browserLanguage();
+    setLanguageState(resolvedLanguage);
+    writeStorage("language", resolvedLanguage);
+    writeLanguageCookie(resolvedLanguage);
+    document.documentElement.lang = resolvedLanguage;
     if (storedTheme === "dark" || storedTheme === "light") setTheme(storedTheme);
-  }, [initialLanguage]);
+    if (!isLanguage(urlLanguage) && !isLanguage(cookieLanguage) && resolvedLanguage !== "uz") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", resolvedLanguage);
+      router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
+    }
+  }, [initialLanguage, router]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
-    localStorage.setItem("theme", theme);
+    writeStorage("theme", theme);
   }, [theme]);
 
   const value = useMemo<UiContextValue>(() => ({
     language,
     setLanguage(nextLanguage) {
       setLanguageState(nextLanguage);
-      localStorage.setItem("language", nextLanguage);
-      document.cookie = `lang=${nextLanguage}; path=/; max-age=31536000`;
+      writeStorage("language", nextLanguage);
+      writeLanguageCookie(nextLanguage);
       document.documentElement.lang = nextLanguage;
-      // Server components (article/category/home pages) read the `lang` cookie to fetch
-      // the right translation, so refresh their data after switching.
-      router.refresh();
+      // Keep direct article/search URLs in sync too. Otherwise an existing ?lang= value
+      // wins over the new cookie and a server-rendered article remains in the old language.
+      const url = new URL(window.location.href);
+      if (nextLanguage === "uz") url.searchParams.delete("lang");
+      else url.searchParams.set("lang", nextLanguage);
+      const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl === currentUrl) router.refresh();
+      else router.replace(nextUrl, { scroll: false });
     },
     theme,
     toggleTheme() {

@@ -1,4 +1,4 @@
-import { readTextResponse, safeFetch } from "./net-guard.js";
+import { assertPublicUrl, readTextResponse, safeFetch } from "./net-guard.js";
 
 export type FeedMediaInput = {
   link: string;
@@ -28,14 +28,21 @@ const LOW_QUALITY_MEDIA = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}
 const HIGH_QUALITY_MEDIA = /(original|full(?:size)?|large|1200x|1600x|1920x)/i;
 
 function decodeHtml(value: string) {
+  const decodeCodePoint = (match: string, rawCode: string, radix: number) => {
+    const codePoint = Number.parseInt(rawCode, radix);
+    if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
+      return match;
+    }
+    return String.fromCodePoint(codePoint);
+  };
   return value
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)));
+    .replace(/&#(\d+);/g, (match, code: string) => decodeCodePoint(match, code, 10))
+    .replace(/&#x([\da-f]+);/gi, (match, code: string) => decodeCodePoint(match, code, 16));
 }
 
 function firstString(value: unknown): string | null {
@@ -62,6 +69,10 @@ function absolutizeMediaUrl(url: string | null, baseUrl: string) {
 
 function isHttpUrl(url: string | null) {
   return Boolean(url && /^https?:\/\//i.test(url));
+}
+
+function hasDirectVideoExtension(url: string) {
+  return /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url);
 }
 
 function looksLikeMedia(url: string | null, mimeType?: string | null) {
@@ -199,7 +210,11 @@ export function extractMetaMedia(html: string, baseUrl: string) {
       "image": 6_000_000,
       "image_src": 6_000_000
     };
-    if (priorities[key]) candidates.push({ url, priority: priorities[key] });
+    if (!priorities[key]) continue;
+    const absoluteUrl = absolutizeMediaUrl(url, baseUrl);
+    const isVideoMeta = key.startsWith("og:video") || key.startsWith("twitter:player");
+    if (isVideoMeta && (!absoluteUrl || !hasDirectVideoExtension(absoluteUrl))) continue;
+    candidates.push({ url, priority: priorities[key] });
   }
 
   for (const match of html.matchAll(/"image"\s*:\s*(?:\{[^{}]*?"url"\s*:\s*)?["']([^"']+)["']/gi)) {
@@ -228,8 +243,36 @@ async function fetchPageMedia(link: string) {
 }
 
 export async function resolveArticleMedia(item: FeedMediaInput) {
-  if (item.mediaUrl && !isLowQualityMediaUrl(item.mediaUrl)) return item.mediaUrl;
+  if (
+    item.mediaUrl &&
+    !isLowQualityMediaUrl(item.mediaUrl) &&
+    (HIGH_QUALITY_MEDIA.test(item.mediaUrl) || urlWidth(item.mediaUrl) >= 1_000 || hasDirectVideoExtension(item.mediaUrl))
+  ) {
+    try {
+      await assertPublicUrl(item.mediaUrl);
+      return item.mediaUrl;
+    } catch {
+      // Continue to the article page and lower-priority feed candidates.
+    }
+  }
   const pageMedia = await fetchPageMedia(item.link);
-  if (pageMedia) return pageMedia;
-  return item.mediaUrl ?? item.fallbackMediaUrl ?? null;
+  if (pageMedia) {
+    try {
+      await assertPublicUrl(pageMedia);
+      return pageMedia;
+    } catch {
+      // Continue to lower-priority feed candidates.
+    }
+  }
+  for (const candidate of [item.mediaUrl, item.fallbackMediaUrl]) {
+    if (!candidate) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await assertPublicUrl(candidate);
+      return candidate;
+    } catch {
+      // Ignore unsafe or malformed feed media.
+    }
+  }
+  return null;
 }

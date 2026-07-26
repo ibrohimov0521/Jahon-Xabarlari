@@ -4,6 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useNav } from "../lib/nav-context";
 import { useSearch } from "../lib/search-context";
+import { useUi } from "../lib/ui-context";
+import { localizedHref } from "../lib/localized-href";
 
 // Walk up from the touch target: if any ancestor can actually scroll
 // horizontally (chips rows, carousels), let it scroll instead of switching tab.
@@ -30,6 +32,7 @@ export default function SwipeNav() {
   const router = useRouter();
   const { sheet, setSheet } = useNav();
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
+  const { language } = useUi();
 
   useEffect(() => {
     // The admin panel has its own mobile navigation. Public-site swipe gestures
@@ -58,7 +61,7 @@ export default function SwipeNav() {
           setSheet(null);
           if (pathname !== "/") {
             document.documentElement.dataset.swipeDir = "prev";
-            router.push("/");
+            router.push(localizedHref("/", language));
           }
           break;
         case 1:
@@ -74,7 +77,7 @@ export default function SwipeNav() {
           setSheet(null);
           if (!pathname.startsWith("/popular")) {
             document.documentElement.dataset.swipeDir = "next";
-            router.push("/popular");
+            router.push(localizedHref("/popular", language));
           }
           break;
         case 4:
@@ -118,7 +121,7 @@ export default function SwipeNav() {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [pathname, router, sheet, setSheet, searchOpen, openSearch, closeSearch]);
+  }, [pathname, router, sheet, setSheet, searchOpen, openSearch, closeSearch, language]);
 
   return null;
 }

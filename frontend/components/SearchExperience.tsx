@@ -5,6 +5,7 @@ import {
   Clock,
   Command,
   Cpu,
+  Eye,
   Globe2,
   Landmark,
   LineChart,
@@ -23,7 +24,9 @@ import { MediaView } from "./MediaView";
 import { useSearch } from "../lib/search-context";
 import { useUi } from "../lib/ui-context";
 import { searchArticles, getArticles, type Article } from "../lib/api";
+import { readStorage, removeStorage, writeStorage } from "../lib/browser-storage";
 import { formatArticleDateTime, formatViews } from "../lib/format";
+import { localizedHref } from "../lib/localized-href";
 
 type Cat = { slug: string; key: string; icon: ComponentType<{ size?: number }> };
 
@@ -38,7 +41,11 @@ const CATEGORIES: Cat[] = [
   { slug: "madaniyat", key: "culture", icon: Palette }
 ];
 
-const TRENDING = ["Sun'iy intellekt", "Jahon iqtisodiyoti", "Chempionlar ligasi", "Neft narxi", "Iqlim sammiti", "Valyuta kursi", "Kosmik missiya", "Saylov natijalari"];
+const TRENDING = {
+  uz: ["Sun'iy intellekt", "Jahon iqtisodiyoti", "Chempionlar ligasi", "Neft narxi", "Iqlim sammiti", "Valyuta kursi", "Kosmik missiya", "Saylov natijalari"],
+  ru: ["Искусственный интеллект", "Мировая экономика", "Лига чемпионов", "Цена на нефть", "Климатический саммит", "Курс валют", "Космическая миссия", "Результаты выборов"],
+  en: ["Artificial intelligence", "World economy", "Champions League", "Oil price", "Climate summit", "Exchange rates", "Space mission", "Election results"]
+} as const;
 
 const STR = {
   placeholder: { uz: "Yangilik qidiring...", ru: "Искать новости...", en: "Search news..." },
@@ -92,7 +99,6 @@ export default function SearchExperience() {
   const [active, setActive] = useState(-1);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const poolLoaded = useRef(false);
 
   // Mount / unmount with enter+exit transition.
   useEffect(() => {
@@ -106,22 +112,24 @@ export default function SearchExperience() {
     return () => clearTimeout(timer);
   }, [open]);
 
-  // Focus, scroll-lock, load recents, prefetch a content pool once.
+  // Focus, scroll-lock, load recents, and fetch content in the active language.
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusTimer = setTimeout(() => inputRef.current?.focus(), 120);
     try {
-      setRecent(JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"));
+      const parsed: unknown = JSON.parse(readStorage(RECENT_KEY) || "[]");
+      setRecent(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string").slice(0, 8) : []);
     } catch {
       setRecent([]);
     }
-    if (!poolLoaded.current) {
-      poolLoaded.current = true;
-      getArticles("", language === "uz" ? undefined : language).then((items) => setPool(items.slice(0, 30)));
-    }
+    getArticles("?limit=30", language === "uz" ? undefined : language).then((items) => {
+      if (!cancelled) setPool(items.slice(0, 30));
+    });
     return () => {
+      cancelled = true;
       document.body.style.overflow = prev;
       clearTimeout(focusTimer);
     };
@@ -182,24 +190,18 @@ export default function SearchExperience() {
     if (!value) return;
     const next = [value, ...recent.filter((r) => r.toLowerCase() !== value.toLowerCase())].slice(0, 8);
     setRecent(next);
-    try {
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-    } catch {}
+    writeStorage(RECENT_KEY, JSON.stringify(next));
   }
 
   function removeRecent(term: string) {
     const next = recent.filter((r) => r !== term);
     setRecent(next);
-    try {
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-    } catch {}
+    writeStorage(RECENT_KEY, JSON.stringify(next));
   }
 
   function clearRecent() {
     setRecent([]);
-    try {
-      localStorage.removeItem(RECENT_KEY);
-    } catch {}
+    removeStorage(RECENT_KEY);
   }
 
   function runTerm(term: string) {
@@ -211,7 +213,7 @@ export default function SearchExperience() {
   function openArticle(a: Article) {
     saveRecent(query || a.title);
     closeSearch();
-    router.push(`/articles/${a.slug}`);
+    router.push(localizedHref(`/articles/${a.slug}`, language));
   }
 
   // Keyboard navigation within results.
@@ -235,6 +237,8 @@ export default function SearchExperience() {
   }
 
   if (!mounted) return null;
+
+  const trendingTerms = TRENDING[language] ?? TRENDING.uz;
 
   const chip = (c: Cat, i: number) => {
     const label = c.key === "all" ? pick(STR.all, language) : t.nav[c.key as keyof typeof t.nav];
@@ -267,8 +271,8 @@ export default function SearchExperience() {
         <h4 className="se-card-title">{hasQuery ? highlight(a.title, debounced) : a.title}</h4>
         {big && a.summary ? <p className="se-card-sum">{hasQuery ? highlight(a.summary, debounced) : a.summary}</p> : null}
         <div className="se-card-meta">
-          {a.publishedAt ? <span>{formatArticleDateTime(a.publishedAt)}</span> : null}
-          <span>👁 {formatViews(a.viewsCount)}</span>
+          {a.publishedAt ? <span>{formatArticleDateTime(a.publishedAt, language)}</span> : null}
+          <span><Eye size={13} aria-hidden="true" /> {formatViews(a.viewsCount, language)}</span>
         </div>
       </div>
       <ArrowUpRight className="se-card-arrow" size={18} />
@@ -279,7 +283,7 @@ export default function SearchExperience() {
     <section className="se-block">
       <div className="se-block-head"><TrendingUp size={16} /> {pick(STR.trending, language)}</div>
       <div className="se-trend-list">
-        {TRENDING.map((term, i) => (
+        {trendingTerms.map((term, i) => (
           <button key={term} onClick={() => runTerm(term)} className="se-trend" style={{ animationDelay: `${120 + i * 55}ms` }}>
             <span className="se-trend-rank">{i + 1}</span>
             <span className="se-trend-term">{term}</span>
@@ -314,7 +318,7 @@ export default function SearchExperience() {
       <h3 className="se-empty-title">{pick(STR.noResults, language)}</h3>
       <p className="se-empty-sub">{pick(STR.noResultsHint, language)}</p>
       <div className="se-empty-chips">
-        {TRENDING.slice(0, 4).map((term) => (
+        {trendingTerms.slice(0, 4).map((term) => (
           <button key={term} onClick={() => runTerm(term)} className="se-chip is-ghost">{term}</button>
         ))}
       </div>

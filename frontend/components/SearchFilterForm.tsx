@@ -33,6 +33,7 @@ export function SearchFilterForm({ q, category, sort }: { q: string; category: s
     for (const [key, value] of data.entries()) {
       if (value) params.set(key, String(value));
     }
+    if (language !== "uz") params.set("lang", language);
     router.push(`/search?${params.toString()}`);
   }
 

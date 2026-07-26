@@ -211,14 +211,26 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
     return (feed.items ?? [])
       .filter((item): item is typeof item & { title: string; link: string } => Boolean(item.title && item.link))
       .slice(0, 20)
-      .map((item) => ({
-        sourceName: source.name,
-        title: item.title.trim(),
-        link: item.link.trim(),
-        snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000),
-        mediaUrl: extractPrimaryFeedMedia(item, item.link),
-        fallbackMediaUrl: extractFallbackFeedMedia(item, item.link)
-      }));
+      .flatMap((item) => {
+        let link: string;
+        try {
+          const parsed = new URL(item.link.trim());
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return [];
+          parsed.username = "";
+          parsed.password = "";
+          link = parsed.toString();
+        } catch {
+          return [];
+        }
+        return [{
+          sourceName: source.name,
+          title: item.title.trim(),
+          link,
+          snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000),
+          mediaUrl: extractPrimaryFeedMedia(item, link),
+          fallbackMediaUrl: extractFallbackFeedMedia(item, link)
+        }];
+      });
   } catch (error) {
     console.error(`[aggregator] "${source.name}" feed fetch failed:`, error instanceof Error ? error.message : error);
     return [];
@@ -309,58 +321,61 @@ async function processItem(
   const status = publishStatus;
   const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
-  const article = await prisma.article.create({
-    data: {
-      title: parsed.title,
-      slug,
-      summary,
-      content: parsed.content,
-      seoTitle: buildSeoTitle(parsed.title),
-      seoDescription: buildSeoDescription(null, summary),
-      categoryId: category.id,
-      authorId,
-      status,
-      isBreaking: Boolean(parsed.isBreaking),
-      mainImage,
-      sourceName: item.sourceName,
-      sourceUrl: item.link,
-      publishedAt: status === "PUBLISHED" ? new Date() : null
-    }
-  });
-
-  if (tagNames.length) {
-    const tags = await Promise.all(
-      tagNames.map((name) => {
-        const tagSlug = slugify(name, { lower: true, strict: true });
-        return prisma.tag.upsert({ where: { slug: tagSlug }, update: { name }, create: { name, slug: tagSlug } });
-      })
-    );
-    await prisma.articleTag.createMany({
-      data: tags.map((tag) => ({ articleId: article.id, tagId: tag.id })),
-      skipDuplicates: true
-    });
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      userId: authorId,
-      action: "ARTICLE_AGGREGATED",
-      entity: "Article",
-      entityId: article.id,
-      metadata: {
+  const article = await prisma.$transaction(async (tx) => {
+    const created = await tx.article.create({
+      data: {
+        title: parsed.title,
+        slug,
+        summary,
+        content: parsed.content,
+        seoTitle: buildSeoTitle(parsed.title),
+        seoDescription: buildSeoDescription(null, summary),
+        categoryId: category.id,
+        authorId,
+        status,
+        isBreaking: Boolean(parsed.isBreaking),
+        mainImage,
         sourceName: item.sourceName,
         sourceUrl: item.link,
-        requestedStatus: publishStatus,
-        finalStatus: status,
-        confidence: parsed.confidence ?? null,
-        qualityScore: quality.score,
-        qualityIssues: quality.issues,
-        tags: tagNames
+        publishedAt: status === "PUBLISHED" ? new Date() : null
       }
+    });
+
+    if (tagNames.length) {
+      const tags = await Promise.all(
+        tagNames.map((name) => {
+          const tagSlug = slugify(name, { lower: true, strict: true });
+          return tx.tag.upsert({ where: { slug: tagSlug }, update: { name }, create: { name, slug: tagSlug } });
+        })
+      );
+      await tx.articleTag.createMany({
+        data: tags.map((tag) => ({ articleId: created.id, tagId: tag.id })),
+        skipDuplicates: true
+      });
     }
+
+    await tx.auditLog.create({
+      data: {
+        userId: authorId,
+        action: "ARTICLE_AGGREGATED",
+        entity: "Article",
+        entityId: created.id,
+        metadata: {
+          sourceName: item.sourceName,
+          sourceUrl: item.link,
+          requestedStatus: publishStatus,
+          finalStatus: status,
+          confidence: parsed.confidence ?? null,
+          qualityScore: quality.score,
+          qualityIssues: quality.issues,
+          tags: tagNames
+        }
+      }
+    });
+    return created;
   });
 
-  queueTranslations(article);
+  await queueTranslations(article);
   queueArticlePush(article);
 }
 

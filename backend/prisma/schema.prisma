@@ -173,6 +173,13 @@ model Article {
   @@index([viewsCount])
   @@index([createdAt])
   @@index([status, deletedAt, viewsCount, publishedAt])
+  @@index([status, deletedAt, showOnHome, publishedAt])
+  @@index([status, deletedAt, showOnHome, showInLatest, publishedAt])
+  @@index([status, deletedAt, showOnHome, showInSidebar, publishedAt])
+  @@index([status, deletedAt, showInSlider, publishedAt])
+  @@index([status, deletedAt, isEditorChoice, publishedAt])
+  @@index([status, deletedAt, showInPopular, viewsCount, publishedAt])
+  @@index([extraCategoryIds], type: Gin, map: "Article_extraCategoryIds_gin_idx")
 }
 
 model ArticleReport {
@@ -209,20 +216,21 @@ model WebPushSubscription {
 }
 
 model ArticleTranslation {
-  id             String            @id @default(cuid())
-  articleId      String
-  article        Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  lang           String
-  title          String
-  summary        String
-  content        String
-  slug           String
-  seoTitle       String?
-  seoDescription String?
-  status         TranslationStatus @default(PENDING)
-  error          String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id               String            @id @default(cuid())
+  articleId        String
+  article          Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  lang             String
+  title            String
+  summary          String
+  shortDescription String?
+  content          String
+  slug             String
+  seoTitle         String?
+  seoDescription   String?
+  status           TranslationStatus @default(PENDING)
+  error            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@unique([articleId, lang])
   @@index([lang, status])

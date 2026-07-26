@@ -79,6 +79,7 @@ export function ArticleEditor({
   const [saving, setSaving] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -86,12 +87,22 @@ export function ArticleEditor({
       setForm({ ...emptyArticleForm, categoryId: categories[0]?.id ?? "" });
       return;
     }
+    let active = true;
     setLoading(true);
     setError("");
     adminRequest<Article>(`/admin/articles/${articleId}`)
-      .then((article) => setForm(toFormState(article)))
-      .catch((err) => setError(err instanceof Error ? err.message : "Maqola topilmadi"))
-      .finally(() => setLoading(false));
+      .then((article) => {
+        if (active) setForm(toFormState(article));
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Maqola topilmadi");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
     // Deliberately excludes `categories`: it gets a new array reference on every parent
     // refresh, and re-running this would silently discard in-progress form edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,6 +151,33 @@ export function ArticleEditor({
       setError(err instanceof Error ? err.message : "Fayl yuklanmadi");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function uploadGalleryFiles(files: FileList | null) {
+    if (!files?.length) return;
+    setGalleryUploading(true);
+    setError("");
+    const uploadedUrls: string[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, 20)) {
+        const uploaded = await uploadAdminMedia(file);
+        uploadedUrls.push(uploaded.url);
+      }
+      setForm((current) => ({
+        ...current,
+        gallery: [...new Set([...current.gallery, ...uploadedUrls])]
+      }));
+    } catch (err) {
+      if (uploadedUrls.length) {
+        setForm((current) => ({
+          ...current,
+          gallery: [...new Set([...current.gallery, ...uploadedUrls])]
+        }));
+      }
+      setError(err instanceof Error ? err.message : "Galereya fayllari to'liq yuklanmadi");
+    } finally {
+      setGalleryUploading(false);
     }
   }
 
@@ -236,6 +274,51 @@ export function ArticleEditor({
               </label>
               <span className="text-xs font-semibold text-slate-500">JPG, PNG, WebP, GIF, MP4, WebM yoki MOV</span>
             </div>
+          </div>
+          <div className="grid gap-2">
+            <div>
+              <p className="text-sm font-bold">Qo'shimcha rasm va videolar</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">Maqola ichida asl nisbatda, yuklangan tartibda ko'rinadi.</p>
+            </div>
+            {!!form.gallery.length && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {form.gallery.map((src, index) => (
+                  <div key={`${src}-${index}`} className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-950/95 p-2">
+                    <MediaView
+                      src={src}
+                      alt={`${form.title || "Maqola"} media ${index + 1}`}
+                      className="mx-auto h-44 w-full rounded-md object-contain"
+                      videoClassName="mx-auto h-44 w-full rounded-md bg-black object-contain"
+                      optimizedWidth={960}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, gallery: current.gallery.filter((_, itemIndex) => itemIndex !== index) }))}
+                      className="absolute right-3 top-3 grid size-8 place-items-center rounded-full border border-white/20 bg-slate-950/85 text-white shadow-lg transition hover:bg-red-600"
+                      aria-label={`${index + 1}-media faylni olib tashlash`}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label className="inline-flex h-9 w-fit cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 transition hover:border-brand hover:text-brand">
+              <Paperclip size={15} />
+              {galleryUploading ? "Galereya yuklanmoqda..." : "Galereyaga fayl qo'shish"}
+              <input
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                disabled={galleryUploading}
+                onChange={(event) => {
+                  const files = event.currentTarget.files;
+                  event.currentTarget.value = "";
+                  void uploadGalleryFiles(files);
+                }}
+              />
+            </label>
           </div>
           <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
             <div>

@@ -11,8 +11,10 @@ const copy = {
   en: { title: "Editor's choice", empty: "No articles have been selected by the editors yet.", description: `The most important and timely stories selected by the ${SITE_NAME} editorial team.` }
 } as const;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const lang = await getRequestLang();
+type EditorChoicePageProps = { searchParams: Promise<{ lang?: string | string[] }> };
+
+export async function generateMetadata({ searchParams }: EditorChoicePageProps): Promise<Metadata> {
+  const lang = await getRequestLang((await searchParams).lang);
   const baseUrl = `${SITE_URL}/editor-choice`;
   return {
     title: copy[lang].title,
@@ -24,9 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function EditorChoicePage() {
-  const lang = await getRequestLang();
-  const articles = (await getArticles("?limit=36", lang)).filter((item) => item.isEditorChoice);
+export default async function EditorChoicePage({ searchParams }: EditorChoicePageProps) {
+  const lang = await getRequestLang((await searchParams).lang);
+  const articles = await getArticles("?limit=36&editorChoice=true", lang);
   return (
     <main>
       <Header />

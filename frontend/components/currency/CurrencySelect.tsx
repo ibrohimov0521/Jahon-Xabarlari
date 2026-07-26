@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { COUNTRY } from "../../lib/currency";
+import { useUi } from "../../lib/ui-context";
 import { Flag } from "./Flag";
 
 export type CurrencyOption = { code: string; name: string };
@@ -12,6 +13,8 @@ export function CurrencySelect({ value, options, onChange }: { value: string; op
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { language } = useUi();
+  const searchLabel = language === "ru" ? "Поиск валюты" : language === "en" ? "Search currency" : "Valyuta qidirish";
 
   useEffect(() => {
     if (!open) return;
@@ -19,11 +22,9 @@ export function CurrencySelect({ value, options, onChange }: { value: string; op
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
-    const id = setTimeout(() => inputRef.current?.focus(), 30);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
-      clearTimeout(id);
     };
   }, [open]);
 
@@ -45,7 +46,7 @@ export function CurrencySelect({ value, options, onChange }: { value: string; op
         <div className="cs-menu" role="listbox">
           <div className="cs-search">
             <Search size={15} />
-            <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Valyuta qidirish..." aria-label="Valyuta qidirish" />
+            <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`${searchLabel}...`} aria-label={searchLabel} />
           </div>
           <div className="cs-list">
             {filtered.map((o) => (
@@ -66,7 +67,7 @@ export function CurrencySelect({ value, options, onChange }: { value: string; op
                 <span className="cs-opt-name">{o.name}</span>
               </button>
             ))}
-            {!filtered.length && <p className="cs-empty">Topilmadi</p>}
+            {!filtered.length && <p className="cs-empty">{language === "ru" ? "Не найдено" : language === "en" ? "Not found" : "Topilmadi"}</p>}
           </div>
         </div>
       )}

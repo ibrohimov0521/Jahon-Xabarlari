@@ -9,11 +9,22 @@ import { pagination } from "../../utils/query.js";
 export const adRouter = Router();
 adRouter.use(requireAuth, permit("ads.manage"));
 
+const optionalHttpUrl = z
+  .string()
+  .url()
+  .max(2_048)
+  .refine((value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  }, "Faqat http/https URL ruxsat etiladi")
+  .optional()
+  .or(z.literal(""));
+
 const adSchema = z.object({
   title: z.string().trim().min(2).max(160),
   placement: z.string().trim().min(2).max(80),
-  imageUrl: z.string().url().max(2_048).optional().or(z.literal("")),
-  targetUrl: z.string().url().max(2_048).optional().or(z.literal("")),
+  imageUrl: optionalHttpUrl,
+  targetUrl: optionalHttpUrl,
   status: z.nativeEnum(AdvertisementStatus).default("DRAFT")
 });
 

@@ -110,6 +110,7 @@ export default function AdminPage() {
   const commentLoadSequence = useRef(0);
   const adLoadSequence = useRef(0);
   const userLoadSequence = useRef(0);
+  const refreshSequence = useRef(0);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
@@ -130,6 +131,15 @@ export default function AdminPage() {
       active = false;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    articleLoadSequence.current += 1;
+    commentLoadSequence.current += 1;
+    adLoadSequence.current += 1;
+    userLoadSequence.current += 1;
+    refreshSequence.current += 1;
   }, []);
 
   async function loadCategories() {
@@ -203,6 +213,7 @@ export default function AdminPage() {
 
   async function refreshAll(nextView: View = view) {
     if (!getStoredToken()) return;
+    const requestId = ++refreshSequence.current;
     setLoading(true);
     setError("");
     try {
@@ -213,11 +224,11 @@ export default function AdminPage() {
       if (nextView === "ads") await loadAds();
       if (nextView === "users") await loadUsers();
     } catch (err) {
-      if (!(err instanceof AdminApiError && err.status === 401)) {
+      if (requestId === refreshSequence.current && !(err instanceof AdminApiError && err.status === 401)) {
         setError(err instanceof Error ? err.message : "Ma'lumot yuklanmadi");
       }
     } finally {
-      setLoading(false);
+      if (requestId === refreshSequence.current) setLoading(false);
     }
   }
 

@@ -102,7 +102,7 @@ function requireTrustedOrigin(req: Request, res: Response, next: NextFunction) {
 }
 
 async function issueTokens(userId: string) {
-  const accessToken = jwt.sign({}, env.JWT_ACCESS_SECRET, { subject: userId, expiresIn: "15m" });
+  const accessToken = issueAccessToken(userId);
   // A jti keeps two logins in the same second from producing the same tokenHash.
   const refreshToken = jwt.sign({}, env.JWT_REFRESH_SECRET, {
     subject: userId,
@@ -113,6 +113,10 @@ async function issueTokens(userId: string) {
     data: { userId, tokenHash: hashToken(refreshToken), expiresAt: new Date(Date.now() + REFRESH_TTL_MS) }
   });
   return { accessToken, refreshToken };
+}
+
+function issueAccessToken(userId: string) {
+  return jwt.sign({}, env.JWT_ACCESS_SECRET, { subject: userId, expiresIn: "15m" });
 }
 
 async function revokeRefreshToken(token: string) {
@@ -170,8 +174,7 @@ authRouter.post("/telegram-login", telegramLoginLimiter, async (req, res) => {
   const telegramId = z.object({ telegramId: z.string().regex(/^\d{5,20}$/) }).parse(req.body).telegramId;
   const user = await prisma.user.findUnique({ where: { telegramId }, include: { role: true } });
   if (!user) return res.status(403).json({ message: "Telegram ID ruxsat etilmagan" });
-  const { accessToken, refreshToken } = await issueTokens(user.id);
-  res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+  const accessToken = issueAccessToken(user.id);
   res.json({ user: { id: user.id, name: user.name, role: user.role.name }, accessToken });
 });
 
@@ -254,15 +257,24 @@ authRouter.post("/2fa/enable", twoFactorLimiter, requireAuth, async (req, res) =
   }
   if (!verifyTotp(secret, code)) return res.status(400).json({ message: "Tasdiqlash kodi noto'g'ri" });
   const recoveryCodes = generateRecoveryCodes();
-  await prisma.user.update({
-    where: { id: req.user!.id },
-    data: {
-      twoFactorEnabled: true,
-      twoFactorRecoveryHashes: recoveryCodes.map((item) => hashRecoveryCode(item, env.JWT_REFRESH_SECRET))
-    }
-  });
-  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "AUTH_2FA_ENABLED", entity: "User", entityId: req.user!.id, ip: req.ip } });
-  res.json({ enabled: true, recoveryCodes });
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorRecoveryHashes: recoveryCodes.map((item) => hashRecoveryCode(item, env.JWT_REFRESH_SECRET))
+      }
+    }),
+    prisma.refreshToken.updateMany({
+      where: { userId: req.user!.id, revokedAt: null },
+      data: { revokedAt: new Date() }
+    }),
+    prisma.auditLog.create({
+      data: { userId: req.user!.id, action: "AUTH_2FA_ENABLED", entity: "User", entityId: req.user!.id, ip: req.ip }
+    })
+  ]);
+  res.clearCookie(REFRESH_COOKIE, { ...refreshCookieOptions(), maxAge: undefined });
+  res.json({ enabled: true, recoveryCodes, reauthenticate: true });
 });
 
 authRouter.post("/2fa/disable", twoFactorLimiter, requireAuth, async (req, res) => {

@@ -18,7 +18,8 @@ declare global {
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace("Bearer ", "");
+  const authorization = req.headers.authorization;
+  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!token) return res.status(401).json({ message: "Token kerak" });
 
   try {
@@ -39,13 +40,16 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export function hasPermission(req: Request, key: string) {
+  const rolePrefix = req.user?.role.toLowerCase();
+  return req.user?.role === "SUPER_ADMIN"
+    || Boolean(req.user?.permissions.includes(key))
+    || Boolean(rolePrefix && req.user?.permissions.includes(`${rolePrefix}.${key}`));
+}
+
 export function permit(...keys: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const rolePrefix = req.user?.role.toLowerCase();
-    const allowed =
-      req.user?.role === "SUPER_ADMIN" ||
-      keys.every((key) => req.user?.permissions.includes(key) || req.user?.permissions.includes(`${rolePrefix}.${key}`));
-    if (!allowed) return res.status(403).json({ message: "Ruxsat yo'q" });
+    if (!keys.every((key) => hasPermission(req, key))) return res.status(403).json({ message: "Ruxsat yo'q" });
     next();
   };
 }

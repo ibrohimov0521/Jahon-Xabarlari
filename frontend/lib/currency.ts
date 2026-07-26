@@ -43,21 +43,8 @@ export const fmt = (n: number) => nf.format(n);
 export const fmt0 = (n: number) => nf0.format(n);
 export const fmtSigned = (n: number) => (n >= 0 ? "+" : "") + nf.format(n);
 
-// Deterministic 7-point sparkline series ending at the current rate and drifting in the
-// direction of today's change. Illustrative until real CBU history is wired in -- the API
-// shape already carries `history`, so swapping to real data is a route-only change.
-export function buildHistory(code: string, rate: number, diff: number): number[] {
-  let seed = [...code].reduce((a, c) => a + c.charCodeAt(0), 0) * 131 + 7;
-  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-  const span = Math.abs(diff) * 3.2 || rate * 0.004;
-  const start = rate - (diff >= 0 ? span : -span) * 0.9;
-  const out: number[] = [];
-  for (let i = 0; i < 7; i++) {
-    const t = i / 6;
-    const base = start + (rate - start) * t;
-    const noise = i === 6 ? 0 : (rnd() - 0.5) * span * 0.5;
-    out.push(Math.round((base + noise) * 100) / 100);
-  }
-  out[6] = rate;
-  return out;
+// CBU exposes the current rate and its previous-day difference in this endpoint. Keep the
+// sparkline honest by drawing only those two real points instead of inventing a fake week.
+export function buildHistory(_code: string, rate: number, diff: number): number[] {
+  return [Math.round((rate - diff) * 100) / 100, Math.round(rate * 100) / 100];
 }

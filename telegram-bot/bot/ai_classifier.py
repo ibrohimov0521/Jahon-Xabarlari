@@ -46,6 +46,9 @@ def _category_by_slug(categories: list[dict[str, Any]], slug: str) -> dict[str, 
 
 
 def fallback_classification(text: str, categories: list[dict[str, Any]]) -> dict[str, Any]:
+    if not categories:
+        raise ValueError("Kategoriyalar ro'yxati bo'sh")
+
     normalized = _slug(text)
     scores: dict[str, int] = {}
     for slug, words in KEYWORDS.items():
@@ -90,7 +93,10 @@ def _sanitize(parsed: dict[str, Any], categories: list[dict[str, Any]], fallback
         result["categoryId"] = category["id"]
 
     extra_ids: list[str] = []
-    for item in parsed.get("extraCategories", []) or []:
+    parsed_extras = parsed.get("extraCategories", [])
+    if not isinstance(parsed_extras, list):
+        parsed_extras = []
+    for item in parsed_extras:
         extra = _category_by_slug(categories, str(item))
         if extra and extra["id"] != result["categoryId"] and extra["id"] not in extra_ids:
             extra_ids.append(extra["id"])
@@ -105,8 +111,10 @@ def _sanitize(parsed: dict[str, Any], categories: list[dict[str, Any]], fallback
 
 
 async def classify_article(text: str, categories: list[dict[str, Any]], api_key: str | None) -> dict[str, Any]:
+    if not categories:
+        raise ValueError("Kategoriyalar ro'yxati bo'sh")
     fallback = fallback_classification(text, categories)
-    if not api_key or not categories:
+    if not api_key:
         return fallback
 
     category_names = [item["name"] for item in categories]
@@ -159,6 +167,8 @@ async def classify_article(text: str, categories: list[dict[str, Any]], api_key:
                 if not content:
                     return fallback
                 parsed = json.loads(content)
+                if not isinstance(parsed, dict):
+                    return fallback
                 return _sanitize(parsed, categories, fallback)
     except Exception:
         return fallback

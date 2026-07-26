@@ -12,8 +12,10 @@ const copy = {
   en: { title: "Search and filter news", heading: "Search and filter", results: "Results", all: "all news", description: `Find ${SITE_NAME} stories by keyword, category and popularity.` }
 } as const;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const lang = await getRequestLang();
+type SearchPageParams = { q?: string; category?: string; sort?: string; lang?: string | string[] };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchPageParams> }): Promise<Metadata> {
+  const lang = await getRequestLang((await searchParams).lang);
   const baseUrl = `${SITE_URL}/search`;
   return {
     title: copy[lang].title,
@@ -23,9 +25,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; sort?: string }> }) {
-  const { q = "", category = "", sort = "latest" } = await searchParams;
-  const lang = await getRequestLang();
+export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchPageParams> }) {
+  const { q = "", category = "", sort = "latest", lang: requestedLang } = await searchParams;
+  const lang = await getRequestLang(requestedLang);
   const query = `${category ? `&category=${encodeURIComponent(category)}` : ""}${sort ? `&sort=${encodeURIComponent(sort)}` : ""}`;
   const articles = q || category || sort !== "latest" ? await searchArticles(q, lang, query) : await getArticles("?limit=9", lang);
   return (

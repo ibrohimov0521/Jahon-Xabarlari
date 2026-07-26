@@ -104,6 +104,8 @@ async function sendArticlePush(job: PushJob) {
           const translation = article.translations.find((item) => item.lang === subscription.language);
           const title = translation?.title || article.title;
           const body = (translation?.summary || article.shortDescription || article.summary).slice(0, 180);
+          const articlePath = `/articles/${article.slug}`;
+          const articleUrl = subscription.language === "uz" ? articlePath : `${articlePath}?lang=${subscription.language}`;
           const payload = JSON.stringify({
             title,
             body,
@@ -113,7 +115,7 @@ async function sendArticlePush(job: PushJob) {
             tag: `article-${article.id}`,
             renotify: article.isBreaking,
             requireInteraction: article.isBreaking,
-            data: { url: `/articles/${article.slug}`, articleId: article.id },
+            data: { url: articleUrl, articleId: article.id },
             actions: [
               {
                 action: "open",

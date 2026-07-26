@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import html
+import logging
 from collections import defaultdict
 from io import BytesIO
+from typing import Any
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -11,6 +13,7 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramRetryAfter
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import CallbackQuery, Message
 
@@ -50,6 +53,7 @@ from .states import ArticleCreate
 settings = load_settings()
 api = BackendApi(settings.api_base, settings.service_secret)
 router = Router()
+logger = logging.getLogger(__name__)
 forward_semaphore = asyncio.Semaphore(settings.forward_concurrency)
 media_group_buffers: dict[str, list[Message]] = defaultdict(list)
 media_group_tasks: dict[str, asyncio.Task] = {}
@@ -74,15 +78,13 @@ async def guard_callback(callback: CallbackQuery) -> bool:
     return True
 
 
-async def safe_answer(message: Message, text: str, **kwargs) -> None:
-    await message.answer(text, **kwargs)
-
-
 async def show_main_menu(message: Message, text: str = "Admin menyu:") -> None:
     await message.answer(text, reply_markup=reply_menu())
 
 
-async def request_or_error(message: Message, method: str, path: str, **kwargs) -> dict | None:
+async def request_or_error(message: Message, method: str, path: str, **kwargs) -> Any | None:
+    if not message.from_user:
+        return None
     try:
         return await api.request(message.from_user.id, method, path, **kwargs)
     except Exception as exc:
@@ -93,8 +95,22 @@ async def request_or_error(message: Message, method: str, path: str, **kwargs) -
 TELEGRAM_FILE_DOWNLOAD_LIMIT = 20 * 1024 * 1024
 
 
-def is_forwarded(message: Message) -> bool:
-    return bool(getattr(message, "forward_origin", None) or getattr(message, "forward_from_chat", None) or getattr(message, "forward_from", None))
+async def safe_delete(message: Message) -> None:
+    try:
+        await message.delete()
+    except Exception:
+        logger.debug("Telegram xabarini o'chirib bo'lmadi", exc_info=True)
+
+
+async def safe_edit(message: Message, text: str) -> None:
+    try:
+        await message.edit_text(text)
+    except Exception:
+        logger.debug("Telegram xabarini tahrirlab bo'lmadi", exc_info=True)
+
+
+def absolute_media_url(url: str) -> str:
+    return url if url.startswith(("http://", "https://")) else f"{api.origin}{url}"
 
 
 async def upload_forward_media(message: Message, bot: Bot) -> dict[str, str]:
@@ -128,7 +144,7 @@ async def upload_forward_media(message: Message, bot: Bot) -> dict[str, str]:
         else:
             content = downloaded.read()
         uploaded = await api.upload_media(message.from_user.id, content, filename, content_type)
-        url = uploaded["url"] if uploaded["url"].startswith("http") else f"{api.origin}{uploaded['url']}"
+        url = absolute_media_url(uploaded["url"])
         return {"url": url, "message": f"Media URL: {url}"}
     except Exception as exc:
         return {"url": "", "message": f"Media yuklanmadi: {html.escape(str(exc))}"}
@@ -144,23 +160,6 @@ async def upload_forward_media_many(messages: list[Message], bot: Bot) -> dict[s
         if media["message"]:
             notes.append(media["message"])
     return {"urls": urls, "message": "\n".join(notes)}
-
-
-def prepared_post_message(prepared: dict[str, str], media_line: str) -> str:
-    if not prepared["content"]:
-        return (
-            "Tozalash uchun matn topilmadi.\n"
-            "Post captionida faqat link/reklama bo'lishi mumkin. Matnli xabar yuboring yoki caption qo'shing."
-        )
-    media_block = f"\n\n<b>{html.escape(media_line)}</b>" if media_line else ""
-    return (
-        "🧹 <b>Saytga joylashga tayyor matn</b>\n\n"
-        f"<b>Sarlavha:</b>\n{html.escape(prepared['title'])}\n\n"
-        f"<b>Qisqa tavsif:</b>\n{html.escape(prepared['summary'])}\n\n"
-        f"<b>Asosiy matn:</b>\n{html.escape(prepared['content'])}"
-        f"{media_block}\n\n"
-        "Keraksiz kanal takliflari, t.me linklar, @username, hashtaglar va reklama chaqiriqlari olib tashlandi."
-    )
 
 
 @router.message(CommandStart())
@@ -378,6 +377,7 @@ async def process_media_group_after_delay(key: str, bot: Bot) -> None:
 
 
 async def handle_forward_media_group(messages: list[Message], bot: Bot) -> None:
+    messages.sort(key=lambda item: item.message_id)
     first = messages[0]
     raw_text = next((item.caption or item.text or "" for item in messages if item.caption or item.text), "")
     prepared = prepare_forward_post(raw_text)
@@ -399,12 +399,12 @@ async def handle_forward_media_group(messages: list[Message], bot: Bot) -> None:
 
 async def process_forwarded_post(messages: list[Message], bot: Bot, prepared: dict[str, str], status: Message) -> None:
     message = messages[0]
-    await status.edit_text("Forward qilingan post tahlil qilinmoqda va admin panelga yuborilmoqda...")
+    await safe_edit(status, "Forward qilingan post tahlil qilinmoqda va admin panelga yuborilmoqda...")
     media = await upload_forward_media_many(messages, bot)
     media_urls = media["urls"] if isinstance(media["urls"], list) else []
     categories = await request_or_error(message, "GET", "/categories")
-    if not categories:
-        await status.delete()
+    if not isinstance(categories, list) or not categories:
+        await safe_delete(status)
         return
     classification = await classify_article(prepared["content"], categories, settings.openai_api_key)
     payload = {
@@ -426,8 +426,8 @@ async def process_forwarded_post(messages: list[Message], bot: Bot, prepared: di
         "seoDescription": prepared["summary"],
     }
     saved = await request_or_error(message, "POST", "/admin/articles", json=payload)
-    await status.delete()
-    if not saved:
+    await safe_delete(status)
+    if not isinstance(saved, dict):
         return
     category = next((item for item in categories if item["id"] == payload["categoryId"]), None)
     extra_names = [
@@ -519,7 +519,7 @@ async def set_image_photo(message: Message, state: FSMContext, bot: Bot):
             f"Rasm yuklanmadi: {html.escape(str(exc))}\nQayta urinib ko'ring, boshqa rasm yuboring yoki URL/'-' yuboring."
         )
         return
-    await state.update_data(mainImage=f"{api.origin}{uploaded['url']}")
+    await state.update_data(mainImage=absolute_media_url(uploaded["url"]))
     await status_message.edit_text("✅ Rasm yuklandi.")
     await proceed_to_category(message, state)
 
@@ -538,6 +538,8 @@ async def set_image(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.category)
 async def set_category(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     data = await state.get_data()
     options = data.get("categoryOptions", {})
     category_id = options.get(message.text)
@@ -551,6 +553,8 @@ async def set_category(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.status)
 async def set_status(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     status = STATUS_LABELS.get(message.text or "")
     if not status:
         await message.answer("Statusni pastdagi klaviaturadan tanlang.")
@@ -562,6 +566,8 @@ async def set_status(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.visibility)
 async def set_visibility(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     if message.text == MENU_CONTINUE:
         data = await state.get_data()
         await state.set_state(ArticleCreate.preview)
@@ -589,6 +595,8 @@ async def set_visibility(message: Message, state: FSMContext):
 
 @router.message(ArticleCreate.preview)
 async def save_article(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
     if message.text != "✅ Tasdiqlash":
         await state.clear()
         await show_main_menu(message, "Maqola saqlanmadi.")
@@ -678,6 +686,8 @@ async def comment_trash_yes(callback: CallbackQuery):
 
 @router.callback_query(F.data.contains("_no:"))
 async def cancel_confirm(callback: CallbackQuery):
+    if not await guard_callback(callback):
+        return
     await callback.answer("Bekor qilindi")
 
 
@@ -705,7 +715,14 @@ async def fallback(message: Message, state: FSMContext):
 
 async def main() -> None:
     bot = Bot(settings.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    storage = RedisStorage.from_url(settings.redis_url, state_ttl=24 * 60 * 60, data_ttl=24 * 60 * 60)
+    redis_storage = RedisStorage.from_url(settings.redis_url, state_ttl=24 * 60 * 60, data_ttl=24 * 60 * 60)
+    try:
+        await redis_storage.redis.ping()
+        storage = redis_storage
+    except Exception:
+        logger.exception("Redis ishlamayapti; bot vaqtincha xotira storage bilan ishga tushadi")
+        await redis_storage.close()
+        storage = MemoryStorage()
     dispatcher = Dispatcher(storage=storage)
     dispatcher.include_router(router)
     try:
@@ -715,6 +732,11 @@ async def main() -> None:
             tasks_concurrency_limit=max(20, settings.forward_concurrency * 4),
         )
     finally:
+        pending_group_tasks = list(media_group_tasks.values())
+        for task in pending_group_tasks:
+            task.cancel()
+        if pending_group_tasks:
+            await asyncio.gather(*pending_group_tasks, return_exceptions=True)
         await storage.close()
         await api.close()
         await bot.session.close()

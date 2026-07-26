@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Article } from "../lib/api";
 import { API_URL } from "../lib/config";
 import { timeoutSignal } from "../lib/http";
+import { localizedHref } from "../lib/localized-href";
 import { NewsCard } from "./NewsCard";
 
 type Language = "uz" | "ru" | "en";
@@ -42,12 +43,12 @@ export function HomeNewsStream({
     const langQuery = language === "uz" ? "" : `&lang=${language}`;
 
     try {
-      const response = await fetch(`${API_URL}/articles?page=${nextPage}&limit=${pageSize}${langQuery}`, {
+      const response = await fetch(`${API_URL}/articles?page=${nextPage}&limit=${pageSize}&home=true&latest=true${langQuery}`, {
         signal: timeoutSignal(8_000)
       });
       if (!response.ok) throw new Error("Articles request failed");
       const data = (await response.json()) as { items: Article[]; pages?: number };
-      const nextItems = data.items.filter((item) => item.showOnHome !== false && item.showInLatest !== false);
+      const nextItems = data.items;
       setItems((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...nextItems.filter((item) => !known.has(item.id))];
@@ -80,7 +81,7 @@ export function HomeNewsStream({
         <>
           <div className="home-section-head mb-4 flex items-center justify-between gap-3">
             <h2 className="section-title text-[27px] font-black">{title}</h2>
-            <Link href="/search" className="home-outline-action flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
+            <Link href={localizedHref("/search", language)} className="home-outline-action flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-black text-ink transition hover:border-brand hover:text-brand">
               {filterLabel} <ArrowRight size={16} />
             </Link>
           </div>

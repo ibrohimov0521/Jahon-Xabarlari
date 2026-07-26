@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, Facebook, Flag, Send, Share2, X } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { submitArticleReport } from "../lib/api";
 import { useUi } from "../lib/ui-context";
 
@@ -26,12 +26,24 @@ export function ArticleActions({ articleId, title, url }: { articleId: string; t
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const copiedTimer = useRef<number | null>(null);
+  const reportTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    if (reportTimer.current) clearTimeout(reportTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!reportOpen) return;
+    const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && setReportOpen(false);
+    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [reportOpen]);
 
   async function share() {
@@ -43,9 +55,28 @@ export function ArticleActions({ articleId, title, url }: { articleId: string; t
   }
 
   async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1_600);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 1_600);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = url;
+      input.setAttribute("readonly", "");
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
+      input.select();
+      const copiedFallback = document.execCommand("copy");
+      input.remove();
+      if (copiedFallback) {
+        setCopied(true);
+        if (copiedTimer.current) clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(() => setCopied(false), 1_600);
+      }
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -56,7 +87,8 @@ export function ArticleActions({ articleId, title, url }: { articleId: string; t
     setBusy(false);
     if (result.ok) {
       setDetails("");
-      window.setTimeout(() => setReportOpen(false), 1_200);
+      if (reportTimer.current) clearTimeout(reportTimer.current);
+      reportTimer.current = window.setTimeout(() => setReportOpen(false), 1_200);
     }
   }
 

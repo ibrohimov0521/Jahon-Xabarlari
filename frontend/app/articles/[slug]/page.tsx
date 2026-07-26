@@ -13,6 +13,7 @@ import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { serializeJsonLd } from "../../../lib/json-ld";
 import { getRequestLang } from "../../../lib/server-lang";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
+import { localizedHref } from "../../../lib/localized-href";
 
 type ArticlePageProps = {
   params: Promise<{ slug: string }>;
@@ -42,6 +43,16 @@ function localizedArticleUrl(slug: string, lang: "uz" | "ru" | "en") {
   return lang === "uz" ? url : `${url}?lang=${lang}`;
 }
 
+function parseExternalHttpUrl(value?: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 const articleCopy = {
   uz: { editorial: "tahririyati", read: "daqiqa o'qish", source: "Manba", continue: "Mavzuni davom ettiring", related: "O'xshash yangiliklar", all: "Barchasi", next: "Keyingi yangilik" },
   ru: { editorial: "редакция", read: "мин. чтения", source: "Источник", continue: "Продолжить тему", related: "Похожие новости", all: "Все", next: "Следующая новость" },
@@ -55,16 +66,20 @@ const articleCategoryLabels: Record<"ru" | "en", Record<string, string>> = {
 
 export async function generateMetadata({ params, searchParams }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const lang = await getRequestLang();
   const requestedLang = (await searchParams).lang;
-  const canonicalLang = requestedLang === "ru" || requestedLang === "en" ? requestedLang : "uz";
-  const article = await getArticle(slug, lang);
+  const canonicalLang = await getRequestLang(requestedLang);
+  const article = await getArticle(slug, canonicalLang);
   if (!article) return {};
+  const contentLang = article.contentLanguage ?? canonicalLang;
   const title = article.seoTitle || article.title;
   const description = article.seoDescription || article.shortDescription || article.summary;
-  const url = localizedArticleUrl(article.slug, canonicalLang);
+  const url = localizedArticleUrl(article.slug, contentLang);
   const baseUrl = `${SITE_URL}/articles/${article.slug}`;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
+  const languages: Record<string, string> = { uz: baseUrl, "x-default": baseUrl };
+  for (const language of article.availableLanguages ?? ["uz"]) {
+    if (language !== "uz") languages[language] = `${baseUrl}?lang=${language}`;
+  }
 
   return {
     title,
@@ -72,7 +87,7 @@ export async function generateMetadata({ params, searchParams }: ArticlePageProp
     keywords: article.seoKeywords?.split(",").map((item) => item.trim()).filter(Boolean),
     alternates: {
       canonical: url,
-      languages: { uz: baseUrl, ru: `${baseUrl}?lang=ru`, en: `${baseUrl}?lang=en`, "x-default": baseUrl }
+      languages
     },
     openGraph: {
       title,
@@ -80,7 +95,7 @@ export async function generateMetadata({ params, searchParams }: ArticlePageProp
       url,
       type: "article",
       siteName: SITE_NAME,
-      locale: lang === "uz" ? "uz_UZ" : lang === "ru" ? "ru_RU" : "en_US",
+      locale: contentLang === "uz" ? "uz_UZ" : contentLang === "ru" ? "ru_RU" : "en_US",
       images: images.length ? images.map((image) => ({ url: image, alt: article.title })) : [{ url: SITE_OG_IMAGE, alt: SITE_NAME }],
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
@@ -91,20 +106,23 @@ export async function generateMetadata({ params, searchParams }: ArticlePageProp
   };
 }
 
-export default async function ArticlePage({ params }: ArticlePageProps) {
+export default async function ArticlePage({ params, searchParams }: ArticlePageProps) {
   const { slug } = await params;
-  const lang = await getRequestLang();
+  const requestedLang = (await searchParams).lang;
+  const lang = await getRequestLang(requestedLang);
   const article = await getArticle(slug, lang);
   if (!article) notFound();
 
+  const contentLang = article.contentLanguage ?? lang;
   const copy = articleCopy[lang];
   const categoryName = lang === "uz" ? article.category?.name : articleCategoryLabels[lang][article.category?.slug ?? ""] ?? article.category?.name;
-  const articleUrl = localizedArticleUrl(article.slug, lang);
+  const articleUrl = localizedArticleUrl(article.slug, contentLang);
   const articleDescription = article.shortDescription || article.summary;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
   const [comments, context] = await Promise.all([getComments(article.id), getArticleContext(article.slug, lang)]);
   const readTime = readingMinutes(article.content);
   const tags = article.tags?.map((item) => item.tag) ?? [];
+  const sourceUrl = parseExternalHttpUrl(article.sourceUrl);
 
   return (
     <main>
@@ -121,7 +139,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             image: images.length ? images : undefined,
             datePublished: article.publishedAt,
             dateModified: article.updatedAt ?? article.publishedAt,
-            inLanguage: lang,
+            inLanguage: contentLang,
             mainEntityOfPage: articleUrl,
             author: article.author?.name
               ? { "@type": "Person", name: article.author.name }
@@ -170,11 +188,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         <div className="article-body mt-6 rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-8">
           <div className="article-copy whitespace-pre-line">{article.content}</div>
-          {(article.sourceName || article.sourceUrl) && (
+          {(article.sourceName || sourceUrl) && (
             <div className="article-source mt-8">
               <span>{copy.source}</span>
-              {article.sourceUrl ? (
-                <a href={article.sourceUrl} target="_blank" rel="nofollow noreferrer">{article.sourceName || new URL(article.sourceUrl).hostname}</a>
+              {sourceUrl ? (
+                <a href={sourceUrl.href} target="_blank" rel="nofollow noreferrer">{article.sourceName || sourceUrl.hostname}</a>
               ) : <strong>{article.sourceName}</strong>}
             </div>
           )}
@@ -188,7 +206,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <p className="text-xs font-black uppercase text-brand">{copy.continue}</p>
                 <h2 id="related-title" className="mt-1 text-2xl font-black">{copy.related}</h2>
               </div>
-              {article.category?.slug && <Link href={`/category/${article.category.slug}`} className="hidden items-center gap-2 text-sm font-black text-brand sm:inline-flex">{copy.all} <ArrowRight size={16} /></Link>}
+              {article.category?.slug && <Link href={localizedHref(`/category/${article.category.slug}`, lang)} className="hidden items-center gap-2 text-sm font-black text-brand sm:inline-flex">{copy.all} <ArrowRight size={16} /></Link>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {context.related.slice(0, 6).map((item) => <NewsCard article={item} language={lang} key={item.id} />)}
@@ -197,7 +215,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         )}
 
         {context.next && (
-          <Link href={`/articles/${context.next.slug}`} className="article-next mt-7">
+          <Link href={localizedHref(`/articles/${context.next.slug}`, lang)} className="article-next mt-7">
             <span><small>{copy.next}</small><strong>{context.next.title}</strong></span>
             <ArrowRight size={22} />
           </Link>

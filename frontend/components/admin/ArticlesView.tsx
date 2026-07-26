@@ -16,6 +16,11 @@ function localDateTimeValue(ms: number) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
+function scheduledIso(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time > Date.now() ? new Date(time).toISOString() : null;
+}
+
 const TRANSLATION_TONE: Record<string, "green" | "amber" | "red"> = { READY: "green", PENDING: "amber", FAILED: "red" };
 const BULK_STATUS_ID = "__bulk_status__";
 
@@ -106,9 +111,10 @@ export function ArticlesView({
   const [scheduleTargetId, setScheduleTargetId] = useState<string | null>(null);
   const [scheduleValue, setScheduleValue] = useState("");
   const [mounted, setMounted] = useState(false);
-  const [bulkMenuPosition, setBulkMenuPosition] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+  const [statusMenuPosition, setStatusMenuPosition] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bulkStatusButtonRef = useRef<HTMLButtonElement | null>(null);
+  const statusButtonRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
     setMounted(true);
@@ -152,13 +158,16 @@ export function ArticlesView({
   }, [openStatusId]);
 
   useEffect(() => {
-    if (openStatusId !== BULK_STATUS_ID) {
-      setBulkMenuPosition(null);
+    if (!openStatusId) {
+      setStatusMenuPosition(null);
       return;
     }
+    const statusId: string = openStatusId;
 
     function updatePosition() {
-      const anchor = bulkStatusButtonRef.current;
+      const anchor = statusId === BULK_STATUS_ID
+        ? bulkStatusButtonRef.current
+        : statusButtonRefs.current.get(statusId);
       if (!anchor) return;
 
       const viewportPadding = 16;
@@ -173,7 +182,7 @@ export function ArticlesView({
         window.innerWidth - menuWidth - viewportPadding
       );
 
-      setBulkMenuPosition({
+      setStatusMenuPosition({
         left,
         ...(placeAbove
           ? { bottom: window.innerHeight - rect.top + menuGap }
@@ -226,8 +235,9 @@ export function ArticlesView({
   }
 
   function confirmSchedule(id: string) {
-    if (!scheduleValue) return;
-    onStatus(id, "SCHEDULED", new Date(scheduleValue).toISOString());
+    const iso = scheduledIso(scheduleValue);
+    if (!iso) return;
+    onStatus(id, "SCHEDULED", iso);
     setScheduleTargetId(null);
     setOpenStatusId(null);
   }
@@ -244,8 +254,9 @@ export function ArticlesView({
   }
 
   function confirmBulkSchedule() {
-    if (!scheduleValue) return;
-    onBulkStatus(selected, "SCHEDULED", new Date(scheduleValue).toISOString());
+    const iso = scheduledIso(scheduleValue);
+    if (!iso) return;
+    onBulkStatus(selected, "SCHEDULED", iso);
     setSelected([]);
     setScheduleTargetId(null);
     setOpenStatusId(null);
@@ -265,7 +276,7 @@ export function ArticlesView({
         <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
           Bekor qilish
         </Button>
-        <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={confirmBulkSchedule}>
+        <Button size="sm" className="flex-1" disabled={!scheduledIso(scheduleValue)} onClick={confirmBulkSchedule}>
           Rejalashtirish
         </Button>
       </div>
@@ -319,7 +330,7 @@ export function ArticlesView({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
         <label className="inline-flex items-center gap-3 text-sm font-black">
           <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} className="size-4 accent-blue-600" />
-          {total} ta yangilik
+          {filtered.length} ta ko'rsatildi{total !== filtered.length ? `, jami ${total}` : ""}
         </label>
         {selected.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-brand">
@@ -354,10 +365,10 @@ export function ArticlesView({
                       {mounted &&
                         createPortal(
                           <>
-                            {bulkMenuPosition && (
+                            {statusMenuPosition && (
                               <div
                                 className="admin-menu-surface fixed z-[220] hidden w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block"
-                                style={bulkMenuPosition}
+                                style={statusMenuPosition}
                                 data-status-menu
                               >
                                 {bulkStatusMenuContent}
@@ -416,7 +427,7 @@ export function ArticlesView({
                 <Button variant="secondary" size="sm" className="flex-1" onClick={() => setScheduleTargetId(null)}>
                   Bekor qilish
                 </Button>
-                <Button size="sm" className="flex-1" disabled={!scheduleValue} onClick={() => confirmSchedule(item.id)}>
+                <Button size="sm" className="flex-1" disabled={!scheduledIso(scheduleValue)} onClick={() => confirmSchedule(item.id)}>
                   Rejalashtirish
                 </Button>
               </div>
@@ -448,9 +459,7 @@ export function ArticlesView({
           return (
             <article
               key={item.id}
-              className={`group relative rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-brand/60 hover:shadow-xl lg:hover:-translate-y-0.5 ${
-                openStatusId === item.id ? "z-[140]" : "z-0"
-              }`}
+              className="group relative z-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-brand/60 hover:shadow-xl lg:hover:-translate-y-0.5"
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
                 <div className="flex min-w-0 flex-1 gap-3">
@@ -508,6 +517,10 @@ export function ArticlesView({
                   {!trashed && (
                     <div className="relative" data-status-menu>
                       <button
+                        ref={(node) => {
+                          if (node) statusButtonRefs.current.set(item.id, node);
+                          else statusButtonRefs.current.delete(item.id);
+                        }}
                         onClick={() => setOpenStatusId((current) => (current === item.id ? null : item.id))}
                         className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-black transition hover:border-brand hover:text-brand"
                         title="Statusni o'zgartirish"
@@ -518,12 +531,18 @@ export function ArticlesView({
                       </button>
                       {openStatusId === item.id && (
                         <>
-                          <div className="admin-menu-surface absolute right-0 top-12 z-[160] hidden max-h-[70vh] w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block">
-                            {statusMenuContent}
-                          </div>
                           {mounted &&
                             createPortal(
                               <>
+                                {statusMenuPosition && (
+                                  <div
+                                    className="admin-menu-surface fixed z-[220] hidden w-72 overflow-y-auto rounded-xl border p-2 shadow-2xl lg:block"
+                                    style={statusMenuPosition}
+                                    data-status-menu
+                                  >
+                                    {statusMenuContent}
+                                  </div>
+                                )}
                                 <button
                                   type="button"
                                   aria-label="Status oynasini yopish"

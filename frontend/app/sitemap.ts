@@ -3,7 +3,12 @@ import { API_URL } from "../lib/config";
 import { timeoutSignal } from "../lib/http";
 import { SITE_URL } from "../lib/site";
 
-type ApiArticle = { slug: string; updatedAt?: string; publishedAt?: string };
+type ApiArticle = {
+  slug: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  translations?: { lang: string }[];
+};
 
 async function getPublishedArticles() {
   try {
@@ -38,11 +43,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly" as const,
       priority: 0.8
     })),
-    ...articles.map((article) => ({
-      url: `${SITE_URL}/articles/${article.slug}`,
-      lastModified: article.updatedAt ? new Date(article.updatedAt) : article.publishedAt ? new Date(article.publishedAt) : now,
-      changeFrequency: "weekly" as const,
-      priority: 0.9
-    }))
+    ...articles.map((article) => {
+      const articleUrl = `${SITE_URL}/articles/${article.slug}`;
+      const translatedLanguages = new Set(article.translations?.map((item) => item.lang));
+      return {
+        url: articleUrl,
+        lastModified: article.updatedAt ? new Date(article.updatedAt) : article.publishedAt ? new Date(article.publishedAt) : now,
+        changeFrequency: "weekly" as const,
+        priority: 0.9,
+        alternates: {
+          languages: {
+            uz: articleUrl,
+            ...(translatedLanguages.has("ru") ? { ru: `${articleUrl}?lang=ru` } : {}),
+            ...(translatedLanguages.has("en") ? { en: `${articleUrl}?lang=en` } : {}),
+            "x-default": articleUrl
+          }
+        }
+      };
+    })
   ];
 }

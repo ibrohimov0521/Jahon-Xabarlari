@@ -12,6 +12,10 @@ CATEGORIES = [
 
 
 class AiClassifierFallbackTests(unittest.TestCase):
+    def test_empty_categories_are_rejected_cleanly(self):
+        with self.assertRaisesRegex(ValueError, "Kategoriyalar"):
+            fallback_classification("Yangilik", [])
+
     def test_sport_story_uses_sport_as_primary_category(self):
         result = fallback_classification("Jahon chempionati futbol finalida yangi gol urildi", CATEGORIES)
         self.assertEqual(result["categoryId"], "sport")

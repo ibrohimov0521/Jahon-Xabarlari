@@ -1,4 +1,5 @@
 import { API_URL, API_ORIGIN } from "./config";
+import { readStorage, removeStorage, writeStorage } from "./browser-storage";
 import { timeoutSignal } from "./http";
 
 export { API_URL };
@@ -16,11 +17,21 @@ export function getStoredToken() {
 }
 
 export function getStoredUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
+  const raw = readStorage(USER_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AuthUser;
+    const value: unknown = JSON.parse(raw);
+    if (
+      !value ||
+      typeof value !== "object" ||
+      typeof (value as AuthUser).id !== "string" ||
+      typeof (value as AuthUser).name !== "string" ||
+      typeof (value as AuthUser).role !== "string"
+    ) {
+      clearSession();
+      return null;
+    }
+    return value as AuthUser;
   } catch {
     clearSession();
     return null;
@@ -31,27 +42,28 @@ export function getStoredUser(): AuthUser | null {
 // short-lived access token and the user profile are kept client-side.
 export function storeSession(user: AuthUser, accessToken: string) {
   setAccessToken(accessToken);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  writeStorage(USER_KEY, JSON.stringify(user));
 }
 
 function setAccessToken(token: string) {
   accessToken = token;
-  if (typeof window !== "undefined") localStorage.removeItem(LEGACY_TOKEN_KEY);
+  removeStorage(LEGACY_TOKEN_KEY);
 }
 
 export function clearSession() {
   setAccessToken("");
-  localStorage.removeItem(USER_KEY);
+  removeStorage(USER_KEY);
 }
 
 export function onAuthExpired(handler: () => void) {
+  if (typeof window === "undefined") return () => {};
   window.addEventListener(AUTH_EXPIRED_EVENT, handler);
   return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handler);
 }
 
 function announceAuthExpired() {
   clearSession();
-  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 }
 
 async function rawRequest(path: string, options: RequestInit, token: string) {

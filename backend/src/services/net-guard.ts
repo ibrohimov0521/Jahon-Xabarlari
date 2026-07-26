@@ -7,20 +7,38 @@ import net from "node:net";
 
 function isPrivateIp(ip: string): boolean {
   if (net.isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
+    const [a, b, c] = ip.split(".").map(Number);
     if (a === 0 || a === 127) return true; // "this host" + loopback
     if (a === 10) return true; // private
     if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata)
     if (a === 172 && b >= 16 && b <= 31) return true; // private
     if (a === 192 && b === 168) return true; // private
     if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a === 192 && b === 0 && (c === 0 || c === 2)) return true; // protocol assignments / documentation
+    if (a === 198 && (b === 18 || b === 19)) return true; // benchmark network
+    if (a === 198 && b === 51 && c === 100) return true; // documentation
+    if (a === 203 && b === 0 && c === 113) return true; // documentation
+    if (a >= 224) return true; // multicast and reserved
     return false;
   }
   const lower = ip.toLowerCase();
   if (lower === "::1" || lower === "::") return true; // loopback / unspecified
-  if (lower.startsWith("::ffff:")) return isPrivateIp(lower.slice(7)); // IPv4-mapped IPv6
+  if (lower.startsWith("::ffff:")) {
+    const mapped = lower.slice(7);
+    if (net.isIPv4(mapped)) return isPrivateIp(mapped);
+    const words = mapped.split(":");
+    if (words.length === 2 && words.every((word) => /^[0-9a-f]{1,4}$/.test(word))) {
+      const high = Number.parseInt(words[0], 16);
+      const low = Number.parseInt(words[1], 16);
+      return isPrivateIp(`${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`);
+    }
+    return true;
+  }
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique-local
-  if (lower.startsWith("fe80")) return true; // link-local
+  if (/^fe[89ab]/.test(lower)) return true; // link-local fe80::/10
+  if (lower.startsWith("ff")) return true; // multicast
+  if (lower.startsWith("2001:db8") || lower.startsWith("2001:0:") || lower.startsWith("2002:")) return true;
+  if (lower.startsWith("64:ff9b:")) return true; // IPv4 translation ranges can conceal private IPv4
   return false;
 }
 
@@ -35,6 +53,9 @@ export async function assertPublicUrl(rawUrl: string): Promise<void> {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Faqat http/https manzillar ruxsat etilgan");
+  }
+  if (url.username || url.password) {
+    throw new Error("URL ichida login yoki parol bo'lishi mumkin emas");
   }
   const host = url.hostname.replace(/^\[|\]$/g, ""); // strip IPv6 brackets
   if (net.isIP(host)) {
@@ -58,6 +79,7 @@ export async function safeFetch(rawUrl: string, init: RequestInit & { maxRedirec
     const response = await fetch(current, { ...rest, redirect: "manual" });
     const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
     if (!location) return response;
+    await response.body?.cancel();
     current = new URL(location, current).toString();
   }
   throw new Error("Juda ko'p redirect");

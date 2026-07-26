@@ -1,13 +1,35 @@
 "use client";
 
 import { ArrowRight, ArrowLeftRight, Landmark, RefreshCw, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fmt, fmt0, fmtSigned, type CurrencyRate } from "../../lib/currency";
+import { useUi } from "../../lib/ui-context";
 import { CurrencySelect, type CurrencyOption } from "./CurrencySelect";
 import { Flag } from "./Flag";
 import { Sparkline } from "./Sparkline";
 
 const UZS: CurrencyRate = { code: "UZS", name: "O'zbek so'mi", country: "UZ", rate: 1, diff: 0, percent: 0, trend: "flat", date: "", history: [] };
+
+const TEXT = {
+  uz: {
+    title: "Valyuta konvertori", updated: "Oxirgi yangilanish", refresh: "Yangilash", close: "Yopish",
+    send: "Siz yuborasiz", receive: "Siz olasiz", amount: "Miqdor", result: "Natija", swap: "Valyutalarni almashtirish",
+    rates: "Bugungi kurslar", unit: "1 birlik = UZS", source: "Ma'lumotlar: O'zbekiston Respublikasi Markaziy banki",
+    all: "Barcha valyutalarni ko'rish"
+  },
+  ru: {
+    title: "Конвертер валют", updated: "Последнее обновление", refresh: "Обновить", close: "Закрыть",
+    send: "Вы отправляете", receive: "Вы получаете", amount: "Сумма", result: "Результат", swap: "Поменять валюты",
+    rates: "Курсы на сегодня", unit: "1 единица = UZS", source: "Источник: Центральный банк Республики Узбекистан",
+    all: "Все курсы валют"
+  },
+  en: {
+    title: "Currency converter", updated: "Last updated", refresh: "Refresh", close: "Close",
+    send: "You send", receive: "You receive", amount: "Amount", result: "Result", swap: "Swap currencies",
+    rates: "Today's rates", unit: "1 unit = UZS", source: "Source: Central Bank of the Republic of Uzbekistan",
+    all: "View all currencies"
+  }
+} as const;
 
 function parseNum(value: string) {
   let v = value.replace(/\s/g, "");
@@ -59,6 +81,9 @@ export function CurrencyModal({
   const [amount, setAmount] = useState("1");
   const [result, setResult] = useState("");
   const [spin, setSpin] = useState(false);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { language } = useUi();
+  const text = TEXT[language];
 
   const rateOf = (code: string) => byCode.get(code)?.rate ?? 1;
   const convert = (val: number, f: string, t: string) => (val * rateOf(f)) / rateOf(t);
@@ -78,7 +103,8 @@ export function CurrencyModal({
 
   function swap() {
     setSpin(true);
-    setTimeout(() => setSpin(false), 420);
+    if (spinTimer.current) clearTimeout(spinTimer.current);
+    spinTimer.current = setTimeout(() => setSpin(false), 420);
     setFrom(to);
     setTo(from);
     setAmount(result || "1");
@@ -87,8 +113,14 @@ export function CurrencyModal({
   // Esc + scroll lock while open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      if (spinTimer.current) clearTimeout(spinTimer.current);
+    };
   }, [onClose]);
 
   const fromRate = byCode.get(from);
@@ -98,18 +130,23 @@ export function CurrencyModal({
   const livePct = from === "UZS" ? 0 : fromRate?.percent ?? 0;
 
   return (
-    <div className="cm-pop" role="dialog" aria-label="Valyuta konvertori" aria-modal="true">
+    <div className="cm-pop" role="dialog" aria-label={text.title} aria-modal="true">
       <div className="cm-arrow" aria-hidden="true" />
       <div className="cm-head">
         <span className="cm-title">
-          <span className="cm-badge">$</span> Valyuta konvertori
+          <span className="cm-badge">$</span> {text.title}
         </span>
         <div className="cm-head-right">
-          <span className="cm-updated">Oxirgi yangilanish: {updated || "—"}</span>
-          <button className={`cm-icon ${spin ? "is-spin" : ""}`} onClick={() => { setSpin(true); setTimeout(() => setSpin(false), 600); onRefresh?.(); }} aria-label="Yangilash">
+          <span className="cm-updated">{text.updated}: {updated || "—"}</span>
+          <button className={`cm-icon ${spin ? "is-spin" : ""}`} onClick={() => {
+            setSpin(true);
+            if (spinTimer.current) clearTimeout(spinTimer.current);
+            spinTimer.current = setTimeout(() => setSpin(false), 600);
+            onRefresh?.();
+          }} aria-label={text.refresh}>
             <RefreshCw size={15} />
           </button>
-          <button className="cm-icon" onClick={onClose} aria-label="Yopish">
+          <button className="cm-icon" onClick={onClose} aria-label={text.close}>
             <X size={16} />
           </button>
         </div>
@@ -119,18 +156,18 @@ export function CurrencyModal({
         <div className="cm-left">
           <div className="cm-convert">
             <div className="cm-panel">
-              <span className="cm-panel-label">Siz yuborasiz</span>
-              <input className="cm-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-label="Miqdor" />
+              <span className="cm-panel-label">{text.send}</span>
+              <input className="cm-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-label={text.amount} />
               <CurrencySelect value={from} options={options} onChange={setFrom} />
             </div>
 
-            <button className={`cm-swap ${spin ? "is-spin" : ""}`} onClick={swap} aria-label="Valyutalarni almashtirish">
+            <button className={`cm-swap ${spin ? "is-spin" : ""}`} onClick={swap} aria-label={text.swap}>
               <ArrowLeftRight size={18} />
             </button>
 
             <div className="cm-panel is-result">
-              <span className="cm-panel-label">Siz olasiz</span>
-              <input className="cm-amount" inputMode="decimal" value={result} onChange={(e) => onResult(e.target.value)} placeholder="0" aria-label="Natija" />
+              <span className="cm-panel-label">{text.receive}</span>
+              <input className="cm-amount" inputMode="decimal" value={result} onChange={(e) => onResult(e.target.value)} placeholder="0" aria-label={text.result} />
               <CurrencySelect value={to} options={options} onChange={setTo} />
             </div>
           </div>
@@ -147,8 +184,8 @@ export function CurrencyModal({
 
         <div className="cm-right">
           <div className="cm-right-head">
-            <span>Bugungi kurslar</span>
-            <span className="cm-right-sub">1 birlik = UZS</span>
+            <span>{text.rates}</span>
+            <span className="cm-right-sub">{text.unit}</span>
           </div>
           <div className="cm-rows">
             {rates.map((r) => (
@@ -173,10 +210,10 @@ export function CurrencyModal({
 
       <div className="cm-foot">
         <span className="cm-foot-src">
-          <Landmark size={15} /> Ma'lumotlar: O'zbekiston Respublikasi Markaziy banki
+          <Landmark size={15} /> {text.source}
         </span>
         <a href="https://cbu.uz/uz/arkhiv-kursov-valyut/" target="_blank" rel="noopener noreferrer" className="cm-foot-all">
-          Barcha valyutalarni ko'rish <ArrowRight size={15} />
+          {text.all} <ArrowRight size={15} />
         </a>
       </div>
     </div>

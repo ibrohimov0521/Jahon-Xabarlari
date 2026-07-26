@@ -11,8 +11,10 @@ const copy = {
   en: { title: "Most read news", heading: "Most read", description: `The most popular and widely read stories on ${SITE_NAME}.` }
 } as const;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const lang = await getRequestLang();
+type PopularPageProps = { searchParams: Promise<{ lang?: string | string[] }> };
+
+export async function generateMetadata({ searchParams }: PopularPageProps): Promise<Metadata> {
+  const lang = await getRequestLang((await searchParams).lang);
   const baseUrl = `${SITE_URL}/popular`;
   return {
     title: copy[lang].title,
@@ -24,8 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function PopularPage() {
-  const lang = await getRequestLang();
+export default async function PopularPage({ searchParams }: PopularPageProps) {
+  const lang = await getRequestLang((await searchParams).lang);
   const articles = await getPopularArticles(lang, 12, 4);
   return (
     <main>

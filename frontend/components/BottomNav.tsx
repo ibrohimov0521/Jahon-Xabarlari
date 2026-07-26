@@ -31,6 +31,7 @@ import { useSearch } from "../lib/search-context";
 import { useUi } from "../lib/ui-context";
 import { openMobileCurrency } from "./MobileCurrency";
 import { openPushSettings } from "./PushNotifications";
+import { localizedHref } from "../lib/localized-href";
 
 const categoryKeys: { key: string; href: string; icon: LucideIcon }[] = [
   { key: "uzbekistan", href: "/category/ozbekiston", icon: MapPin },
@@ -111,7 +112,7 @@ export default function BottomNav() {
     <>
       <nav className="bottom-nav lg:hidden" aria-label="Mobil navigatsiya">
         <Link
-          href="/"
+          href={localizedHref("/", language)}
           onClick={() => {
             closeSearch();
             setSheet(null);
@@ -151,7 +152,7 @@ export default function BottomNav() {
         </button>
 
         <Link
-          href="/popular"
+          href={localizedHref("/popular", language)}
           onClick={() => {
             closeSearch();
             setSheet(null);
@@ -208,7 +209,7 @@ export default function BottomNav() {
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={localizedHref(item.href, language)}
                     onClick={() => setSheet(null)}
                     className={`sheet-card ${pathname.startsWith(item.href) ? "is-active" : ""}`}
                     aria-current={pathname.startsWith(item.href) ? "page" : undefined}

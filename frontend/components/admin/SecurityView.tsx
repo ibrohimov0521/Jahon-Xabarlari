@@ -2,7 +2,7 @@
 
 import { Check, Clipboard, KeyRound, LockKeyhole, QrCode, ShieldCheck, ShieldOff } from "lucide-react";
 import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { Button, ErrorBanner, Input, LoadingBlock, Panel, SuccessBanner } from "./ui";
 
@@ -25,6 +25,9 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [secretCopied, setSecretCopied] = useState(false);
+  const [mustReauthenticate, setMustReauthenticate] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  const secretCopiedTimer = useRef<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -38,6 +41,11 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
   }
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => () => {
+    if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
+    if (secretCopiedTimer.current) window.clearTimeout(secretCopiedTimer.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -80,13 +88,14 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
   async function enable() {
     setBusyAction("enable"); setError(""); setMessage("");
     try {
-      const data = await adminRequest<{ recoveryCodes: string[] }>("/auth/2fa/enable", {
+      const data = await adminRequest<{ recoveryCodes: string[]; reauthenticate: boolean }>("/auth/2fa/enable", {
         method: "POST",
         body: JSON.stringify({ code: setupCode })
       });
       setRecoveryCodes(data.recoveryCodes);
       setSetupCode(""); setSecret(""); setUri("");
       setStatus({ enabled: true, setupPending: false, recoveryCodesRemaining: data.recoveryCodes.length });
+      setMustReauthenticate(data.reauthenticate);
       setMessage("Ikki bosqichli himoya yoqildi. Tiklash kodlarini xavfsiz joyda saqlang.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kod tasdiqlanmadi");
@@ -135,14 +144,43 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
     }
   }
 
+  async function copyText(value: string) {
+    if (!value) return false;
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      return copied;
+    }
+  }
+
   async function copyCodes() {
-    await navigator.clipboard.writeText(recoveryCodes.join("\n"));
-    setCopied(true); window.setTimeout(() => setCopied(false), 1500);
+    if (!await copyText(recoveryCodes.join("\n"))) {
+      setError("Tiklash kodlarini nusxalab bo'lmadi");
+      return;
+    }
+    setCopied(true);
+    if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
+    copiedTimer.current = window.setTimeout(() => setCopied(false), 1500);
   }
 
   async function copySecret() {
-    await navigator.clipboard.writeText(secret);
-    setSecretCopied(true); window.setTimeout(() => setSecretCopied(false), 1500);
+    if (!await copyText(secret)) {
+      setError("Maxfiy kalitni nusxalab bo'lmadi");
+      return;
+    }
+    setSecretCopied(true);
+    if (secretCopiedTimer.current) window.clearTimeout(secretCopiedTimer.current);
+    secretCopiedTimer.current = window.setTimeout(() => setSecretCopied(false), 1500);
   }
 
   const passwordIsStrong = passwordForm.newPassword.length >= 12
@@ -233,10 +271,17 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
                 </Button>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm sm:grid-cols-3">{recoveryCodes.map((item) => <code key={item}>{item}</code>)}</div>
+              {mustReauthenticate && (
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={onReauthenticate} icon={<ShieldCheck size={17} />}>
+                    Kodlarni saqladim, qayta kirish
+                  </Button>
+                </div>
+              )}
             </section>
           )}
 
-          {status.enabled && (
+          {status.enabled && !mustReauthenticate && (
             <section className="admin-security-danger">
               <div><h4>2FA himoyasini o'chirish</h4><p>Bu amal barcha faol sessiyalarni yakunlaydi.</p></div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -249,7 +294,7 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
             </section>
           )}
 
-          <section className="admin-security-section">
+          {!mustReauthenticate && <section className="admin-security-section">
             <div className="flex items-start gap-3">
               <span className="admin-password-icon"><LockKeyhole size={20} /></span>
               <div><h4>Login parolini o'zgartirish</h4><p>Kamida 12 belgi, katta-kichik harf va raqam ishlating. O'zgargach barcha sessiyalardan chiqiladi.</p></div>
@@ -270,7 +315,7 @@ export function SecurityView({ onReauthenticate }: { onReauthenticate: () => voi
               </Button>
               {passwordForm.newPassword && !passwordIsStrong && <span className="text-xs font-bold text-amber-600">Parol talablarga hali mos emas.</span>}
             </div>
-          </section>
+          </section>}
         </div>
       )}
     </Panel>

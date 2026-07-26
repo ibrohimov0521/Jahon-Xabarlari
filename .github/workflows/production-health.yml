@@ -12,11 +12,18 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://jahonxabarlari.uz' }}
+      API_HEALTH_URL: ${{ vars.PRODUCTION_API_HEALTH_URL || 'https://backend-production-8124.up.railway.app/api/health' }}
     steps:
       - name: Check public website
-        run: curl --fail --location --silent --show-error --retry 3 --max-time 20 https://www.jahonxabarlari.uz/ > /dev/null
+        run: curl --fail --location --silent --show-error --retry 3 --max-time 20 "$SITE_URL/" > /dev/null
+      - name: Check SEO endpoints
+        run: |
+          curl --fail --silent --show-error --retry 3 --max-time 20 "$SITE_URL/robots.txt" | grep -q "sitemap.xml"
+          curl --fail --silent --show-error --retry 3 --max-time 20 "$SITE_URL/sitemap.xml" | grep -q "<urlset"
       - name: Check API dependencies
         run: |
-          response=$(curl --fail --silent --show-error --retry 3 --max-time 20 https://backend-production-8124.up.railway.app/api/health)
+          response=$(curl --fail --silent --show-error --retry 3 --max-time 20 "$API_HEALTH_URL")
           echo "$response"
           echo "$response" | grep -q '"ok":true'

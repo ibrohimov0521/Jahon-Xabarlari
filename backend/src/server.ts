@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import "express-async-errors";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import multer from "multer";
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { apiPort, env, frontendOrigins } from "./config/env.js";
@@ -104,6 +105,12 @@ app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof ZodError) {
     return res.status(400).json({ message: "Kiritilgan ma'lumotlar noto'g'ri", issues: error.issues });
   }
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ message: "Fayl hajmi 25 MB limitdan oshmasligi kerak" });
+    }
+    return res.status(400).json({ message: "Faylni yuklashda xatolik", code: error.code });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
     return res.status(404).json({ message: "Topilmadi" });
   }
@@ -127,16 +134,24 @@ scheduledPublisher.unref();
 
 async function runMaintenance() {
   const revokedCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const staleTokens = await prisma.refreshToken.findMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { revokedAt: { lt: revokedCutoff } }
+      ]
+    },
+    orderBy: { createdAt: "asc" },
+    take: 10_000,
+    select: { id: true }
+  });
   await Promise.all([
     cleanupOldArticleViews(),
-    prisma.refreshToken.deleteMany({
+    staleTokens.length ? prisma.refreshToken.deleteMany({
       where: {
-        OR: [
-          { expiresAt: { lt: new Date() } },
-          { revokedAt: { lt: revokedCutoff } }
-        ]
+        id: { in: staleTokens.map((item) => item.id) }
       }
-    })
+    }) : Promise.resolve()
   ]);
 }
 

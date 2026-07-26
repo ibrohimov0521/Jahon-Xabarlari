@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
@@ -43,7 +44,7 @@ mediaRouter.get("/file/:key", async (req, res) => {
   const item = await prisma.mediaFile.findUnique({ where: { key: req.params.key } });
   if (!item) return res.status(404).json({ message: "Fayl topilmadi" });
   if (!item.data) return res.status(404).json({ message: "Fayl saqlanmagan" });
-  const data = Buffer.from(item.data);
+  const data = Buffer.isBuffer(item.data) ? item.data : Buffer.from(item.data);
   res.setHeader("Content-Type", item.mimeType);
   res.setHeader("Cache-Control", "public, max-age=604800, immutable");
   res.setHeader("Accept-Ranges", "bytes");
@@ -102,7 +103,31 @@ mediaRouter.get("/", async (req, res) => {
 });
 
 mediaRouter.delete("/:id", async (req, res) => {
-  const item = await prisma.mediaFile.delete({ where: { id: req.params.id }, select: { id: true, key: true } });
+  const item = await prisma.mediaFile.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, key: true, url: true }
+  });
+  if (!item) return res.status(404).json({ message: "Fayl topilmadi" });
+  // Admin clients resolve the relative media URL against the API origin before storing it on an
+  // article, while the bot can store the relative form directly. Check both representations,
+  // including every gallery entry, before allowing the binary to be removed.
+  const urlSuffix = `%${item.url}`;
+  const usedByArticles = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT "id"
+    FROM "Article"
+    WHERE "mainImage" = ${item.url}
+       OR "mainImage" LIKE ${urlSuffix}
+       OR EXISTS (
+         SELECT 1
+         FROM unnest("gallery") AS media(media_url)
+         WHERE media_url = ${item.url} OR media_url LIKE ${urlSuffix}
+       )
+    LIMIT 1
+  `);
+  if (usedByArticles.length) {
+    return res.status(409).json({ message: "Fayl maqolada ishlatilmoqda. Avval maqoladan olib tashlang" });
+  }
+  await prisma.mediaFile.delete({ where: { id: item.id } });
   await audit(req, "MEDIA_DELETE", "MediaFile", item.id, { key: item.key });
   res.json({ ok: true });
 });

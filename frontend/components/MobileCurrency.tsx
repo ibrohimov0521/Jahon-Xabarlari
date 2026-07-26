@@ -32,20 +32,30 @@ const COPY = {
     open: "Valyuta konvertorini ochish",
     choose: "Valyutani tanlang",
     search: "Valyutani qidirish...",
-    empty: "Valyuta topilmadi"
+    empty: "Valyuta topilmadi",
+    loading: "Kurslar yuklanmoqda...",
+    unavailable: "Kurslar vaqtincha mavjud emas",
+    refresh: "Yangilash",
+    close: "Yopish",
+    swap: "Valyutalarni almashtirish"
   },
   ru: {
-    title: "Kursy valyut",
-    converter: "Konverter",
-    send: "Vy otpravlyaete",
-    receive: "Vy poluchaete",
-    today: "Kursy na segodnya",
-    updated: "Obnovleno",
-    source: "Kursy Tsentralnogo banka",
-    open: "Otkryt konverter valyut",
-    choose: "Vyberite valyutu",
-    search: "Poisk valyuty...",
-    empty: "Valyuta ne naydena"
+    title: "Курсы валют",
+    converter: "Конвертер",
+    send: "Вы отправляете",
+    receive: "Вы получаете",
+    today: "Курсы на сегодня",
+    updated: "Обновлено",
+    source: "Курсы Центрального банка",
+    open: "Открыть конвертер валют",
+    choose: "Выберите валюту",
+    search: "Поиск валюты...",
+    empty: "Валюта не найдена",
+    loading: "Курсы загружаются...",
+    unavailable: "Курсы временно недоступны",
+    refresh: "Обновить",
+    close: "Закрыть",
+    swap: "Поменять валюты"
   },
   en: {
     title: "Exchange rates",
@@ -58,7 +68,12 @@ const COPY = {
     open: "Open currency converter",
     choose: "Choose currency",
     search: "Search currencies...",
-    empty: "No currencies found"
+    empty: "No currencies found",
+    loading: "Loading rates...",
+    unavailable: "Rates are temporarily unavailable",
+    refresh: "Refresh",
+    close: "Close",
+    swap: "Swap currencies"
   }
 } as const;
 
@@ -78,6 +93,7 @@ function useRates(enabled = true) {
     setLoading(true);
     try {
       const response = await fetch("/api/rates", { signal: timeoutSignal(10_000) });
+      if (!response.ok) throw new Error(`Rates ${response.status}`);
       const data = (await response.json()) as RatesResponse;
       if (Array.isArray(data.rates)) {
         setRates(data.rates);
@@ -124,7 +140,7 @@ export function MobileCurrencyCard() {
           </button>
         ))}
         {!tickerRates.length && (
-          <span className="mobile-currency-loading">{loading ? "Kurslar yuklanmoqda..." : "Kurslar vaqtincha mavjud emas"}</span>
+          <span className="mobile-currency-loading">{loading ? copy.loading : copy.unavailable}</span>
         )}
       </div>
     </section>
@@ -203,7 +219,7 @@ export function MobileCurrencyExperience() {
 
   return (
     <div className="mobile-currency-layer" role="presentation">
-      <button type="button" className="mobile-currency-backdrop" onClick={closeConverter} aria-label="Yopish" />
+      <button type="button" className="mobile-currency-backdrop" onClick={closeConverter} aria-label={copy.close} />
       <section className="mobile-currency-sheet" role="dialog" aria-modal="true" aria-label={copy.converter}>
         <div className="mobile-currency-sheet-handle" />
         <header className="mobile-currency-sheet-head">
@@ -212,8 +228,8 @@ export function MobileCurrencyExperience() {
             <strong>{copy.converter}</strong>
             <small>{copy.source}</small>
           </span>
-          <button type="button" className={`mobile-currency-icon-button ${loading ? "is-loading" : ""}`} onClick={() => void load()} aria-label="Yangilash"><RefreshCw size={17} /></button>
-          <button type="button" className="mobile-currency-icon-button" onClick={closeConverter} aria-label="Yopish"><X size={18} /></button>
+          <button type="button" className={`mobile-currency-icon-button ${loading ? "is-loading" : ""}`} onClick={() => void load()} aria-label={copy.refresh}><RefreshCw size={17} /></button>
+          <button type="button" className="mobile-currency-icon-button" onClick={closeConverter} aria-label={copy.close}><X size={18} /></button>
         </header>
 
         <div className="mobile-currency-sheet-body">
@@ -228,7 +244,7 @@ export function MobileCurrencyExperience() {
               </button>
             </div>
 
-            <button type="button" className="mobile-currency-swap" onClick={swap} aria-label="Valyutalarni almashtirish"><ArrowLeftRight size={19} /></button>
+            <button type="button" className="mobile-currency-swap" onClick={swap} aria-label={copy.swap}><ArrowLeftRight size={19} /></button>
 
             <div className="mobile-currency-field is-result">
               <span>{copy.receive}</span>
@@ -261,12 +277,12 @@ export function MobileCurrencyExperience() {
 
       {picker && (
         <div className="mobile-currency-picker-layer" role="presentation">
-          <button type="button" className="mobile-currency-picker-backdrop" onClick={() => setPicker(null)} aria-label="Yopish" />
+          <button type="button" className="mobile-currency-picker-backdrop" onClick={() => setPicker(null)} aria-label={copy.close} />
           <section className="mobile-currency-picker" role="dialog" aria-modal="true" aria-label={copy.choose}>
             <div className="mobile-currency-sheet-handle" />
             <header className="mobile-currency-picker-head">
               <strong>{copy.choose}</strong>
-              <button type="button" className="mobile-currency-icon-button" onClick={() => setPicker(null)} aria-label="Yopish"><X size={18} /></button>
+              <button type="button" className="mobile-currency-icon-button" onClick={() => setPicker(null)} aria-label={copy.close}><X size={18} /></button>
             </header>
             <label className="mobile-currency-picker-search">
               <Search size={17} />

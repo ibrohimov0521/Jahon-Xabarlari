@@ -23,9 +23,14 @@ function categoryName(slug: string, lang: Language) {
   return CATEGORY_NAMES[lang][slug] ?? slug.replaceAll("-", " ");
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+type CategoryPageProps = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ lang?: string | string[] }>;
+};
+
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const lang = await getRequestLang();
+  const lang = await getRequestLang((await searchParams).lang);
   const name = categoryName(slug, lang);
   const title = `${name} ${CATEGORY_SEO[lang].suffix}`;
   const description = CATEGORY_SEO[lang].description(name);
@@ -56,9 +61,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
-  const lang = await getRequestLang();
+  const lang = await getRequestLang((await searchParams).lang);
   const articles = await getArticles(`?category=${slug}`, lang);
   return (
     <main>

@@ -64,7 +64,14 @@ export function ReportsView() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><Badge tone="amber">{reasonNames[item.reason] ?? item.reason}</Badge><span className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleString("uz-UZ")}</span></div>
-                <Link href={`/articles/${item.article.slug}`} target="_blank" className="mt-2 inline-flex items-center gap-2 font-black hover:text-brand">{item.article.title}<ExternalLink size={14} /></Link>
+                <Link
+                  href={`/articles/${item.article.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-2 font-black hover:text-brand"
+                >
+                  {item.article.title}<ExternalLink size={14} />
+                </Link>
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{item.details}</p>
                 {item.email && <a className="mt-2 block text-xs font-bold text-brand" href={`mailto:${item.email}`}>{item.email}</a>}
               </div>

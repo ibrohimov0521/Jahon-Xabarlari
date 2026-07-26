@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, LocateFixed, Moon, Sun, Wind, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, LocateFixed, MapPin, Moon, Sun, Wind, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useUi } from "../lib/ui-context";
 import {
@@ -25,7 +25,65 @@ function filterAlertsByLanguage(alerts: WeatherAlert[], language: "uz" | "ru" | 
   return alerts.filter((alert) => CYRILLIC_PATTERN.test(alert.event || alert.headline || "") === wantsCyrillic);
 }
 
-const WEEKDAYS_SHORT = ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"];
+const TEXT = {
+  uz: {
+    close: "Yopish",
+    alert: "Ob-havo ogohlantirishi",
+    loading: "Yuklanmoqda...",
+    error: "Ob-havo ma'lumotlarini olishda xatolik",
+    feels: "His qilinishi",
+    wind: "Shamol",
+    humidity: "Namlik",
+    pressure: "Bosim",
+    uv: "UV indeks",
+    precipitation: "Yog'ingarchilik",
+    hourly: "48 soatlik prognoz",
+    daily: "16 kunlik prognoz",
+    today: "Bugun",
+    tomorrow: "Ertaga",
+    sunrise: "Quyosh chiqishi",
+    sunset: "Botishi",
+    weekdays: ["Yak", "Dush", "Sesh", "Chor", "Pay", "Jum", "Shan"]
+  },
+  ru: {
+    close: "Закрыть",
+    alert: "Предупреждение о погоде",
+    loading: "Загрузка...",
+    error: "Не удалось получить данные о погоде",
+    feels: "Ощущается",
+    wind: "Ветер",
+    humidity: "Влажность",
+    pressure: "Давление",
+    uv: "УФ-индекс",
+    precipitation: "Осадки",
+    hourly: "Прогноз на 48 часов",
+    daily: "Прогноз на 16 дней",
+    today: "Сегодня",
+    tomorrow: "Завтра",
+    sunrise: "Восход",
+    sunset: "Закат",
+    weekdays: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+  },
+  en: {
+    close: "Close",
+    alert: "Weather alert",
+    loading: "Loading...",
+    error: "Unable to load weather data",
+    feels: "Feels like",
+    wind: "Wind",
+    humidity: "Humidity",
+    pressure: "Pressure",
+    uv: "UV index",
+    precipitation: "Precipitation",
+    hourly: "48-hour forecast",
+    daily: "16-day forecast",
+    today: "Today",
+    tomorrow: "Tomorrow",
+    sunrise: "Sunrise",
+    sunset: "Sunset",
+    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  }
+} as const;
 
 // Day/night icon variants per condition (clear/partly-cloudy look meaningfully different at
 // night; the rest read fine either way but a moon-tinted set would be overkill).
@@ -55,11 +113,11 @@ function formatClock(iso: string) {
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function dayLabel(iso: string, index: number) {
-  if (index === 0) return "Bugun";
-  if (index === 1) return "Ertaga";
+function dayLabel(iso: string, index: number, text: (typeof TEXT)[keyof typeof TEXT]) {
+  if (index === 0) return text.today;
+  if (index === 1) return text.tomorrow;
   const date = new Date(iso);
-  return WEEKDAYS_SHORT[date.getDay()];
+  return text.weekdays[date.getDay()];
 }
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -93,6 +151,7 @@ export function WeatherModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
+  const text = TEXT[language];
   const visibleAlerts = useMemo(() => filterAlertsByLanguage(alerts, language), [alerts, language]);
 
   useEffect(() => {
@@ -106,7 +165,7 @@ export function WeatherModal({
     setAlerts([]);
     fetchFullWeather(region.lat, region.lon).then((data) => {
       if (cancelled) return;
-      if (!data) setError("Ob-havo ma'lumotlarini olishda xatolik");
+      if (!data) setError(text.error);
       setWeather(data);
       setLoading(false);
     });
@@ -116,7 +175,21 @@ export function WeatherModal({
     return () => {
       cancelled = true;
     };
-  }, [open, region]);
+  }, [open, region, text.error]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose, open]);
 
   if (!open) return null;
 
@@ -127,7 +200,13 @@ export function WeatherModal({
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16 sm:items-center sm:pt-4" onClick={onClose}>
-      <div className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`} onClick={(event) => event.stopPropagation()}>
+      <div
+        className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`}
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${region.name}: ${conditionLabel(condition, language)}`}
+      >
         <div
           key={backgroundImage}
           className="weather-modal-bg absolute inset-0 bg-cover bg-center"
@@ -136,19 +215,20 @@ export function WeatherModal({
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/28 to-black/70" aria-hidden="true" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_12%,rgba(255,255,255,0.22),transparent_28rem)]" aria-hidden="true" />
-        <button onClick={onClose} aria-label="Yopish" className="absolute right-4 top-4 z-10 rounded-full bg-white/15 p-1.5 backdrop-blur transition hover:bg-white/25">
+        <button type="button" onClick={onClose} aria-label={text.close} className="absolute right-4 top-4 z-10 rounded-full bg-white/15 p-1.5 backdrop-blur transition hover:bg-white/25">
           <X size={18} />
         </button>
 
         <div className="relative z-[1] max-h-[85vh] overflow-y-auto p-6">
           <div className="relative inline-block">
-            <button onClick={() => setRegionPickerOpen((value) => !value)} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur">
-              📍 {region.name} <ChevronDown size={14} />
+            <button type="button" onClick={() => setRegionPickerOpen((value) => !value)} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur">
+              <MapPin size={14} /> {region.name} <ChevronDown size={14} />
             </button>
             {regionPickerOpen && (
               <div className="absolute left-0 top-10 z-20 max-h-64 w-52 overflow-y-auto rounded-xl border border-white/10 bg-ink/95 p-1 text-left shadow-2xl backdrop-blur">
                 {regions.map((item) => (
                   <button
+                    type="button"
                     key={item.name}
                     onClick={() => {
                       onSelectRegion(item);
@@ -178,7 +258,7 @@ export function WeatherModal({
                 <div key={index} className="flex items-start gap-2 rounded-2xl border border-red-300/40 bg-red-500/25 p-3 text-sm backdrop-blur-md">
                   <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-100" />
                   <div>
-                    <p className="font-black text-red-50">{alert.event || alert.headline || "Ob-havo ogohlantirishi"}</p>
+                    <p className="font-black text-red-50">{alert.event || alert.headline || text.alert}</p>
                     {alert.desc && <p className="mt-0.5 text-xs text-red-100/90">{alert.desc}</p>}
                   </div>
                 </div>
@@ -186,7 +266,7 @@ export function WeatherModal({
             </div>
           )}
 
-          {loading && !weather && <p className="mt-8 text-white/80">Yuklanmoqda...</p>}
+          {loading && !weather && <p className="mt-8 text-white/80">{text.loading}</p>}
           {error && <p className="mt-8 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-bold text-red-100">{error}</p>}
 
           {weather && (
@@ -195,25 +275,25 @@ export function WeatherModal({
                 <ConditionIcon condition={condition} isDay={isDay} className="h-16 w-16 shrink-0 text-amber-200 drop-shadow" />
                 <div>
                   <p className="text-6xl font-black leading-none">{weather.temperature}°</p>
-                  <p className="mt-1 text-lg font-bold">{conditionLabel(condition)}</p>
+                  <p className="mt-1 text-lg font-bold">{conditionLabel(condition, language)}</p>
                 </div>
               </div>
               <p className="mt-3 text-sm text-white/85">
-                ↑{weather.todayMax}° / ↓{weather.todayMin}° &nbsp;•&nbsp; His qilinishi: {weather.feelsLike}°
+                ↑{weather.todayMax}° / ↓{weather.todayMin}° &nbsp;•&nbsp; {text.feels}: {weather.feelsLike}°
               </p>
 
               {/* Current conditions -- glass stat cards */}
               <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                <StatCard icon={<Wind size={18} />} label="Shamol" value={`${weather.windSpeed} km/s`} />
-                <StatCard icon={<Droplets size={18} />} label="Namlik" value={`${weather.humidity}%`} />
-                <StatCard icon={<Gauge size={18} />} label="Bosim" value={`${weather.pressure} hPa`} />
-                <StatCard icon={<Sun size={18} />} label="UV indeks" value={`${weather.todayUvIndex}`} />
-                <StatCard icon={<CloudRain size={18} />} label="Yog'ingarchilik" value={`${weather.hourly[0]?.precipitation ?? 0}%`} />
+                <StatCard icon={<Wind size={18} />} label={text.wind} value={`${weather.windSpeed} ${language === "ru" ? "км/ч" : "km/h"}`} />
+                <StatCard icon={<Droplets size={18} />} label={text.humidity} value={`${weather.humidity}%`} />
+                <StatCard icon={<Gauge size={18} />} label={text.pressure} value={`${weather.pressure} hPa`} />
+                <StatCard icon={<Sun size={18} />} label={text.uv} value={`${weather.todayUvIndex}`} />
+                <StatCard icon={<CloudRain size={18} />} label={text.precipitation} value={`${weather.hourly[0]?.precipitation ?? 0}%`} />
               </div>
 
               {/* 48-hour forecast -- horizontal scroll */}
               <div className="mt-6">
-                <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/60">48 soatlik prognoz</p>
+                <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/60">{text.hourly}</p>
                 <div className="-mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
                   {weather.hourly.map((hour) => (
                     <div key={hour.time} className="flex shrink-0 flex-col items-center gap-2 text-center">
@@ -227,10 +307,10 @@ export function WeatherModal({
 
               {/* 15/16-day forecast -- its own separate glass card */}
               <div className="mt-5 rounded-2xl bg-white/12 p-3 backdrop-blur-md">
-                <p className="mb-1 px-1 text-xs font-black uppercase tracking-wide text-white/60">16 kunlik prognoz</p>
+                <p className="mb-1 px-1 text-xs font-black uppercase tracking-wide text-white/60">{text.daily}</p>
                 {weather.daily.map((day, index) => (
                   <div key={day.date} className={`flex items-center justify-between gap-3 py-2 text-sm ${index > 0 ? "border-t border-white/10" : ""}`}>
-                    <span className="w-16 shrink-0 font-bold">{dayLabel(day.date, index)}</span>
+                    <span className="w-16 shrink-0 font-bold">{dayLabel(day.date, index, text)}</span>
                     {day.precipitation > 0 ? <span className="w-12 shrink-0 text-xs text-sky-200">💧{day.precipitation}%</span> : <span className="w-12 shrink-0" />}
                     <ConditionIcon condition={day.condition} className="ml-auto h-5 w-5 shrink-0 text-amber-200" />
                     <span className="w-20 shrink-0 text-right font-bold">
@@ -241,8 +321,8 @@ export function WeatherModal({
               </div>
 
               <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/12 p-3 text-sm backdrop-blur-md">
-                <span>🌅 Quyosh chiqishi: {formatClock(weather.sunrise)}</span>
-                <span>🌇 Botishi: {formatClock(weather.sunset)}</span>
+                <span>{text.sunrise}: {formatClock(weather.sunrise)}</span>
+                <span>{text.sunset}: {formatClock(weather.sunset)}</span>
               </div>
             </>
           )}

@@ -23,8 +23,13 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const requested = new URL(event.notification.data?.url || "/", self.location.origin);
-  const targetUrl = requested.origin === self.location.origin ? requested.href : self.location.origin;
+  let targetUrl = self.location.origin;
+  try {
+    const requested = new URL(event.notification.data?.url || "/", self.location.origin);
+    if (requested.origin === self.location.origin) targetUrl = requested.href;
+  } catch {
+    targetUrl = self.location.origin;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {

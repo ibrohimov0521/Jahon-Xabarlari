@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageOff } from "lucide-react";
 import { CSSProperties, useEffect, useState } from "react";
 import { isVideoUrl, toOptimizedImageSrc } from "../lib/media";
 
@@ -35,15 +36,15 @@ export function MediaView({
 }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
   const [naturalWidth, setNaturalWidth] = useState(0);
-  const [retried, setRetried] = useState(false);
   const [useDirectSrc, setUseDirectSrc] = useState(false);
+  const [failed, setFailed] = useState(false);
   // Reset before the new src's own onLoad recalculates it -- otherwise a reused instance (e.g.
   // ArticleModal swapping between articles) briefly keeps the previous image's styling.
   useEffect(() => {
     setIsSmallImage(false);
     setNaturalWidth(0);
-    setRetried(false);
     setUseDirectSrc(false);
+    setFailed(false);
   }, [src]);
   if (!src) return null;
   if (isVideoUrl(src)) {
@@ -72,6 +73,14 @@ export function MediaView({
     ? responsiveWidths.map((width) => `${toOptimizedImageSrc(src, width, 75)} ${width}w`).join(", ")
     : undefined;
 
+  if (failed) {
+    return (
+      <div className={`media-fallback ${className}`} role="img" aria-label={alt || "Media unavailable"}>
+        <ImageOff size={28} aria-hidden="true" />
+      </div>
+    );
+  }
+
   return (
     <img
       src={finalSrc}
@@ -93,18 +102,13 @@ export function MediaView({
         setIsSmallImage(small);
         setNaturalWidth(small ? image.naturalWidth : 0);
       }}
-      onError={(event) => {
+      onError={() => {
         // If Next's optimizer cannot fetch a remote source, fall back to the original CDN URL.
         if (isRemoteImage && !useDirectSrc) {
           setUseDirectSrc(true);
           return;
         }
-        // One-shot recovery from a transient/aborted load: force a fresh request for the same URL.
-        if (retried) return;
-        setRetried(true);
-        const image = event.currentTarget;
-        image.src = "";
-        image.src = finalSrc;
+        setFailed(true);
       }}
       style={Object.keys(style).length ? style : undefined}
     />

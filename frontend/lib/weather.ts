@@ -5,6 +5,7 @@ export type UzRegion = { name: string; lat: number; lon: number };
 // All 12 viloyat + Toshkent shahri + Qoraqalpog'iston Respublikasi (regional center coords).
 export const UZ_REGIONS: UzRegion[] = [
   { name: "Toshkent", lat: 41.2995, lon: 69.2401 },
+  { name: "Nurafshon (Toshkent viloyati)", lat: 41.0477, lon: 69.3311 },
   { name: "Andijon", lat: 40.7821, lon: 72.3442 },
   { name: "Buxoro", lat: 39.7747, lon: 64.4286 },
   { name: "Farg'ona", lat: 40.3894, lon: 71.7843 },
@@ -52,16 +53,37 @@ export function codeToCondition(code: number): WeatherCondition {
   return "clouds";
 }
 
-export function conditionLabel(condition: WeatherCondition): string {
-  return {
-    clear: "Musaffo",
-    partlyCloudy: "Qisman bulutli",
-    clouds: "Bulutli",
-    fog: "Tuman",
-    rain: "Yomg'ir",
-    snow: "Qor",
-    storm: "Momaqaldiroq"
-  }[condition];
+export function conditionLabel(condition: WeatherCondition, language: "uz" | "ru" | "en" = "uz"): string {
+  const labels: Record<"uz" | "ru" | "en", Record<WeatherCondition, string>> = {
+    uz: {
+      clear: "Musaffo",
+      partlyCloudy: "Qisman bulutli",
+      clouds: "Bulutli",
+      fog: "Tuman",
+      rain: "Yomg'ir",
+      snow: "Qor",
+      storm: "Momaqaldiroq"
+    },
+    ru: {
+      clear: "Ясно",
+      partlyCloudy: "Переменная облачность",
+      clouds: "Облачно",
+      fog: "Туман",
+      rain: "Дождь",
+      snow: "Снег",
+      storm: "Гроза"
+    },
+    en: {
+      clear: "Clear",
+      partlyCloudy: "Partly cloudy",
+      clouds: "Cloudy",
+      fog: "Fog",
+      rain: "Rain",
+      snow: "Snow",
+      storm: "Thunderstorm"
+    }
+  };
+  return labels[language][condition];
 }
 
 // Tailwind gradient classes for the weather modal's dynamic background, day vs night variants.
@@ -144,11 +166,11 @@ function isNearSolarEvent(nowIso: string | undefined, eventIso: string | undefin
 }
 
 export function weatherButtonBackgroundImage(
-  weather: Pick<FullWeather, "weatherCode" | "condition" | "isDay" | "hourly" | "sunrise" | "sunset"> | null
+  weather: Pick<FullWeather, "weatherCode" | "condition" | "isDay" | "currentTime" | "sunrise" | "sunset"> | null
 ): string {
   if (!weather) return WEATHER_BUTTON_BACKGROUNDS.mostlyClear;
 
-  const now = weather.hourly?.[0]?.time;
+  const now = weather.currentTime;
   const calmSky = weather.condition === "clear" || weather.condition === "partlyCloudy" || weather.condition === "clouds";
 
   if (weather.isDay && calmSky && isNearSolarEvent(now, weather.sunrise)) return WEATHER_BUTTON_BACKGROUNDS.sunrise;
@@ -171,10 +193,10 @@ export function weatherButtonBackgroundImage(
   return weather.condition === "clouds" ? WEATHER_BUTTON_BACKGROUNDS.cloudy : WEATHER_BUTTON_BACKGROUNDS.mostlyClear;
 }
 
-export function weatherBackgroundImage(weather: Pick<FullWeather, "condition" | "isDay" | "windSpeed" | "precipitation" | "hourly" | "sunset"> | null): string {
+export function weatherBackgroundImage(weather: Pick<FullWeather, "condition" | "isDay" | "windSpeed" | "precipitation" | "currentTime" | "sunset"> | null): string {
   if (!weather) return WEATHER_BACKGROUNDS.clearDay[0];
 
-  const seed = weather.hourly?.[0]?.time ?? `${weather.condition}-${weather.isDay}`;
+  const seed = weather.currentTime || `${weather.condition}-${weather.isDay}`;
 
   if (weather.windSpeed >= 45 && weather.condition !== "rain" && weather.condition !== "snow" && weather.condition !== "storm") {
     return WEATHER_BACKGROUNDS.wind[0];
@@ -192,7 +214,7 @@ export function weatherBackgroundImage(weather: Pick<FullWeather, "condition" | 
     return stableImage(weather.isDay ? WEATHER_BACKGROUNDS.partlyCloudyDay : WEATHER_BACKGROUNDS.partlyCloudyNight, seed);
   }
   if (!weather.isDay) return WEATHER_BACKGROUNDS.clearNight[0];
-  if (isNearSunset(weather.hourly?.[0]?.time, weather.sunset)) return "/weather/sunset-sea.jpg";
+  if (isNearSunset(weather.currentTime, weather.sunset)) return "/weather/sunset-sea.jpg";
   return stableImage(WEATHER_BACKGROUNDS.clearDay, seed);
 }
 
@@ -219,6 +241,7 @@ export type DayPoint = {
 };
 
 export type FullWeather = {
+  currentTime: string;
   temperature: number;
   feelsLike: number;
   weatherCode: number;
@@ -268,46 +291,65 @@ export async function fetchFullWeather(lat: number, lon: number): Promise<FullWe
     const res = await fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`, { signal: timeoutSignal() });
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data?.current || !data?.hourly || !data?.daily) return null;
+    if (
+      !data?.current ||
+      !data?.hourly ||
+      !data?.daily ||
+      !Array.isArray(data.hourly.time) ||
+      !Array.isArray(data.daily.time)
+    ) {
+      return null;
+    }
 
-    const startIdx = Math.max(0, data.hourly.time.indexOf(data.current.time));
-    const hourly: HourPoint[] = data.hourly.time.slice(startIdx, startIdx + 48).map((time: string, i: number) => {
+    const currentTime = typeof data.current.time === "string" ? data.current.time : "";
+    const hourlyTimes = data.hourly.time.filter((value: unknown): value is string => typeof value === "string");
+    let startIdx = 0;
+    for (let index = 0; index < hourlyTimes.length; index += 1) {
+      if (!currentTime || hourlyTimes[index] <= currentTime) startIdx = index;
+      else break;
+    }
+    const numberOr = (value: unknown, fallback = 0) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const hourly: HourPoint[] = hourlyTimes.slice(startIdx, startIdx + 48).map((time: string, i: number) => {
       const idx = startIdx + i;
       return {
         time,
-        temp: Math.round(data.hourly.temperature_2m[idx]),
-        feelsLike: Math.round(data.hourly.apparent_temperature[idx]),
-        condition: codeToCondition(data.hourly.weather_code[idx]),
-        precipitation: data.hourly.precipitation_probability?.[idx] ?? 0,
-        humidity: data.hourly.relative_humidity_2m?.[idx] ?? 0,
-        windSpeed: Math.round(data.hourly.wind_speed_10m?.[idx] ?? 0),
+        temp: Math.round(numberOr(data.hourly.temperature_2m?.[idx])),
+        feelsLike: Math.round(numberOr(data.hourly.apparent_temperature?.[idx])),
+        condition: codeToCondition(numberOr(data.hourly.weather_code?.[idx])),
+        precipitation: numberOr(data.hourly.precipitation_probability?.[idx]),
+        humidity: numberOr(data.hourly.relative_humidity_2m?.[idx]),
+        windSpeed: Math.round(numberOr(data.hourly.wind_speed_10m?.[idx])),
         isDay: Boolean(data.hourly.is_day?.[idx] ?? 1)
       };
     });
 
-    const daily: DayPoint[] = data.daily.time.map((date: string, i: number) => ({
+    const daily: DayPoint[] = data.daily.time.filter((value: unknown): value is string => typeof value === "string").map((date: string, i: number) => ({
       date,
-      max: Math.round(data.daily.temperature_2m_max[i]),
-      min: Math.round(data.daily.temperature_2m_min[i]),
-      condition: codeToCondition(data.daily.weather_code[i]),
-      precipitation: data.daily.precipitation_probability_max?.[i] ?? 0,
-      uvIndex: Math.round(data.daily.uv_index_max?.[i] ?? 0),
+      max: Math.round(numberOr(data.daily.temperature_2m_max?.[i])),
+      min: Math.round(numberOr(data.daily.temperature_2m_min?.[i])),
+      condition: codeToCondition(numberOr(data.daily.weather_code?.[i])),
+      precipitation: numberOr(data.daily.precipitation_probability_max?.[i]),
+      uvIndex: Math.round(numberOr(data.daily.uv_index_max?.[i])),
       sunrise: data.daily.sunrise?.[i] ?? "",
       sunset: data.daily.sunset?.[i] ?? ""
     }));
 
     return {
-      temperature: Math.round(data.current.temperature_2m),
-      feelsLike: Math.round(data.current.apparent_temperature),
-      weatherCode: Number(data.current.weather_code ?? 0),
-      condition: codeToCondition(data.current.weather_code),
+      currentTime,
+      temperature: Math.round(numberOr(data.current.temperature_2m)),
+      feelsLike: Math.round(numberOr(data.current.apparent_temperature)),
+      weatherCode: numberOr(data.current.weather_code),
+      condition: codeToCondition(numberOr(data.current.weather_code)),
       isDay: Boolean(data.current.is_day),
-      humidity: Math.round(data.current.relative_humidity_2m ?? 0),
-      windSpeed: Math.round(data.current.wind_speed_10m ?? 0),
-      pressure: Math.round(data.current.pressure_msl ?? 0),
-      precipitation: data.current.precipitation ?? 0,
-      todayMax: daily[0]?.max ?? Math.round(data.current.temperature_2m),
-      todayMin: daily[0]?.min ?? Math.round(data.current.temperature_2m),
+      humidity: Math.round(numberOr(data.current.relative_humidity_2m)),
+      windSpeed: Math.round(numberOr(data.current.wind_speed_10m)),
+      pressure: Math.round(numberOr(data.current.pressure_msl)),
+      precipitation: numberOr(data.current.precipitation),
+      todayMax: daily[0]?.max ?? Math.round(numberOr(data.current.temperature_2m)),
+      todayMin: daily[0]?.min ?? Math.round(numberOr(data.current.temperature_2m)),
       todayUvIndex: daily[0]?.uvIndex ?? 0,
       sunrise: daily[0]?.sunrise ?? "",
       sunset: daily[0]?.sunset ?? "",

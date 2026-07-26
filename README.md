@@ -16,7 +16,7 @@ docker-compose.yml
 
 ```bash
 cp .env.example .env
-docker compose up --build.
+docker compose up --build
 ```
 
 Brauzer:
@@ -27,10 +27,11 @@ Brauzer:
 
 ## Database migration va seed
 
-Docker konteynerlar ishga tushgandan keyin:
+Backend konteyneri ishga tushishda mavjud production migratsiyalarni va idempotent
+seedni avtomatik bajaradi. Qo'lda takrorlash kerak bo'lsa:
 
 ```bash
-docker compose exec backend npx prisma migrate dev --name init
+docker compose exec backend npx prisma migrate deploy
 docker compose exec backend npm run prisma:seed
 ```
 
@@ -48,22 +49,20 @@ Test admin:
 BOT_TOKEN=123456:telegram_bot_token
 BOT_API_BASE=http://backend:4000/api
 BOT_ADMIN_IDS=123456789,987654321
+BOT_SERVICE_SECRET=backend_bilan_bir_xil_kuchli_maxfiy_qiymat
+ADMIN_PANEL_URL=https://jahonxabarlari.uz/admin
 ```
 
 Bot alohida database yaratmaydi. `/api/auth/telegram-login` orqali backenddan JWT oladi va barcha maqola, izoh, reklama, statistika amallarini backend API orqali bajaradi. Backend har bir muhim amalni role permission va audit log bilan tekshiradi.
 
 Bot menyusi:
 
-- 📰 Yangiliklar
-- ➕ Yangi maqola
-- 📝 Draftlar
-- ✅ Review
-- 🔥 Breaking
-- ⭐ Featured
-- 📊 Statistika
-- 💬 Izohlar
-- 📢 Reklama
-- ⚙️ Sozlamalar
+- ✍️ Yangi maqola
+- 🗞️ Yangiliklar
+- 📈 Statistika
+
+Forward qilingan matn, rasm, video va media albomlari tozalanib, AI/fallback
+klassifikatsiyadan so'ng `REVIEW` statusida admin panelga yuboriladi.
 
 ## Muhim endpointlar
 
@@ -79,10 +78,8 @@ Bot menyusi:
 - `PATCH /api/admin/articles/:id/status`
 - `GET /api/admin/dashboard/stats`
 
-## Keyingi production ishlari
+## Production eslatmasi
 
-- S3 yoki Cloudflare R2 adapterini `media` moduliga ulash.
-- Admin login UI ni backend JWT bilan bog'lash.
-- Rich text editor va media kutubxona UI ni to'liq CRUD qilish.
-- Redis cache middleware qo'shish.
-- 2FA uchun TOTP modulini yoqish.
+Media hozir PostgreSQL orqali saqlanadi. Hajm va trafik oshganda S3 yoki Cloudflare
+R2 ga ko'chirish tavsiya etiladi. Deploydan oldin `docs/OPERATIONS.md` dagi test,
+backup va secret talablarini bajaring.

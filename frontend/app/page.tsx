@@ -9,6 +9,7 @@ import { NewsCard } from "../components/NewsCard";
 import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { getRequestLang } from "../lib/server-lang";
+import { localizedHref } from "../lib/localized-href";
 
 const homeCopy = {
   uz: {
@@ -72,8 +73,8 @@ const homeCopy = {
 
 const categorySlugs = ["ozbekiston", "dunyo", "iqtisodiyot", "sport", "texnologiya", "madaniyat"] as const;
 
-export default async function Home() {
-  const lang = await getRequestLang();
+export default async function Home({ searchParams }: { searchParams: Promise<{ lang?: string | string[] }> }) {
+  const lang = await getRequestLang((await searchParams).lang);
   return <CachedHome lang={lang} />;
 }
 
@@ -94,19 +95,26 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   ];
   const categorySections = categorySlugs.map((slug) => ({ title: copy.categories[slug], slug }));
   const categoryName = (category?: { name: string; slug: string }) => category ? copy.categories[category.slug as keyof typeof copy.categories] ?? category.name : "";
-  const [articles, trending, popular] = await Promise.all([getArticles("?limit=20", lang), getTrendingArticles(lang, 8), getPopularArticles(lang, 8, 4)]);
+  const [articles, trending, popular, sliderArticles, sidebarArticles, editorArticles] = await Promise.all([
+    getArticles("?limit=32&home=true&latest=true", lang),
+    getTrendingArticles(lang, 8),
+    getPopularArticles(lang, 8, 4),
+    getArticles("?limit=5&home=true&slider=true", lang),
+    getArticles("?limit=3&home=true&sidebar=true", lang),
+    getArticles("?limit=5&home=true&editorChoice=true", lang)
+  ]);
 
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
   const eligible = articles.filter((item) => item.showOnHome !== false);
 
   // showInSlider curates the lead story; fall back to the newest eligible article so the
   // homepage still has a hero before any editor has flagged anything.
-  const sliderPool = eligible.filter((item) => item.showInSlider);
+  const sliderPool = sliderArticles.filter((item) => item.showOnHome !== false);
   const hero = sliderPool[0] ?? eligible[0];
   const rest = eligible.filter((item) => item.id !== hero?.id);
 
   // isEditorChoice curates "Muharrir tanlovi"; same graceful fallback to the general pool.
-  const editorPool = rest.filter((item) => item.isEditorChoice);
+  const editorPool = editorArticles.filter((item) => item.id !== hero?.id && item.showOnHome !== false);
   const editorLead = editorPool[0] ?? rest[15] ?? rest[4];
   const editorList = editorPool.length > 1 ? editorPool.slice(1, 5) : rest.slice(16, 20);
   const editorIds = new Set([editorLead?.id, ...editorList.map((item) => item.id)].filter(Boolean));
@@ -114,8 +122,10 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   // showInLatest gates the general recency-based sections; exclude whatever the editor
   // section already used so the same article isn't repeated twice on the page.
   const generalPool = rest.filter((item) => item.showInLatest !== false && !editorIds.has(item.id));
-  const side = generalPool.slice(0, 3);
-  const latest = generalPool.slice(3, 15);
+  const curatedSide = sidebarArticles.filter((item) => item.id !== hero?.id && !editorIds.has(item.id));
+  const side = curatedSide.length ? curatedSide.slice(0, 3) : generalPool.slice(0, 3);
+  const sideIds = new Set(side.map((item) => item.id));
+  const latest = generalPool.filter((item) => !sideIds.has(item.id)).slice(0, 12);
 
   const trendingItems = trending;
   const popularItems = popular;
@@ -147,7 +157,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
     <main>
       <Header />
       <section className="home-lead-grid container-page grid gap-4 py-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)] lg:gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.95fr)_minmax(300px,0.9fr)]">
-        <Link href={`/articles/${hero.slug}`} className="home-hero relative block h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
+        <Link href={localizedHref(`/articles/${hero.slug}`, lang)} className="home-hero relative block h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
           <MediaView
             src={hero.mainImage}
             alt={hero.title}
@@ -174,8 +184,9 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               <TrendingUp className="text-brand" size={20} />
             </div>
             <div className="grid gap-2">
-              {(trendingItems.length ? trendingItems : latest).slice(0, 3).map((item, index) => (
-                <Link key={item.id} href={`/articles/${item.slug}`} className="grid grid-cols-[30px_1fr_64px] items-center gap-3 rounded-lg border border-cyan-300/15 bg-white/6 p-2.5 transition active:scale-[0.98]">
+              {!trendingItems.length && <p className="home-empty-state rounded-lg border border-cyan-300/15 bg-white/6 p-3 text-sm font-bold text-slate-300">{copy.noTrend}</p>}
+              {trendingItems.slice(0, 3).map((item, index) => (
+                <Link key={item.id} href={localizedHref(`/articles/${item.slug}`, lang)} className="grid grid-cols-[30px_1fr_64px] items-center gap-3 rounded-lg border border-cyan-300/15 bg-white/6 p-2.5 transition active:scale-[0.98]">
                   <span className="grid size-7 place-items-center rounded-full bg-brand text-[12px] font-black text-white">{index + 1}</span>
                   <span className="min-w-0">
                     <span className="line-clamp-2 text-[14px] font-black leading-snug text-white">{item.title}</span>
@@ -192,11 +203,12 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
           <section className="mobile-home-rail news-shadow rounded-lg border border-cyan-300/20 p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[18px] font-black text-white">{copy.fourDayPopular}</h2>
-              <Link href="/popular" className="text-[12px] font-black text-brand">{copy.all}</Link>
+              <Link href={localizedHref("/popular", lang)} className="text-[12px] font-black text-brand">{copy.all}</Link>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {(popularItems.length ? popularItems : latest).slice(0, 4).map((item) => (
-                <Link key={item.id} href={`/articles/${item.slug}`} className="overflow-hidden rounded-lg border border-cyan-300/15 bg-white/6 transition active:scale-[0.98]">
+              {!popularItems.length && <p className="home-empty-state col-span-2 rounded-lg border border-cyan-300/15 bg-white/6 p-3 text-sm font-bold text-slate-300">{copy.noPopular}</p>}
+              {popularItems.slice(0, 4).map((item) => (
+                <Link key={item.id} href={localizedHref(`/articles/${item.slug}`, lang)} className="overflow-hidden rounded-lg border border-cyan-300/15 bg-white/6 transition active:scale-[0.98]">
                   <MediaView src={item.mainImage} className="h-20 w-full object-cover" sizes="calc((100vw - 44px) / 2)" optimizedWidth={640} />
                   <div className="p-2">
                     <h3 className="line-clamp-2 text-[12.5px] font-black leading-snug text-white">{item.title}</h3>
@@ -212,7 +224,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
           {side.map((item) => (
             <Link
               key={item.id}
-              href={`/articles/${item.slug}`}
+              href={localizedHref(`/articles/${item.slug}`, lang)}
               className={`home-side-card news-shadow grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[92px_1fr] sm:h-[157px] sm:grid-cols-[138px_1fr]" : "grid-cols-1"}`}
             >
               <MediaView src={item.mainImage} className="home-side-media h-24 w-[92px] rounded-md object-cover sm:h-[130px] sm:w-[138px]" sizes="138px" optimizedWidth={384} />
@@ -235,7 +247,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               {trendingItems.map((item, index) => (
                 <Link
                   key={item.id}
-                  href={`/articles/${item.slug}`}
+                  href={localizedHref(`/articles/${item.slug}`, lang)}
                   className={`home-rank-card grid gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand ${item.mainImage ? "grid-cols-[30px_1fr] sm:grid-cols-[30px_1fr_80px]" : "grid-cols-[30px_1fr]"}`}
                 >
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
@@ -247,7 +259,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
                 </Link>
               ))}
             </div>
-            <Link href="/popular" className="home-outline-action mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">
+            <Link href={localizedHref("/popular", lang)} className="home-outline-action mt-5 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white text-[14px] font-black transition hover:border-brand hover:text-brand">
               {copy.allPopular} <ArrowRight size={17} />
             </Link>
           </aside>
@@ -257,7 +269,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
           <div className="home-section-head mb-4 flex flex-wrap items-center gap-2">
             <h2 className="section-title mr-auto text-[27px] font-black">{copy.latest}</h2>
             {categoryTabs.map(([item, href], index) => (
-              <Link key={item} href={href} className={`home-filter-chip flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "is-active border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
+              <Link key={item} href={localizedHref(href, lang)} className={`home-filter-chip flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "is-active border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
             ))}
           </div>
           <div className="home-news-grid grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -270,7 +282,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
         <div className="grid gap-4 lg:gap-6">
           {editorLead && (
             <section className="home-editor-section grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
-              <Link href={`/articles/${editorLead.slug}`} className="home-editor-lead relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
+              <Link href={localizedHref(`/articles/${editorLead.slug}`, lang)} className="home-editor-lead relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
                 <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" sizes="(max-width: 1023px) calc(100vw - 20px), 55vw" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                 <div className="relative flex min-h-[360px] flex-col justify-end p-7">
@@ -284,7 +296,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               </Link>
               <div className="grid gap-3">
                 {editorList.map((item) => (
-                  <Link key={item.id} href={`/articles/${item.slug}`} className="home-side-card home-editor-item news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
+                  <Link key={item.id} href={localizedHref(`/articles/${item.slug}`, lang)} className="home-side-card home-editor-item news-shadow flex gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                     <MediaView src={item.mainImage} className="home-side-media h-24 w-24 shrink-0 rounded-md object-cover sm:w-28" sizes="112px" optimizedWidth={384} />
                     <div className="min-w-0">
                       <span className="text-[12px] font-black uppercase text-brand">{categoryName(item.category)}</span>
@@ -302,7 +314,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               <section key={section.slug} className="home-category-panel home-glass-panel news-shadow rounded-lg border border-slate-200 bg-white p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 className="text-[22px] font-black">{section.title}</h2>
-                  <Link href={`/category/${section.slug}`} className="flex items-center gap-2 text-sm font-black text-brand">
+                  <Link href={localizedHref(`/category/${section.slug}`, lang)} className="flex items-center gap-2 text-sm font-black text-brand">
                     {copy.all} <ArrowRight size={16} />
                   </Link>
                 </div>
@@ -310,7 +322,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
                   {section.items.map((item, index) => (
                     <Link
                       key={item.id}
-                      href={`/articles/${item.slug}`}
+                      href={localizedHref(`/articles/${item.slug}`, lang)}
                       className={`home-category-row grid gap-3 rounded-lg transition hover:bg-white/10 ${
                         item.mainImage ? (index === 0 ? "sm:grid-cols-[160px_1fr]" : "sm:grid-cols-[92px_1fr]") : "grid-cols-1"
                       }`}
@@ -332,7 +344,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
             ))}
           </div>
 
-          <HomeNewsStream language={lang} title={copy.moreNews} filterLabel={copy.filter} />
+          <HomeNewsStream language={lang} title={copy.moreNews} filterLabel={copy.filter} pageSize={32} />
         </div>
 
         <aside className="home-popular-rail hidden content-start gap-4 lg:sticky lg:top-24 lg:grid lg:self-start">
@@ -344,7 +356,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
             <div className="grid gap-4">
               {!popularItems.length && <p className="home-empty-state rounded-lg border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">{copy.noPopular}</p>}
               {popularItems.map((item, index) => (
-                <Link key={item.id} href={`/articles/${item.slug}`} className="home-rank-card grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
+                <Link key={item.id} href={localizedHref(`/articles/${item.slug}`, lang)} className="home-rank-card grid grid-cols-[32px_1fr] gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:-translate-y-0.5 hover:border-brand">
                   <span className="mt-1 grid size-8 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <span>
                     <span className="line-clamp-2 text-[15px] font-black leading-snug">{item.title}</span>

@@ -12,6 +12,8 @@ import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
 import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/site";
 import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, weatherButtonBackgroundImage, type FullWeather, type UzRegion } from "../lib/weather";
+import { readStorage, writeStorage } from "../lib/browser-storage";
+import { localizedHref } from "../lib/localized-href";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -72,22 +74,25 @@ export function Header() {
     }`;
 
   useEffect(() => {
-    const date = new Date();
-    const months = {
-      uz: ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"],
-      ru: ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"],
-      en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    const updateDate = () => {
+      const locale = language === "uz" ? "uz-UZ" : language === "ru" ? "ru-RU" : "en-GB";
+      setCurrentDate(
+        new Intl.DateTimeFormat(locale, {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "Asia/Tashkent"
+        }).format(new Date())
+      );
     };
-    const weekdays = {
-      uz: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
-      ru: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],
-      en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    };
-    setCurrentDate(`${weekdays[language][date.getDay()]}, ${date.getDate()} ${months[language][date.getMonth()]} ${date.getFullYear()}`);
+    updateDate();
+    const timer = setInterval(updateDate, 60_000);
+    return () => clearInterval(timer);
   }, [language]);
 
   useEffect(() => {
-    const savedRegion = localStorage.getItem("weather_region");
+    const savedRegion = readStorage("weather_region");
     if (savedRegion) {
       setRegion(findRegionByName(savedRegion));
     }
@@ -140,7 +145,7 @@ export function Header() {
 
   function selectRegion(next: UzRegion) {
     setRegion(next);
-    localStorage.setItem("weather_region", next.name);
+    writeStorage("weather_region", next.name);
   }
 
   function useCurrentLocation() {
@@ -153,8 +158,13 @@ export function Header() {
   }
 
   const tickerSlides = weather
-    ? [`${region.name} ${weather.temperature}°C`, `His: ${weather.feelsLike}°C`, conditionLabel(weather.condition)]
+    ? [
+        `${region.name} ${weather.temperature}°C`,
+        `${language === "ru" ? "Ощущается" : language === "en" ? "Feels" : "His"}: ${weather.feelsLike}°C`,
+        conditionLabel(weather.condition, language)
+      ]
     : [region.name, "...", currentDate];
+  const weatherLabel = language === "ru" ? "Погода" : language === "en" ? "Weather" : "Ob-havo";
   const weatherButtonStyle = {
     "--weather-button-image": `url("${weatherButtonBackgroundImage(weather)}")`
   } as CSSProperties;
@@ -166,7 +176,7 @@ export function Header() {
       <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
         {/* ---- Desktop header ---- */}
         <div className="desktop-header-row container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
-          <Link href="/" className="desktop-brand flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
+          <Link href={localizedHref("/", language)} className="desktop-brand flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
               src="/brand/logo-jx.png"
               alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}
@@ -178,7 +188,7 @@ export function Header() {
           </Link>
           <nav className="desktop-nav hidden h-full items-center gap-6 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
-              <Link key={item.href} className={navLinkClass(item.href)} href={item.href}>
+              <Link key={item.href} className={navLinkClass(item.href)} href={localizedHref(item.href, language)}>
                 {t.nav[item.key]}
               </Link>
             ))}
@@ -189,13 +199,13 @@ export function Header() {
               {menuOpen && (
                 <div className="desktop-menu-popover menu-popover absolute right-0 top-[72px] z-40 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
                   {moreCategoryKeys.map((item) => (
-                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={item.href}>
+                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={localizedHref(item.href, language)}>
                       {t.nav[item.key]}
                     </Link>
                   ))}
                   <div className="my-1 border-t border-slate-200" />
                   {moreLinkKeys.map((item) => (
-                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={item.href}>
+                    <Link key={item.href} onClick={() => setMenuOpen(false)} className={`desktop-menu-link block rounded-xl px-4 py-3 text-sm transition ${activeHref === item.href ? "is-active" : ""}`} href={localizedHref(item.href, language)}>
                       {t.more[item.key]}
                     </Link>
                   ))}
@@ -222,18 +232,18 @@ export function Header() {
           </div>
 
           <div className="desktop-header-actions flex shrink-0 items-center justify-end gap-2">
-            <button onClick={() => setWeatherModalOpen(true)} className="weather-pill hidden md:flex" style={weatherButtonStyle}>
+            <button type="button" onClick={() => setWeatherModalOpen(true)} aria-label={weatherLabel} className="weather-pill hidden md:flex" style={weatherButtonStyle}>
               <CloudSun className="h-5 w-5 shrink-0 text-amber-300" />
               <span key={tickerIndex} className="weather-ticker">
                 {tickerSlides[tickerIndex]}
               </span>
               <ChevronDown size={13} />
             </button>
-            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="weather-mobile-button md:hidden" style={weatherButtonStyle}>
+            <button type="button" onClick={() => setWeatherModalOpen(true)} aria-label={weatherLabel} className="weather-mobile-button md:hidden" style={weatherButtonStyle}>
               <CloudSun className="h-4 w-4 shrink-0 text-amber-300" />
               <span className="wm-city">{region.name}</span>
               <span className="wm-temp">{weather ? `${weather.temperature}°` : "--°"}</span>
-              <span className="wm-cond">{weather ? conditionLabel(weather.condition) : "..."}</span>
+              <span className="wm-cond">{weather ? conditionLabel(weather.condition, language) : "..."}</span>
             </button>
             <div ref={languageMenuRef} className="language-wrap relative">
               <button onClick={() => setLanguageOpen((value) => !value)} className="language-trigger text-ink">
@@ -263,7 +273,7 @@ export function Header() {
             <button onClick={openSearch} aria-label={t.more.search} className="icon-button header-search">
               <Search className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={2.2} />
             </button>
-            <button onClick={toggleTheme} aria-label="Theme" className={`theme-toggle mobile-icon-toggle ${theme === "dark" ? "is-dark" : ""}`}>
+            <button type="button" onClick={toggleTheme} aria-label={language === "ru" ? "Сменить тему" : language === "en" ? "Toggle theme" : "Mavzuni almashtirish"} className={`theme-toggle mobile-icon-toggle ${theme === "dark" ? "is-dark" : ""}`}>
               <span className="theme-knob">{theme === "dark" ? <Moon className="h-4 w-4" fill="white" /> : <Sun className="h-4 w-4" />}</span>
             </button>
           </div>
@@ -272,7 +282,7 @@ export function Header() {
         {/* ---- Mobile header (redesigned, premium) ---- */}
         <div className="mobile-header lg:hidden">
           <div className="mh-left">
-            <Link href="/" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} className="mh-logo">
+            <Link href={localizedHref("/", language)} aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} className="mh-logo">
               <Image src={SITE_LOGO} alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} width={166} height={64} priority className="h-7 w-auto max-w-[92px] object-contain" />
               <span className="mh-brand-text">
                 <span>{SITE_NAME}</span>
@@ -282,7 +292,7 @@ export function Header() {
           </div>
 
           <div className="mh-center">
-            <button onClick={() => setWeatherModalOpen(true)} aria-label="Ob-havo" className="mh-weather" style={weatherButtonStyle}>
+            <button type="button" onClick={() => setWeatherModalOpen(true)} aria-label={weatherLabel} className="mh-weather" style={weatherButtonStyle}>
               <Sun className="mh-sun" size={16} />
               <span className="mh-city">{region.name}</span>
               <span key={weather ? weather.temperature : "x"} className="mh-temp">{weather ? `${weather.temperature}°` : "--°"}</span>
@@ -290,7 +300,7 @@ export function Header() {
           </div>
 
           <div className="mh-right">
-            <button onClick={toggleTheme} aria-label="Kun/tun rejimi" className={`mh-theme ${theme === "dark" ? "is-dark" : ""}`}>
+            <button type="button" onClick={toggleTheme} aria-label={language === "ru" ? "Дневной/ночной режим" : language === "en" ? "Light/dark mode" : "Kun/tun rejimi"} className={`mh-theme ${theme === "dark" ? "is-dark" : ""}`}>
               <span className="mh-theme-knob">{theme === "dark" ? <Moon size={16} fill="currentColor" /> : <Sun size={16} />}</span>
             </button>
 
@@ -326,7 +336,7 @@ export function Header() {
         <button
           type="button"
           className="desktop-more-overlay"
-          aria-label="Menyuni yopish"
+          aria-label={t.search.close}
           onClick={() => setMenuOpen(false)}
         />
       )}

@@ -8,7 +8,7 @@ import { permit, requireAuth } from "../../middleware/auth.js";
 export const categoryRouter = Router();
 
 categoryRouter.get("/categories", async (_req, res) => {
-  res.json(await prisma.category.findMany({ orderBy: { name: "asc" } }));
+  res.json(await prisma.category.findMany({ orderBy: { name: "asc" }, take: 500 }));
 });
 
 categoryRouter.post("/admin/categories", requireAuth, permit("categories.manage"), async (req, res) => {
@@ -26,6 +26,16 @@ categoryRouter.put("/admin/categories/:id", requireAuth, permit("categories.mana
 });
 
 categoryRouter.delete("/admin/categories/:id", requireAuth, permit("categories.manage"), async (req, res) => {
+  const usedByArticles = await prisma.article.count({
+    where: {
+      OR: [{ categoryId: req.params.id }, { extraCategoryIds: { has: req.params.id } }]
+    }
+  });
+  if (usedByArticles) {
+    return res.status(409).json({
+      message: `Kategoriya ${usedByArticles} ta maqolada ishlatilmoqda. Avval maqolalardan olib tashlang`
+    });
+  }
   await prisma.category.delete({ where: { id: req.params.id } });
   await audit(req, "CATEGORY_DELETE", "Category", req.params.id);
   res.json({ ok: true });

@@ -15,6 +15,7 @@ export type Article = {
   seoKeywords?: string;
   sourceName?: string | null;
   sourceUrl?: string | null;
+  extraCategoryIds?: string[];
   author?: { name: string } | null;
   tags?: { tag: { id?: string; name: string; slug: string } }[];
   category?: { name: string; slug: string };
@@ -26,6 +27,8 @@ export type Article = {
   showInSidebar?: boolean;
   showInLatest?: boolean;
   showInPopular?: boolean;
+  contentLanguage?: "uz" | "ru" | "en";
+  availableLanguages?: Array<"uz" | "ru" | "en">;
 };
 
 import { API_URL } from "./config";
@@ -54,6 +57,31 @@ export async function getArticles(params = "", lang?: string) {
 // Unlike the list endpoints below, a single article that's missing or errored must not be
 // papered over with unrelated demo content -- the caller renders a real 404 for null.
 export async function getArticle(slug: string, lang?: string): Promise<Article | null> {
+  if (useE2EFixtures) {
+    const article = demoArticles.find((item) => item.slug === slug);
+    if (!article) return null;
+    if (lang === "en") {
+      return {
+        ...article,
+        title: "The future of planet Earth: scientists issue an important warning",
+        summary: "Climate change, technological progress and human activity are shaping our planet's future.",
+        content: "The Jahon Xabarlari editorial team covers the world's most important events quickly and impartially.",
+        contentLanguage: "en",
+        availableLanguages: ["uz", "ru", "en"]
+      };
+    }
+    if (lang === "ru") {
+      return {
+        ...article,
+        title: "Будущее планеты Земля: ученые сделали важное предупреждение",
+        summary: "Изменение климата, технологический прогресс и деятельность человека формируют будущее планеты.",
+        content: "Редакция Jahon Xabarlari оперативно и объективно освещает важнейшие события мира.",
+        contentLanguage: "ru",
+        availableLanguages: ["uz", "ru", "en"]
+      };
+    }
+    return { ...article, contentLanguage: "uz", availableLanguages: ["uz", "ru", "en"] };
+  }
   try {
     const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) return null;

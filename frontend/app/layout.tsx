@@ -103,6 +103,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = await getRequestLang();
   return (
     <html lang={lang} data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}}catch(e){}"
+          }}
+        />
+      </head>
       <body>
         <Analytics />
         <div className="site-backdrop" aria-hidden="true" />

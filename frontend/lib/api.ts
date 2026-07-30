@@ -43,6 +43,10 @@ function withLang(url: string, lang?: string) {
   return `${url}${url.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`;
 }
 
+function isArticleSlug(value: string) {
+  return /^[a-z0-9][a-z0-9-]{0,239}$/.test(value);
+}
+
 export async function getArticles(params = "", lang?: string) {
   if (useE2EFixtures) return demoArticles;
   try {
@@ -57,6 +61,7 @@ export async function getArticles(params = "", lang?: string) {
 // Unlike the list endpoints below, a single article that's missing or errored must not be
 // papered over with unrelated demo content -- the caller renders a real 404 for null.
 export async function getArticle(slug: string, lang?: string): Promise<Article | null> {
+  if (!isArticleSlug(slug)) return null;
   if (useE2EFixtures) {
     const article = demoArticles.find((item) => item.slug === slug);
     if (!article) return null;
@@ -92,6 +97,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
 }
 
 export async function getArticleContext(slug: string, lang?: string): Promise<{ related: Article[]; next: Article | null }> {
+  if (!isArticleSlug(slug)) return { related: [], next: null };
   try {
     const res = await fetch(withLang(`${API_URL}/articles/${slug}/context`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) return { related: [], next: null };

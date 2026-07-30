@@ -8,7 +8,7 @@ import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { buildSeoDescription, buildSeoTitle } from "../utils/seo.js";
 import { extractFallbackFeedMedia, extractPrimaryFeedMedia, resolveArticleMedia } from "./aggregator-media.js";
-import { inspectArticleQuality, normalizeArticleTags } from "./article-quality.js";
+import { inspectArticleQuality, normalizeArticleTags, qualityGuardedStatus } from "./article-quality.js";
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
 import { readTextResponse, safeFetch } from "./net-guard.js";
 import { queueArticlePush } from "./push.js";
@@ -318,7 +318,7 @@ async function processItem(
     mainImage,
     confidence: parsed.confidence
   });
-  const status = publishStatus;
+  const status = qualityGuardedStatus(publishStatus, quality);
   const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
   const article = await prisma.$transaction(async (tx) => {

@@ -2,12 +2,13 @@ import { ArrowRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { Header } from "../components/Header";
+import { HomeLatestGrid } from "../components/HomeLatestGrid";
 import { HomeNewsStream } from "../components/HomeNewsStream";
 import { MediaView } from "../components/MediaView";
 import { MobileCurrencyCard } from "../components/MobileCurrency";
-import { NewsCard } from "../components/NewsCard";
 import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
+import { isSuitableHeroMedia } from "../lib/media";
 import { getRequestLang } from "../lib/server-lang";
 import { localizedHref } from "../lib/localized-href";
 
@@ -72,6 +73,15 @@ const homeCopy = {
 } as const;
 
 const categorySlugs = ["ozbekiston", "dunyo", "iqtisodiyot", "sport", "texnologiya", "madaniyat"] as const;
+const curatedHeroMaxLagMs = 48 * 60 * 60 * 1000;
+const publicTrendViewThreshold = 20;
+const trendNewCopy = { uz: "Yangi", ru: "Новое", en: "New" } as const;
+
+function articlePublishedAt(article?: { publishedAt?: string }) {
+  if (!article?.publishedAt) return 0;
+  const timestamp = Date.parse(article.publishedAt);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ lang?: string | string[] }> }) {
   const lang = await getRequestLang((await searchParams).lang);
@@ -83,15 +93,15 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   cacheLife({ stale: 30, revalidate: 60, expire: 3600 });
 
   const copy = homeCopy[lang];
-  const categoryTabs = [
-    [copy.categories.all, "/"],
-    [copy.categories.ozbekiston, "/category/ozbekiston"],
-    [copy.categories.dunyo, "/category/dunyo"],
-    [copy.categories.siyosat, "/category/siyosat"],
-    [copy.categories.iqtisodiyot, "/category/iqtisodiyot"],
-    [copy.categories.texnologiya, "/category/texnologiya"],
-    [copy.categories.sport, "/category/sport"],
-    [copy.categories.madaniyat, "/category/madaniyat"]
+  const categoryFilters = [
+    { label: copy.categories.all, slug: "all" },
+    { label: copy.categories.ozbekiston, slug: "ozbekiston" },
+    { label: copy.categories.dunyo, slug: "dunyo" },
+    { label: copy.categories.siyosat, slug: "siyosat" },
+    { label: copy.categories.iqtisodiyot, slug: "iqtisodiyot" },
+    { label: copy.categories.texnologiya, slug: "texnologiya" },
+    { label: copy.categories.sport, slug: "sport" },
+    { label: copy.categories.madaniyat, slug: "madaniyat" }
   ];
   const categorySections = categorySlugs.map((slug) => ({ title: copy.categories[slug], slug }));
   const categoryName = (category?: { name: string; slug: string }) => category ? copy.categories[category.slug as keyof typeof copy.categories] ?? category.name : "";
@@ -107,10 +117,16 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
   const eligible = articles.filter((item) => item.showOnHome !== false);
 
-  // showInSlider curates the lead story; fall back to the newest eligible article so the
-  // homepage still has a hero before any editor has flagged anything.
-  const sliderPool = sliderArticles.filter((item) => item.showOnHome !== false);
-  const hero = sliderPool[0] ?? eligible[0];
+  // A curated lead should not keep an old story in the hero indefinitely. Once it falls
+  // more than two days behind the newest eligible story, recency takes priority.
+  const heroEligible = eligible.filter((item) => isSuitableHeroMedia(item.mainImage));
+  const sliderPool = sliderArticles.filter((item) => item.showOnHome !== false && isSuitableHeroMedia(item.mainImage));
+  const newestPublishedAt = articlePublishedAt(heroEligible[0] ?? eligible[0]);
+  const freshSliderHero = sliderPool.find((item) => {
+    const publishedAt = articlePublishedAt(item);
+    return publishedAt > 0 && (newestPublishedAt === 0 || newestPublishedAt - publishedAt <= curatedHeroMaxLagMs);
+  });
+  const hero = freshSliderHero ?? heroEligible[0] ?? eligible[0] ?? sliderPool[0];
   const rest = eligible.filter((item) => item.id !== hero?.id);
 
   // isEditorChoice curates "Muharrir tanlovi"; same graceful fallback to the general pool.
@@ -125,7 +141,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   const curatedSide = sidebarArticles.filter((item) => item.id !== hero?.id && !editorIds.has(item.id));
   const side = curatedSide.length ? curatedSide.slice(0, 3) : generalPool.slice(0, 3);
   const sideIds = new Set(side.map((item) => item.id));
-  const latest = generalPool.filter((item) => !sideIds.has(item.id)).slice(0, 12);
+  const latest = generalPool.filter((item) => !sideIds.has(item.id));
 
   const trendingItems = trending;
   const popularItems = popular;
@@ -190,7 +206,9 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
                   <span className="grid size-7 place-items-center rounded-full bg-brand text-[12px] font-black text-white">{index + 1}</span>
                   <span className="min-w-0">
                     <span className="line-clamp-2 text-[14px] font-black leading-snug text-white">{item.title}</span>
-                    <span className="mt-1 block text-[12px] font-bold text-slate-300">{formatViews(item.viewsCount, lang)}</span>
+                    <span className="mt-1 block text-[12px] font-bold text-slate-300">
+                      {item.viewsCount >= publicTrendViewThreshold ? formatViews(item.viewsCount, lang) : trendNewCopy[lang]}
+                    </span>
                   </span>
                   <MediaView src={item.mainImage} className="h-14 w-16 rounded-md object-cover" sizes="64px" optimizedWidth={256} />
                 </Link>
@@ -253,7 +271,9 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
                   <span className="mt-1 grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white">{index + 1}</span>
                   <div>
                     <p className="text-[15px] font-black leading-snug">{item.title}</p>
-                    <p className="mt-2 text-[13px] text-slate-500">{formatViews(item.viewsCount, lang)}</p>
+                    <p className="mt-2 text-[13px] text-slate-500">
+                      {item.viewsCount >= publicTrendViewThreshold ? formatViews(item.viewsCount, lang) : trendNewCopy[lang]}
+                    </p>
                   </div>
                   <MediaView src={item.mainImage} className="hidden h-[78px] w-[80px] rounded-md object-cover sm:block" sizes="80px" optimizedWidth={256} />
                 </Link>
@@ -265,17 +285,13 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
           </aside>
         </div>
 
-        <div className="home-latest-block lg:col-span-2">
-          <div className="home-section-head mb-4 flex flex-wrap items-center gap-2">
-            <h2 className="section-title mr-auto text-[27px] font-black">{copy.latest}</h2>
-            {categoryTabs.map(([item, href], index) => (
-              <Link key={item} href={localizedHref(href, lang)} className={`home-filter-chip flex h-9 items-center rounded-full border px-4 text-[13px] font-bold transition ${index === 0 ? "is-active border-brand bg-brand text-white shadow-lg shadow-blue-500/20" : "border-slate-200 bg-white text-ink hover:border-brand hover:text-brand"}`}>{item}</Link>
-            ))}
-          </div>
-          <div className="home-news-grid grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {latest.map((item) => <NewsCard key={item.id} article={item} language={lang} />)}
-          </div>
-        </div>
+        <HomeLatestGrid
+          articles={latest}
+          categories={categoryFilters}
+          language={lang}
+          title={copy.latest}
+          emptyLabel={copy.noNews}
+        />
       </section>
 
       <section className="home-content-grid container-page grid gap-4 pb-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-5 xl:grid-cols-[minmax(0,1fr)_354px]">

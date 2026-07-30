@@ -6,6 +6,7 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { createBullConnection } from "./redis.js";
+import { inspectTranslationQuality } from "./translation-quality.js";
 
 const client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 2 }) : null;
 
@@ -130,6 +131,8 @@ async function translateOne(article: TranslatableArticle, lang: Lang, expectedRe
     const text = completion.choices[0]?.message?.content;
     if (!text) throw new Error("Bo'sh javob");
     const parsed = translatedArticleSchema.parse(JSON.parse(text));
+    const quality = inspectTranslationQuality(article, parsed, lang);
+    if (!quality.valid) throw new Error(`TRANSLATION_QUALITY: ${quality.issues.join(", ")}`);
 
     const baseSlug =
       slugify(parsed.title, { lower: true, strict: true }) || slugify(`${article.title}-${lang}`, { lower: true, strict: true });

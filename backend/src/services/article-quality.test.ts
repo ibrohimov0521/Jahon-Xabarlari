@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inspectArticleQuality, normalizeArticleTags } from "./article-quality.js";
+import { inspectArticleQuality, normalizeArticleTags, qualityGuardedStatus } from "./article-quality.js";
 
 const goodContent = [
   "Toshkentda yangi loyiha bo'yicha rasmiy ma'lumot e'lon qilindi va uning asosiy bosqichlari tushuntirildi.",
@@ -33,6 +33,25 @@ test("short or Cyrillic content is forced to review", () => {
   assert.equal(result.publishable, false);
   assert.ok(result.issues.includes("CONTENT_TOO_SHORT"));
   assert.ok(result.issues.includes("LOW_AI_CONFIDENCE"));
+});
+
+test("missing or explicitly small media cannot be auto-published", () => {
+  const missing = inspectArticleQuality({
+    title: "Toshkentdagi yangi loyiha tafsilotlari e'lon qilindi",
+    content: goodContent,
+    sourceUrl: "https://example.com/news",
+    mainImage: null,
+    confidence: 0.92
+  });
+  const small = inspectArticleQuality({
+    title: "Toshkentdagi yangi loyiha tafsilotlari e'lon qilindi",
+    content: goodContent,
+    sourceUrl: "https://example.com/news",
+    mainImage: "https://example.com/photo.jpg?w=320",
+    confidence: 0.92
+  });
+  assert.equal(qualityGuardedStatus("PUBLISHED", missing), "REVIEW");
+  assert.equal(qualityGuardedStatus("PUBLISHED", small), "REVIEW");
 });
 
 test("tags are cleaned, deduplicated and bounded", () => {

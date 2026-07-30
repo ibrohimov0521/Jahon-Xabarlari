@@ -4,6 +4,30 @@ export function isVideoUrl(src?: string | null) {
   return !!src && /\.(mp4|webm|mov)(?:\?|#|$)/i.test(src);
 }
 
+const LOW_QUALITY_MEDIA = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}\/)/i;
+
+function explicitMediaWidth(src: string) {
+  try {
+    const url = new URL(src, "https://jahonxabarlari.uz");
+    for (const key of ["width", "w", "size"]) {
+      const width = Number(url.searchParams.get(key));
+      if (Number.isFinite(width) && width > 0) return width;
+    }
+    const dimension = url.pathname.match(/(?:^|[-_/])(\d{2,4})x\d{2,4}(?:[-_/.,]|$)/i);
+    return dimension ? Number(dimension[1]) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function isSuitableHeroMedia(src?: string | null) {
+  if (!src?.trim()) return false;
+  if (isVideoUrl(src)) return true;
+  if (LOW_QUALITY_MEDIA.test(src)) return false;
+  const width = explicitMediaWidth(src);
+  return width === 0 || width >= 800;
+}
+
 // Route remote photos through this site's own Next image optimizer instead of hotlinking the
 // third-party CDN directly. Visitors whose network can't reach the source CDN (regional blocks,
 // hotlink protection) still get the image because their browser only ever talks to our origin.

@@ -16,6 +16,20 @@ const CYRILLIC = /[\u0400-\u04ff]/g;
 const LETTERS = /[A-Za-z\u0400-\u04ff]/g;
 const LOW_QUALITY_MEDIA = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}\/)/i;
 
+function explicitMediaWidth(src: string) {
+  try {
+    const url = new URL(src);
+    for (const key of ["width", "w", "size"]) {
+      const width = Number(url.searchParams.get(key));
+      if (Number.isFinite(width) && width > 0) return width;
+    }
+    const dimension = url.pathname.match(/(?:^|[-_/])(\d{2,4})x\d{2,4}(?:[-_/.,]|$)/i);
+    return dimension ? Number(dimension[1]) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function countMatches(value: string, pattern: RegExp) {
   return value.match(pattern)?.length ?? 0;
 }
@@ -58,7 +72,7 @@ export function inspectArticleQuality(input: ArticleQualityInput): ArticleQualit
   if (!input.mainImage) {
     issues.push("MISSING_MEDIA");
     score -= 15;
-  } else if (LOW_QUALITY_MEDIA.test(input.mainImage)) {
+  } else if (LOW_QUALITY_MEDIA.test(input.mainImage) || (explicitMediaWidth(input.mainImage) || Number.POSITIVE_INFINITY) < 800) {
     issues.push("LOW_QUALITY_MEDIA");
     score -= 18;
   }
@@ -69,12 +83,23 @@ export function inspectArticleQuality(input: ArticleQualityInput): ArticleQualit
   }
 
   const normalizedScore = Math.max(0, Math.min(100, score));
-  const blockers = new Set(["CONTENT_TOO_SHORT", "CYRILLIC_TEXT", "MISSING_SOURCE", "LOW_AI_CONFIDENCE"]);
+  const blockers = new Set([
+    "CONTENT_TOO_SHORT",
+    "CYRILLIC_TEXT",
+    "MISSING_SOURCE",
+    "MISSING_MEDIA",
+    "LOW_QUALITY_MEDIA",
+    "LOW_AI_CONFIDENCE"
+  ]);
   return {
     score: normalizedScore,
     issues,
     publishable: normalizedScore >= 85 && !issues.some((issue) => blockers.has(issue))
   };
+}
+
+export function qualityGuardedStatus(requestedStatus: "PUBLISHED" | "REVIEW", quality: ArticleQualityResult) {
+  return requestedStatus === "PUBLISHED" && !quality.publishable ? "REVIEW" : requestedStatus;
 }
 
 export function normalizeArticleTags(tags: unknown, limit = 6) {

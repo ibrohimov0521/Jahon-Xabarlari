@@ -35,6 +35,14 @@ export function HomeNewsStream({
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    setItems([]);
+    setPage(1);
+    setPages(2);
+    setLoading(false);
+    setFailed(false);
+  }, [language, pageSize]);
+
   const loadNext = useCallback(async () => {
     if (loading || page >= pages) return;
     setLoading(true);

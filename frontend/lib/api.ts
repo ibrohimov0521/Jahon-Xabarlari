@@ -169,16 +169,38 @@ export async function submitArticleReport(
   }
 }
 
-export async function searchArticles(q: string, lang?: string, params = "") {
+export type SearchArticlesPage = {
+  items: Article[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  failed: boolean;
+};
+
+export async function searchArticlesPage(q: string, lang?: string, params = ""): Promise<SearchArticlesPage> {
   try {
     const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}${params}`, lang), { next: { revalidate: 30 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
-    return (await res.json()).items as Article[];
+    const data = (await res.json()) as Partial<SearchArticlesPage>;
+    return {
+      items: Array.isArray(data.items) ? data.items : [],
+      hasMore: data.hasMore === true,
+      nextCursor: typeof data.nextCursor === "string" ? data.nextCursor : null,
+      failed: false
+    };
   } catch {
-    if (process.env.NODE_ENV !== "development") return [];
+    if (process.env.NODE_ENV !== "development") return { items: [], hasMore: false, nextCursor: null, failed: true };
     const needle = q.toLowerCase();
-    return demoArticles.filter((item) => `${item.title} ${item.summary} ${item.category?.name}`.toLowerCase().includes(needle));
+    return {
+      items: demoArticles.filter((item) => `${item.title} ${item.summary} ${item.category?.name}`.toLowerCase().includes(needle)),
+      hasMore: false,
+      nextCursor: null,
+      failed: false
+    };
   }
+}
+
+export async function searchArticles(q: string, lang?: string, params = "") {
+  return (await searchArticlesPage(q, lang, params)).items;
 }
 
 export async function recordArticleView(articleId: string): Promise<number | null> {

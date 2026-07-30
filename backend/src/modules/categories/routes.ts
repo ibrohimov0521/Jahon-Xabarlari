@@ -8,7 +8,9 @@ import { permit, requireAuth } from "../../middleware/auth.js";
 export const categoryRouter = Router();
 
 categoryRouter.get("/categories", async (_req, res) => {
-  res.json(await prisma.category.findMany({ orderBy: { name: "asc" }, take: 500 }));
+  res
+    .set("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=1200")
+    .json(await prisma.category.findMany({ orderBy: { name: "asc" }, take: 500 }));
 });
 
 categoryRouter.post("/admin/categories", requireAuth, permit("categories.manage"), async (req, res) => {

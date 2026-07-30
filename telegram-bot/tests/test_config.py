@@ -17,12 +17,17 @@ BASE_ENV = {
 
 class ConfigTests(unittest.TestCase):
     def test_normalizes_urls_and_bounds_concurrency(self):
-        with patch.dict(os.environ, {**BASE_ENV, "FORWARD_CONCURRENCY": "99"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {**BASE_ENV, "FORWARD_CONCURRENCY": "99", "MEDIA_GROUP_DELAY_SECONDS": "9"},
+            clear=True,
+        ):
             settings = load_settings()
 
         self.assertEqual(settings.api_base, "https://api.example.com/api")
         self.assertEqual(settings.admin_panel_url, "https://example.com/admin")
         self.assertEqual(settings.forward_concurrency, 5)
+        self.assertEqual(settings.media_group_delay, 5.0)
         self.assertEqual(settings.admin_ids, {123, 456})
 
     def test_rejects_missing_admin_ids(self):
@@ -33,6 +38,11 @@ class ConfigTests(unittest.TestCase):
     def test_rejects_invalid_concurrency(self):
         with patch.dict(os.environ, {**BASE_ENV, "FORWARD_CONCURRENCY": "many"}, clear=True):
             with self.assertRaisesRegex(ValueError, "FORWARD_CONCURRENCY"):
+                load_settings()
+
+    def test_rejects_invalid_media_group_delay(self):
+        with patch.dict(os.environ, {**BASE_ENV, "MEDIA_GROUP_DELAY_SECONDS": "slow"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "MEDIA_GROUP_DELAY_SECONDS"):
                 load_settings()
 
     def test_rejects_short_service_secret(self):

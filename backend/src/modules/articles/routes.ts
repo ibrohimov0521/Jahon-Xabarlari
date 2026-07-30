@@ -15,6 +15,7 @@ import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../.
 import { assertPublicUrl } from "../../services/net-guard.js";
 import { pagination, positiveInt } from "../../utils/query.js";
 import { buildSeoDescription, buildSeoTitle } from "../../utils/seo.js";
+import { buildPublicArticleSearchWhere } from "../../utils/search.js";
 import { daysAgoFromTashkentDay, startOfTashkentDay } from "../../utils/time.js";
 
 export const articleRouter = Router();
@@ -276,7 +277,9 @@ articleRouter.get("/articles/sitemap", async (_req, res) => {
   const items = await prisma.article.findMany({
     where: { deletedAt: null, status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
-    take: 50_000,
+    // Google allows at most 50,000 URLs per sitemap. Leave room for the site's
+    // static and category URLs that the Next.js sitemap adds to this list.
+    take: 49_000,
     select: {
       slug: true,
       title: true,
@@ -483,49 +486,25 @@ articleRouter.get("/search", searchRateLimit, async (req, res) => {
   const q = req.query.q?.toString().trim().slice(0, 200) ?? "";
   const lang = req.query.lang?.toString();
   const category = req.query.category?.toString().slice(0, 100);
-  const sort = req.query.sort?.toString();
+  const sortResult = z.enum(["latest", "popular"]).safeParse(req.query.sort?.toString() ?? "latest");
+  if (!sortResult.success) return res.status(400).json({ message: "Noto'g'ri saralash turi" });
+  const sort = sortResult.data;
   const cursorRaw = req.query.cursor?.toString();
   const cursorResult = cursorRaw ? z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/).safeParse(cursorRaw) : null;
   if (cursorResult && !cursorResult.success) return res.status(400).json({ message: "Noto'g'ri qidiruv kursori" });
   const cursor = cursorResult?.data;
   const take = positiveInt(req.query.limit, 20, 50);
   const categoryRow = category ? await prisma.category.findUnique({ where: { slug: category } }) : null;
-  const categoryFilter = categoryRow ? { OR: [{ categoryId: categoryRow.id }, { extraCategoryIds: { has: categoryRow.id } }] } : category ? { category: { slug: category } } : {};
   const orderBy = sort === "popular"
     ? [{ viewsCount: "desc" as const }, { id: "desc" as const }]
     : [{ publishedAt: "desc" as const }, { id: "desc" as const }];
-  const translatedSearch =
-    isLang(lang) && q
-      ? {
-          translations: {
-            some: {
-              lang,
-              status: "READY" as const,
-              OR: [
-                { title: { contains: q, mode: "insensitive" as const } },
-                { summary: { contains: q, mode: "insensitive" as const } },
-                { content: { contains: q, mode: "insensitive" as const } }
-              ]
-            }
-          }
-        }
-      : undefined;
   const rows = await prisma.article.findMany({
-    where: {
-      deletedAt: null,
-      status: "PUBLISHED",
-      AND: [
-        categoryFilter,
-        {
-          OR: [
-            { title: { contains: q, mode: "insensitive" } },
-            { summary: { contains: q, mode: "insensitive" } },
-            { content: { contains: q, mode: "insensitive" } },
-            ...(translatedSearch ? [translatedSearch] : [])
-          ]
-        }
-      ]
-    },
+    where: buildPublicArticleSearchWhere({
+      q,
+      lang: isLang(lang) ? lang : undefined,
+      categoryId: categoryRow?.id,
+      categorySlug: categoryRow ? undefined : category
+    }),
     select: articleListSelect(lang),
     orderBy,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -534,7 +513,11 @@ articleRouter.get("/search", searchRateLimit, async (req, res) => {
   const hasMore = rows.length > take;
   const items = rows.slice(0, take);
   setPublicCache(res, 30);
-  res.json({ items: items.map((item) => applyListTranslation(item, lang)), nextCursor: hasMore ? items.at(-1)?.id ?? null : null });
+  res.json({
+    items: items.map((item) => applyListTranslation(item, lang)),
+    hasMore,
+    nextCursor: hasMore ? items.at(-1)?.id ?? null : null
+  });
 });
 
 articleRouter.get("/admin/article-reports", requireAuth, permit("comments.manage"), async (req, res) => {

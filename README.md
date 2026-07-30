@@ -45,6 +45,9 @@ Test admin:
 
 `.env` ichida quyidagilarni sozlang:
 
+- `FORWARD_CONCURRENCY=5` bir vaqtda qayta ishlanadigan forwardlar sonini cheklaydi.
+- `MEDIA_GROUP_DELAY_SECONDS=2.5` Telegram albomidagi rasmlar to'liq yig'ilishini kutadi.
+
 ```env
 BOT_TOKEN=123456:telegram_bot_token
 BOT_API_BASE=http://backend:4000/api

@@ -366,7 +366,7 @@ async def enqueue_forward_media_group(message: Message, bot: Bot) -> None:
 
 async def process_media_group_after_delay(key: str, bot: Bot) -> None:
     try:
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(settings.media_group_delay)
         async with media_group_lock:
             messages = media_group_buffers.pop(key, [])
             media_group_tasks.pop(key, None)

@@ -18,6 +18,7 @@ class Settings:
     admin_panel_url: str
     openai_api_key: str | None
     forward_concurrency: int
+    media_group_delay: float
     service_secret: str | None
     redis_url: str
 
@@ -28,6 +29,15 @@ def _bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
         value = int(raw_value)
     except ValueError as exc:
         raise ValueError(f"{name} butun son bo'lishi kerak") from exc
+    return min(maximum, max(minimum, value))
+
+
+def _bounded_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    raw_value = os.getenv(name, str(default)).strip()
+    try:
+        value = float(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} son bo'lishi kerak") from exc
     return min(maximum, max(minimum, value))
 
 
@@ -69,6 +79,7 @@ def load_settings() -> Settings:
         admin_panel_url=_http_url("ADMIN_PANEL_URL", "https://jahonxabarlari.uz/admin"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         forward_concurrency=_bounded_int("FORWARD_CONCURRENCY", 5, 1, 5),
+        media_group_delay=_bounded_float("MEDIA_GROUP_DELAY_SECONDS", 2.5, 1.5, 5.0),
         service_secret=service_secret,
         redis_url=redis_url,
     )

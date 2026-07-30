@@ -44,7 +44,7 @@ function withLang(url: string, lang?: string) {
 }
 
 function isArticleSlug(value: string) {
-  return /^[a-z0-9][a-z0-9-]{0,239}$/.test(value);
+  return !["null", "undefined", "nan"].includes(value) && /^[a-z0-9][a-z0-9-]{0,239}$/.test(value);
 }
 
 export async function getArticles(params = "", lang?: string) {

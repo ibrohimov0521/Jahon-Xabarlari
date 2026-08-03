@@ -35,7 +35,7 @@ test("short or Cyrillic content is forced to review", () => {
   assert.ok(result.issues.includes("LOW_AI_CONFIDENCE"));
 });
 
-test("missing or explicitly small media cannot be auto-published", () => {
+test("quality findings do not override the explicit aggregator publish mode", () => {
   const missing = inspectArticleQuality({
     title: "Toshkentdagi yangi loyiha tafsilotlari e'lon qilindi",
     content: goodContent,
@@ -50,8 +50,11 @@ test("missing or explicitly small media cannot be auto-published", () => {
     mainImage: "https://example.com/photo.jpg?w=320",
     confidence: 0.92
   });
-  assert.equal(qualityGuardedStatus("PUBLISHED", missing), "REVIEW");
-  assert.equal(qualityGuardedStatus("PUBLISHED", small), "REVIEW");
+  assert.equal(missing.publishable, false);
+  assert.equal(small.publishable, false);
+  assert.equal(qualityGuardedStatus("PUBLISHED", missing), "PUBLISHED");
+  assert.equal(qualityGuardedStatus("PUBLISHED", small), "PUBLISHED");
+  assert.equal(qualityGuardedStatus("REVIEW", missing), "REVIEW");
 });
 
 test("tags are cleaned, deduplicated and bounded", () => {

@@ -98,8 +98,10 @@ export function inspectArticleQuality(input: ArticleQualityInput): ArticleQualit
   };
 }
 
-export function qualityGuardedStatus(requestedStatus: "PUBLISHED" | "REVIEW", quality: ArticleQualityResult) {
-  return requestedStatus === "PUBLISHED" && !quality.publishable ? "REVIEW" : requestedStatus;
+export function qualityGuardedStatus(requestedStatus: "PUBLISHED" | "REVIEW", _quality: ArticleQualityResult) {
+  // The admin setting is authoritative. Quality findings are still persisted in the
+  // aggregator audit entry, but must not silently override an explicit publish mode.
+  return requestedStatus;
 }
 
 export function normalizeArticleTags(tags: unknown, limit = 6) {

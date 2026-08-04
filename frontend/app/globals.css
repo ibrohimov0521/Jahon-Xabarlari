@@ -556,7 +556,35 @@ body > footer {
   font-weight: 700;
 }
 
-.comment-sheet-header > button {
+.comment-sheet-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-write-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(23, 103, 245, 0.38);
+  border-radius: 12px;
+  background: rgba(23, 103, 245, 0.12);
+  padding: 0 12px;
+  color: #1767f5;
+  font-size: 12px;
+  font-weight: 900;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.comment-write-button:hover {
+  border-color: #1767f5;
+  background: rgba(23, 103, 245, 0.2);
+  transform: translateY(-1px);
+}
+
+.comment-sheet-close {
   display: grid;
   width: 38px;
   height: 38px;
@@ -569,7 +597,7 @@ body > footer {
   transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.comment-sheet-header > button:hover {
+.comment-sheet-close:hover {
   border-color: #1767f5;
   color: #1767f5;
   transform: rotate(5deg);
@@ -677,10 +705,13 @@ body > footer {
 }
 
 .comment-composer {
+  position: relative;
+  z-index: 2;
   border-top: 1px solid var(--border);
   padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: color-mix(in srgb, var(--page-bg) 86%, transparent);
+  background: color-mix(in srgb, var(--page-bg) 94%, transparent);
   backdrop-filter: blur(20px) saturate(125%);
+  box-shadow: 0 -12px 30px rgba(0, 8, 24, 0.14);
 }
 
 .comment-identity {

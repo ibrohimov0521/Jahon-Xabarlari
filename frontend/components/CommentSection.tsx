@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, MessageCircle, Reply, Send, X } from "lucide-react";
+import { LoaderCircle, MessageCircle, PenLine, Reply, Send, X } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useScrollLock } from "../lib/use-scroll-lock";
@@ -16,6 +16,7 @@ const copy = {
     close: "Yopish",
     name: "Ismingiz",
     body: "Izoh yozing...",
+    write: "Izoh yozish",
     send: "Yuborish",
     reply: "Javob berish",
     writingAs: "Izoh yozuvchi",
@@ -34,6 +35,7 @@ const copy = {
     close: "Закрыть",
     name: "Ваше имя",
     body: "Напишите комментарий...",
+    write: "Написать",
     send: "Отправить",
     reply: "Ответить",
     writingAs: "Комментарий от",
@@ -52,6 +54,7 @@ const copy = {
     close: "Close",
     name: "Your name",
     body: "Write a comment...",
+    write: "Write comment",
     send: "Send",
     reply: "Reply",
     writingAs: "Commenting as",
@@ -96,6 +99,7 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const feedbackTimer = useRef<number | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useScrollLock(panelOpen);
 
@@ -197,6 +201,15 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
     window.setTimeout(() => textareaRef.current?.focus(), 0);
   }
 
+  function focusComposer() {
+    if (name.trim().length < 2) {
+      setIdentityEditing(true);
+      window.setTimeout(() => nameInputRef.current?.focus(), 0);
+      return;
+    }
+    textareaRef.current?.focus();
+  }
+
   const sheet = panelOpen && mounted ? createPortal(
     <div className="comment-sheet-overlay" onMouseDown={() => setPanelOpen(false)} onClick={(event) => event.stopPropagation()}>
       <section className="comment-sheet" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="comment-sheet-title">
@@ -206,9 +219,14 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
             <h2 id="comment-sheet-title">{text.comments}</h2>
             <p>{text.count(comments.length)}</p>
           </div>
-          <button ref={closeButtonRef} type="button" onClick={() => setPanelOpen(false)} aria-label={text.close} title={text.close}>
-            <X size={20} />
-          </button>
+          <div className="comment-sheet-header-actions">
+            <button type="button" className="comment-write-button" onClick={focusComposer}>
+              <PenLine size={15} /> <span>{text.write}</span>
+            </button>
+            <button ref={closeButtonRef} className="comment-sheet-close" type="button" onClick={() => setPanelOpen(false)} aria-label={text.close} title={text.close}>
+              <X size={20} />
+            </button>
+          </div>
         </header>
 
         <div className="comment-sheet-list">
@@ -226,9 +244,10 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
           ))}
         </div>
 
-        <footer className="comment-composer">
+        <div className="comment-composer">
           {identityEditing ? (
             <input
+              ref={nameInputRef}
               autoComplete="name"
               minLength={2}
               maxLength={60}
@@ -260,7 +279,7 @@ export function CommentSection({ articleId, initialComments }: { articleId: stri
             </button>
           </form>
           {feedback && <p className={`comment-feedback ${feedback.ok ? "is-success" : "is-error"}`}>{feedback.message}</p>}
-        </footer>
+        </div>
       </section>
     </div>,
     document.body

@@ -49,6 +49,19 @@ test("a directly opened article changes both interface and article language", as
   await expect(page.getByRole("heading", { level: 1 })).toContainText("The future of planet Earth");
 });
 
+test("article comments expose an accessible composer", async ({ page }) => {
+  await page.goto("/articles/yer-sayyorasining-kelajagi?lang=uz", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /^Izohlar/ }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Izohlar" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Izoh yozish" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Izoh yozish" }).click();
+  await expect(dialog.getByRole("textbox", { name: "Ismingiz" })).toBeFocused();
+  await expect(dialog.getByRole("textbox", { name: "Izoh yozing..." })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Yuborish" })).toBeVisible();
+});
+
 test("mobile navigation sheet opens, traps the visual layer and closes", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "mobile-only interaction");
   await page.goto("/?lang=uz", { waitUntil: "networkidle" });

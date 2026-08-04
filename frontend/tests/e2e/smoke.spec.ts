@@ -1,5 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+async function scrollPageForLockTest(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const previous = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = "auto";
+    window.scrollTo(0, Math.min(420, Math.max(0, document.documentElement.scrollHeight - innerHeight)));
+    document.documentElement.style.scrollBehavior = previous;
+    return window.scrollY;
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/rates", (route) =>
     route.fulfill({
@@ -42,12 +52,37 @@ test("a directly opened article changes both interface and article language", as
 test("mobile navigation sheet opens, traps the visual layer and closes", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"), "mobile-only interaction");
   await page.goto("/?lang=uz", { waitUntil: "networkidle" });
+  await scrollPageForLockTest(page);
   const newsButton = page.locator('.bottom-nav button[aria-controls="mobile-navigation-sheet"]').first();
   await expect(newsButton).toBeVisible();
   await newsButton.click();
-  await expect(page.getByRole("dialog", { name: /Bo'limlar|Yangiliklar/i })).toBeVisible();
+  const sheet = page.getByRole("dialog", { name: /Bo'limlar|Yangiliklar/i });
+  await expect(sheet).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe("fixed");
+  const lockedScroll = await page.evaluate(() => Math.abs(Number.parseFloat(document.body.style.top) || 0));
+  await sheet.hover();
+  await page.mouse.wheel(0, 5_000);
+  expect(await page.evaluate(() => Math.abs(Number.parseFloat(document.body.style.top) || 0))).toBe(lockedScroll);
   await page.getByRole("button", { name: "Yopish" }).last().click();
   await expect(page.locator("#mobile-navigation-sheet")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe("");
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - lockedScroll)).toBeLessThanOrEqual(1);
+});
+
+test("desktop more menu locks background scrolling and closes outside", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop"), "desktop-only interaction");
+  await page.goto("/?lang=uz", { waitUntil: "networkidle" });
+  await scrollPageForLockTest(page);
+  await page.getByRole("button", { name: /Ko'proq/i }).click();
+  await expect(page.locator(".desktop-more-overlay")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe("fixed");
+  const lockedScroll = await page.evaluate(() => Math.abs(Number.parseFloat(document.body.style.top) || 0));
+  await page.mouse.wheel(0, 5_000);
+  expect(await page.evaluate(() => Math.abs(Number.parseFloat(document.body.style.top) || 0))).toBe(lockedScroll);
+  await page.locator(".desktop-more-overlay").click({ position: { x: 8, y: 8 } });
+  await expect(page.locator(".desktop-more-overlay")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe("");
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - lockedScroll)).toBeLessThanOrEqual(1);
 });
 
 test("editorial trust pages are public", async ({ page }) => {

@@ -32,6 +32,7 @@ import { useUi } from "../lib/ui-context";
 import { openMobileCurrency } from "./MobileCurrency";
 import { openPushSettings } from "./PushNotifications";
 import { localizedHref } from "../lib/localized-href";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 const categoryKeys: { key: string; href: string; icon: LucideIcon }[] = [
   { key: "uzbekistan", href: "/category/ozbekiston", icon: MapPin },
@@ -72,19 +73,19 @@ export default function BottomNav() {
   const { t, language } = useUi();
   const { openSearch, closeSearch, open: searchOpen } = useSearch();
   const { sheet, setSheet } = useNav();
+  const sheetOpen = !pathname.startsWith("/admin") && Boolean(sheet);
+
+  useScrollLock(sheetOpen);
 
   useEffect(() => {
     if (pathname.startsWith("/admin") || !sheet) return;
-    const prev = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSheet(null);
     };
     document.body.classList.add("mobile-nav-sheet-open");
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.classList.remove("mobile-nav-sheet-open");
-      document.body.style.overflow = prev;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [pathname, setSheet, sheet]);

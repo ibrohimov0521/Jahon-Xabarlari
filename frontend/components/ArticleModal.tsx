@@ -7,7 +7,9 @@ import type { Article } from "../lib/api";
 import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
 import { MediaView } from "./MediaView";
+import { CommentSection } from "./CommentSection";
 import { recordArticleView } from "../lib/api";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 export function ArticleModal() {
   const { language } = useUi();
@@ -25,6 +27,9 @@ export function ArticleModal() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const displayedLanguageRef = useRef(language);
+  const modalOpen = Boolean(article || loading);
+
+  useScrollLock(modalOpen);
 
   const loadArticle = useCallback((slug: string, trackView = true) => {
     const requestId = ++requestIdRef.current;
@@ -92,16 +97,13 @@ export function ArticleModal() {
 
   useEffect(() => {
     if (!article && !loading) return;
-    const previousOverflow = document.body.style.overflow;
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") close();
     }
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
     return () => {
       window.clearTimeout(focusTimer);
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKey);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +125,7 @@ export function ArticleModal() {
   return (
     <div className="fixed inset-0 z-[220] bg-slate-950/72 p-4 backdrop-blur-md" onClick={close} role="presentation">
       <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
-        <article className="max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={article ? "article-modal-title" : undefined} aria-busy={loading}>
+        <article className="max-h-[92vh] w-full overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={article ? "article-modal-title" : undefined} aria-busy={loading}>
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3 backdrop-blur">
             <span className="text-sm font-black text-brand">{article?.category?.name ?? (loading ? copy.loading : "")}</span>
             <button ref={closeButtonRef} onClick={close} className="article-modal-close grid size-10 place-items-center rounded-full border border-slate-200 text-ink hover:border-brand hover:text-brand" aria-label={copy.close}>
@@ -146,6 +148,7 @@ export function ArticleModal() {
               <h1 id="article-modal-title" className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
               <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.shortDescription || article.summary}</p>
               <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
+              <CommentSection key={article.id} articleId={article.id} initialComments={[]} />
               <a
                 data-full-page="true"
                 href={`/articles/${article.slug}${language === "uz" ? "" : `?lang=${encodeURIComponent(language)}`}`}

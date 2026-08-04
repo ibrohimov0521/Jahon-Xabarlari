@@ -2,11 +2,12 @@ import { ArrowRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { Header } from "../components/Header";
+import { AdPlacement } from "../components/AdPlacement";
 import { HomeLatestGrid } from "../components/HomeLatestGrid";
 import { HomeNewsStream } from "../components/HomeNewsStream";
 import { MediaView } from "../components/MediaView";
 import { MobileCurrencyCard } from "../components/MobileCurrency";
-import { getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
+import { getActiveAdvertisement, getArticles, getPopularArticles, getTrendingArticles } from "../lib/api";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { isSuitableHeroMedia } from "../lib/media";
 import { getRequestLang } from "../lib/server-lang";
@@ -105,13 +106,30 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   ];
   const categorySections = categorySlugs.map((slug) => ({ title: copy.categories[slug], slug }));
   const categoryName = (category?: { name: string; slug: string }) => category ? copy.categories[category.slug as keyof typeof copy.categories] ?? category.name : "";
-  const [articles, trending, popular, sliderArticles, sidebarArticles, editorArticles] = await Promise.all([
+  const [
+    articles,
+    trending,
+    popular,
+    sliderArticles,
+    sidebarArticles,
+    editorArticles,
+    homeBannerDesktop,
+    homeBannerMobile,
+    homeFeedDesktop,
+    homeFeedMobile,
+    homeSidebarDesktop
+  ] = await Promise.all([
     getArticles("?limit=32&home=true&latest=true", lang),
     getTrendingArticles(lang, 8),
     getPopularArticles(lang, 8, 4),
     getArticles("?limit=5&home=true&slider=true", lang),
     getArticles("?limit=3&home=true&sidebar=true", lang),
-    getArticles("?limit=5&home=true&editorChoice=true", lang)
+    getArticles("?limit=5&home=true&editorChoice=true", lang),
+    getActiveAdvertisement("HOME_BANNER", "desktop"),
+    getActiveAdvertisement("HOME_BANNER", "mobile"),
+    getActiveAdvertisement("HOME_FEED", "desktop"),
+    getActiveAdvertisement("HOME_FEED", "mobile"),
+    getActiveAdvertisement("HOME_SIDEBAR", "desktop")
   ]);
 
   // showOnHome is the master on/off switch -- everything below is drawn from this pool only.
@@ -294,6 +312,8 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
         />
       </section>
 
+      <AdPlacement desktop={homeBannerDesktop} mobile={homeBannerMobile} className="container-page pb-5" />
+
       <section className="home-content-grid container-page grid gap-4 pb-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-5 xl:grid-cols-[minmax(0,1fr)_354px]">
         <div className="grid gap-4 lg:gap-6">
           {editorLead && (
@@ -324,6 +344,8 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               </div>
             </section>
           )}
+
+          <AdPlacement desktop={homeFeedDesktop} mobile={homeFeedMobile} />
 
           <div className="grid gap-6 md:grid-cols-2">
             {sectionGroups.map((section) => (
@@ -382,6 +404,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
               ))}
             </div>
           </section>
+          <AdPlacement desktop={homeSidebarDesktop} className="hidden lg:block" />
         </aside>
       </section>
 

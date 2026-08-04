@@ -3,6 +3,7 @@
 import { AlertTriangle, ChevronDown, Cloud, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Droplets, Gauge, LocateFixed, MapPin, Moon, Sun, Wind, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useUi } from "../lib/ui-context";
+import { useScrollLock } from "../lib/use-scroll-lock";
 import {
   conditionGradient,
   conditionLabel,
@@ -145,6 +146,7 @@ export function WeatherModal({
   onSelectRegion: (region: UzRegion) => void;
   onUseCurrentLocation: () => void;
 }) {
+  useScrollLock(open);
   const { language } = useUi();
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
@@ -179,14 +181,11 @@ export function WeatherModal({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKey);
     };
   }, [onClose, open]);
@@ -199,7 +198,7 @@ export function WeatherModal({
   const backgroundImage = weatherBackgroundImage(weather);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16 sm:items-center sm:pt-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto overscroll-contain bg-black/50 p-4 pt-16 sm:items-center sm:pt-4" onClick={onClose}>
       <div
         className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-b text-white shadow-2xl ${gradient}`}
         onClick={(event) => event.stopPropagation()}
@@ -219,13 +218,13 @@ export function WeatherModal({
           <X size={18} />
         </button>
 
-        <div className="relative z-[1] max-h-[85vh] overflow-y-auto p-6">
+        <div className="relative z-[1] max-h-[85vh] overflow-y-auto overscroll-contain p-6">
           <div className="relative inline-block">
             <button type="button" onClick={() => setRegionPickerOpen((value) => !value)} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur">
               <MapPin size={14} /> {region.name} <ChevronDown size={14} />
             </button>
             {regionPickerOpen && (
-              <div className="absolute left-0 top-10 z-20 max-h-64 w-52 overflow-y-auto rounded-xl border border-white/10 bg-ink/95 p-1 text-left shadow-2xl backdrop-blur">
+              <div className="absolute left-0 top-10 z-20 max-h-64 w-52 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-ink/95 p-1 text-left shadow-2xl backdrop-blur">
                 {regions.map((item) => (
                   <button
                     type="button"

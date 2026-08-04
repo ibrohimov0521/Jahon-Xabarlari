@@ -4,6 +4,7 @@ import { Check, Copy, Facebook, Flag, Send, Share2, X } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { submitArticleReport } from "../lib/api";
 import { useUi } from "../lib/ui-context";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 type ReportReason = "FACT_ERROR" | "TYPO" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER";
 
@@ -29,6 +30,8 @@ export function ArticleActions({ articleId, title, url }: { articleId: string; t
   const copiedTimer = useRef<number | null>(null);
   const reportTimer = useRef<number | null>(null);
 
+  useScrollLock(reportOpen);
+
   useEffect(() => () => {
     if (copiedTimer.current) clearTimeout(copiedTimer.current);
     if (reportTimer.current) clearTimeout(reportTimer.current);
@@ -36,12 +39,9 @@ export function ArticleActions({ articleId, title, url }: { articleId: string; t
 
   useEffect(() => {
     if (!reportOpen) return;
-    const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && setReportOpen(false);
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [reportOpen]);

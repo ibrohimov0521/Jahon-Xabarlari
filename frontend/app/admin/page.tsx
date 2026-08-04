@@ -35,7 +35,7 @@ import { Dashboard } from "../../components/admin/Dashboard";
 import { ReportsView } from "../../components/admin/ReportsView";
 import { SecurityView } from "../../components/admin/SecurityView";
 import { UsersView } from "../../components/admin/UsersView";
-import type { Article, ArticleFormState, ArticleStatus, AdItem, Category, CommentItem, CommentStatus, Stats, UserItem } from "../../components/admin/types";
+import type { Article, ArticleFormState, ArticleStatus, AdItem, AdPlacement, AdStatus, AdSummary, Category, CommentItem, CommentStatus, CommentSummary, Stats, UserItem } from "../../components/admin/types";
 import { Button, ErrorBanner, IconButton, Input, LoadingBlock, Toast } from "../../components/admin/ui";
 import {
   AdminApiError,
@@ -49,6 +49,7 @@ import {
 } from "../../lib/admin-api";
 import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 import { useUi } from "../../lib/ui-context";
+import { useScrollLock } from "../../lib/use-scroll-lock";
 
 type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "security";
 
@@ -90,13 +91,18 @@ export default function AdminPage() {
   const [articleSearch, setArticleSearch] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentSummary, setCommentSummary] = useState<CommentSummary>({ total: 0, approved: 0, hidden: 0, pending: 0 });
   const [commentPage, setCommentPage] = useState(1);
   const [commentPages, setCommentPages] = useState(1);
   const [commentSearch, setCommentSearch] = useState("");
   const [commentStatus, setCommentStatus] = useState<CommentStatus | "">("");
   const [ads, setAds] = useState<AdItem[]>([]);
+  const [adSummary, setAdSummary] = useState<AdSummary>({ total: 0, active: 0, impressions: 0, clicks: 0 });
   const [adPage, setAdPage] = useState(1);
   const [adPages, setAdPages] = useState(1);
+  const [adSearch, setAdSearch] = useState("");
+  const [adStatus, setAdStatus] = useState<AdStatus | "">("");
+  const [adPlacement, setAdPlacement] = useState<AdPlacement | "">("");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [userPage, setUserPage] = useState(1);
   const [userPages, setUserPages] = useState(1);
@@ -171,25 +177,32 @@ export default function AdminPage() {
     const query = new URLSearchParams({ page: String(nextPage), limit: "50" });
     if (nextSearch) query.set("search", nextSearch);
     if (nextStatus) query.set("status", nextStatus);
-    let data = await adminRequest<{ items: CommentItem[]; page: number; pages: number }>(`/admin/comments?${query}`);
+    let data = await adminRequest<{ items: CommentItem[]; page: number; pages: number; summary: CommentSummary }>(`/admin/comments?${query}`);
     if (data.pages > 0 && nextPage > data.pages) {
       query.set("page", String(data.pages));
-      data = await adminRequest<{ items: CommentItem[]; page: number; pages: number }>(`/admin/comments?${query}`);
+      data = await adminRequest<{ items: CommentItem[]; page: number; pages: number; summary: CommentSummary }>(`/admin/comments?${query}`);
     }
     if (requestId !== commentLoadSequence.current) return;
     setComments(data.items);
+    setCommentSummary(data.summary);
     setCommentPage(data.page || 1);
     setCommentPages(Math.max(data.pages, 1));
   }
 
-  async function loadAds(nextPage = adPage) {
+  async function loadAds(nextPage = adPage, nextSearch = adSearch, nextStatus = adStatus, nextPlacement = adPlacement) {
     const requestId = ++adLoadSequence.current;
-    let data = await adminRequest<{ items: AdItem[]; page: number; pages: number }>(`/admin/advertisements?page=${nextPage}&limit=30`);
+    const query = new URLSearchParams({ page: String(nextPage), limit: "30" });
+    if (nextSearch) query.set("search", nextSearch);
+    if (nextStatus) query.set("status", nextStatus);
+    if (nextPlacement) query.set("placement", nextPlacement);
+    let data = await adminRequest<{ items: AdItem[]; page: number; pages: number; summary: AdSummary }>(`/admin/advertisements?${query}`);
     if (data.pages > 0 && nextPage > data.pages) {
-      data = await adminRequest<{ items: AdItem[]; page: number; pages: number }>(`/admin/advertisements?page=${data.pages}&limit=30`);
+      query.set("page", String(data.pages));
+      data = await adminRequest<{ items: AdItem[]; page: number; pages: number; summary: AdSummary }>(`/admin/advertisements?${query}`);
     }
     if (requestId !== adLoadSequence.current) return;
     setAds(data.items);
+    setAdSummary(data.summary);
     setAdPage(data.page || 1);
     setAdPages(Math.max(data.pages, 1));
   }
@@ -266,7 +279,9 @@ export default function AdminPage() {
     setStats(null);
     setArticles([]);
     setComments([]);
+    setCommentSummary({ total: 0, approved: 0, hidden: 0, pending: 0 });
     setAds([]);
+    setAdSummary({ total: 0, active: 0, impressions: 0, clicks: 0 });
     setTwoFactorRequired(false);
     setLoginForm((current) => ({ ...current, otp: "" }));
   }
@@ -369,6 +384,14 @@ export default function AdminPage() {
     });
   }
 
+  async function bulkPermanentDelete(ids: string[]) {
+    await withErrorHandling(async () => {
+      const result = await adminRequest<{ count: number }>("/admin/articles/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) });
+      flash(`${result.count} ta maqola butunlay o'chirildi`);
+      await loadArticles();
+    });
+  }
+
   async function bulkArticleStatus(ids: string[], status: ArticleStatus, scheduledAt?: string) {
     await withErrorHandling(async () => {
       const result = await adminRequest<{ count: number }>("/admin/articles/bulk-status", {
@@ -391,7 +414,31 @@ export default function AdminPage() {
   async function changeCommentStatus(id: string, status: CommentStatus) {
     await withErrorHandling(async () => {
       await adminRequest(`/admin/comments/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      flash("Izoh holati yangilandi");
+      flash(status === "DELETED" ? "Izoh saytdan yashirildi" : "Izoh qayta tiklandi");
+      await loadComments();
+    });
+  }
+
+  async function deleteComment(id: string) {
+    await withErrorHandling(async () => {
+      await adminRequest(`/admin/comments/${id}`, { method: "DELETE" });
+      flash("Izoh butunlay o'chirildi");
+      await loadComments();
+    });
+  }
+
+  async function bulkCommentStatus(ids: string[], status: "APPROVED" | "DELETED") {
+    await withErrorHandling(async () => {
+      const result = await adminRequest<{ count: number }>("/admin/comments/bulk-status", { method: "POST", body: JSON.stringify({ ids, status }) });
+      flash(`${result.count} ta izoh ${status === "DELETED" ? "yashirildi" : "tiklandi"}`);
+      await loadComments();
+    });
+  }
+
+  async function bulkDeleteComments(ids: string[]) {
+    await withErrorHandling(async () => {
+      const result = await adminRequest<{ count: number }>("/admin/comments/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) });
+      flash(`${result.count} ta izoh butunlay o'chirildi`);
       await loadComments();
     });
   }
@@ -574,6 +621,7 @@ export default function AdminPage() {
               onPermanentDelete={permanentDelete}
               onBulkTrash={bulkTrash}
               onBulkRestore={bulkRestore}
+              onBulkPermanentDelete={bulkPermanentDelete}
               onBulkStatus={bulkArticleStatus}
               onEdit={openEditor}
               onPreview={openPreviewFromArticle}
@@ -603,7 +651,11 @@ export default function AdminPage() {
           {view === "comments" && !(loading && !comments.length) && (
             <CommentsView
               comments={comments}
+              summary={commentSummary}
               onStatus={changeCommentStatus}
+              onDelete={deleteComment}
+              onBulkStatus={bulkCommentStatus}
+              onBulkDelete={bulkDeleteComments}
               page={commentPage}
               pages={commentPages}
               onPageChange={(nextPage) => {
@@ -621,12 +673,20 @@ export default function AdminPage() {
           {view === "ads" && !(loading && !ads.length) && (
             <AdsView
               ads={ads}
+              summary={adSummary}
               onChanged={loadAds}
               page={adPage}
               pages={adPages}
               onPageChange={(nextPage) => {
                 setAdPage(nextPage);
                 void withErrorHandling(() => loadAds(nextPage));
+              }}
+              onFiltersChange={(nextSearch, nextStatus, nextPlacement) => {
+                setAdSearch(nextSearch);
+                setAdStatus(nextStatus);
+                setAdPlacement(nextPlacement);
+                setAdPage(1);
+                void withErrorHandling(() => loadAds(1, nextSearch, nextStatus, nextPlacement));
               }}
             />
           )}
@@ -685,20 +745,19 @@ function AdminMobileNav({
   const [moreOpen, setMoreOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  useScrollLock(moreOpen);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!moreOpen) return;
-    const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMoreOpen(false);
     };
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [moreOpen]);
@@ -733,7 +792,7 @@ function AdminMobileNav({
             role="dialog"
             aria-modal="true"
             aria-label="Boshqa admin bo'limlari"
-            className="fixed inset-x-3 z-[90] max-h-[68dvh] overflow-y-auto rounded-lg border border-cyan-300/20 bg-[#071827] p-3 text-white shadow-2xl shadow-black/50 lg:hidden"
+            className="fixed inset-x-3 z-[90] max-h-[68dvh] overflow-y-auto overscroll-contain rounded-lg border border-cyan-300/20 bg-[#071827] p-3 text-white shadow-2xl shadow-black/50 lg:hidden"
             style={{ bottom: "calc(4.9rem + env(safe-area-inset-bottom))" }}
           >
             <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">

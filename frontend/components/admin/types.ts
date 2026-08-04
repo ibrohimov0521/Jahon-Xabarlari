@@ -55,7 +55,8 @@ export type Stats = {
 };
 
 export type CommentStatus = "PENDING" | "APPROVED" | "DELETED";
-export const COMMENT_STATUSES: CommentStatus[] = ["PENDING", "APPROVED", "DELETED"];
+export const COMMENT_STATUSES: CommentStatus[] = ["APPROVED", "DELETED"];
+export type CommentSummary = { total: number; approved: number; hidden: number; pending: number };
 export type CommentItem = {
   id: string;
   name: string;
@@ -67,13 +68,24 @@ export type CommentItem = {
 
 export type AdStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "EXPIRED";
 export const AD_STATUSES: AdStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "EXPIRED"];
+export type AdPlacement = "HOME_BANNER" | "HOME_FEED" | "HOME_SIDEBAR" | "ARTICLE_INLINE" | "ARTICLE_BOTTOM";
+export type AdSummary = { total: number; active: number; impressions: number; clicks: number };
 export type AdItem = {
   id: string;
   title: string;
-  placement: string;
+  placement: AdPlacement;
   imageUrl?: string | null;
   targetUrl?: string | null;
+  altText?: string | null;
+  sponsorName?: string | null;
   status: AdStatus;
+  priority: number;
+  showOnMobile: boolean;
+  showOnDesktop: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+  impressions: number;
+  clicks: number;
   updatedAt: string;
 };
 

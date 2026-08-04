@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeftRight, Landmark, RefreshCw, X } from "lucide-react
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmt, fmt0, fmtSigned, type CurrencyRate } from "../../lib/currency";
 import { useUi } from "../../lib/ui-context";
+import { useScrollLock } from "../../lib/use-scroll-lock";
 import { CurrencySelect, type CurrencyOption } from "./CurrencySelect";
 import { Flag } from "./Flag";
 import { Sparkline } from "./Sparkline";
@@ -68,6 +69,7 @@ export function CurrencyModal({
   onClose: () => void;
   onRefresh?: () => void;
 }) {
+  useScrollLock(true);
   const byCode = useMemo(() => {
     const map = new Map<string, CurrencyRate>();
     [UZS, ...rates].forEach((r) => map.set(r.code, r));
@@ -113,12 +115,9 @@ export function CurrencyModal({
   // Esc + scroll lock while open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
       if (spinTimer.current) clearTimeout(spinTimer.current);
     };
   }, [onClose]);

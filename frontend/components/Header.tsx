@@ -14,6 +14,7 @@ import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/
 import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, weatherButtonBackgroundImage, type FullWeather, type UzRegion } from "../lib/weather";
 import { readStorage, writeStorage } from "../lib/browser-storage";
 import { localizedHref } from "../lib/localized-href";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 const navKeys = [
   { key: "home", href: "/" },
@@ -60,6 +61,8 @@ export function Header() {
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const languageMenuRefMobile = useRef<HTMLDivElement | null>(null);
+
+  useScrollLock(menuOpen || weatherModalOpen);
 
   const activeHref = useMemo(() => {
     if (pathname === "/") return "/";

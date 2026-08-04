@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { COUNTRY, fmt, TICKER_CODES, type CurrencyRate } from "../lib/currency";
 import { timeoutSignal } from "../lib/http";
 import { useUi } from "../lib/ui-context";
+import { useScrollLock } from "../lib/use-scroll-lock";
 import { Flag } from "./currency/Flag";
 
 const CURRENCY_EVENT = "jx:currency-open";
@@ -158,6 +159,8 @@ export function MobileCurrencyExperience() {
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [query, setQuery] = useState("");
 
+  useScrollLock(open);
+
   useEffect(() => {
     const show = () => setOpen(true);
     window.addEventListener(CURRENCY_EVENT, show);
@@ -166,16 +169,13 @@ export function MobileCurrencyExperience() {
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (picker) setPicker(null);
       else setOpen(false);
     };
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previous;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [open, picker]);

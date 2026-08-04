@@ -27,6 +27,7 @@ import { searchArticles, getArticles, type Article } from "../lib/api";
 import { readStorage, removeStorage, writeStorage } from "../lib/browser-storage";
 import { formatArticleDateTime, formatViews } from "../lib/format";
 import { localizedHref } from "../lib/localized-href";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 type Cat = { slug: string; key: string; icon: ComponentType<{ size?: number }> };
 
@@ -87,6 +88,8 @@ export default function SearchExperience() {
   const { t, language } = useUi();
   const router = useRouter();
 
+  useScrollLock(open);
+
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [query, setQuery] = useState("");
@@ -116,8 +119,6 @@ export default function SearchExperience() {
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const focusTimer = setTimeout(() => inputRef.current?.focus(), 120);
     try {
       const parsed: unknown = JSON.parse(readStorage(RECENT_KEY) || "[]");
@@ -130,7 +131,6 @@ export default function SearchExperience() {
     });
     return () => {
       cancelled = true;
-      document.body.style.overflow = prev;
       clearTimeout(focusTimer);
     };
   }, [open, language]);

@@ -152,13 +152,14 @@ async function main() {
       });
     }
 
-    await prisma.advertisement.createMany({
-      data: [
-        { title: "Header banner", placement: "header", status: AdvertisementStatus.ACTIVE },
-        { title: "Sidebar promo", placement: "sidebar", status: AdvertisementStatus.PAUSED }
-      ],
-      skipDuplicates: true
-    });
+    const demoAds = [
+      { title: "Header banner", placement: "HOME_BANNER", showOnMobile: true, status: AdvertisementStatus.ACTIVE },
+      { title: "Sidebar promo", placement: "HOME_SIDEBAR", showOnMobile: false, status: AdvertisementStatus.PAUSED }
+    ];
+    for (const ad of demoAds) {
+      const existing = await prisma.advertisement.findFirst({ where: { title: ad.title, placement: ad.placement } });
+      if (!existing) await prisma.advertisement.create({ data: ad });
+    }
   }
 }
 

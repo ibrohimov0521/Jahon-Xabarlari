@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ExternalLink, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
@@ -28,6 +28,7 @@ export function ReportsView() {
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
 
   async function load() {
     setLoading(true); setError("");
@@ -36,6 +37,7 @@ export function ReportsView() {
     try {
       const data = await adminRequest<{ items: Report[]; pages: number }>(`/admin/article-reports?${query}`);
       setItems(data.items); setPages(Math.max(data.pages, 1));
+      setSelected((current) => current.filter((id) => data.items.some((item) => item.id === id)));
     } catch (err) { setError(err instanceof Error ? err.message : "Xabarlar yuklanmadi"); }
     finally { setLoading(false); }
   }
@@ -49,6 +51,16 @@ export function ReportsView() {
     } catch (err) { setError(err instanceof Error ? err.message : "Status o'zgarmadi"); }
   }
 
+  async function bulkStatus(next: ReportStatus) {
+    try {
+      await adminRequest("/admin/article-reports/bulk-status", { method: "POST", body: JSON.stringify({ ids: selected, status: next }) });
+      setSelected([]);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Statuslar o'zgarmadi"); }
+  }
+
+  const allSelected = items.length > 0 && items.every((item) => selected.includes(item.id));
+
   return (
     <Panel title="Maqola bo'yicha xabarlar" actions={
       <SelectFilter value={status} onChange={(value) => { setStatus(value); setPage(1); }} allLabel="Barcha statuslar" options={[
@@ -57,11 +69,24 @@ export function ReportsView() {
     }>
       <ErrorBanner message={error} />
       {loading && <LoadingBlock />}
+      {!loading && items.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white/5 p-3">
+          <label className="mr-auto inline-flex items-center gap-2 text-sm font-black">
+            <input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? [] : items.map((item) => item.id))} className="size-4 accent-blue-600" />
+            Sahifadagilarni tanlash
+          </label>
+          {selected.length > 0 && <strong className="text-sm text-brand">{selected.length} ta tanlandi</strong>}
+          {selected.length > 0 && <Button size="sm" icon={<CheckCircle2 size={14} />} onClick={() => bulkStatus("RESOLVED")}>Hal qilindi</Button>}
+          {selected.length > 0 && <Button size="sm" variant="secondary" icon={<XCircle size={14} />} onClick={() => bulkStatus("DISMISSED")}>Rad etish</Button>}
+          {selected.length > 0 && <Button size="sm" variant="secondary" icon={<RotateCcw size={14} />} onClick={() => bulkStatus("PENDING")}>Qayta ochish</Button>}
+        </div>
+      )}
       {!loading && !items.length && <Empty text="Bu statusda xabar yo'q" />}
       <div className="grid gap-3">
         {items.map((item) => (
           <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
+              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} className="mt-1 size-4 shrink-0 accent-blue-600" aria-label="Xato xabarini tanlash" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><Badge tone="amber">{reasonNames[item.reason] ?? item.reason}</Badge><span className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleString("uz-UZ")}</span></div>
                 <Link

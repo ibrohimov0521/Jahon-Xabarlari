@@ -71,6 +71,7 @@ export function ArticlesView({
   onPermanentDelete,
   onBulkTrash,
   onBulkRestore,
+  onBulkPermanentDelete,
   onBulkStatus,
   onEdit,
   onPreview,
@@ -92,6 +93,7 @@ export function ArticlesView({
   onPermanentDelete: (id: string) => void;
   onBulkTrash: (ids: string[]) => void;
   onBulkRestore: (ids: string[]) => void;
+  onBulkPermanentDelete: (ids: string[]) => void;
   onBulkStatus: (ids: string[], status: ArticleStatus, scheduledAt?: string) => void;
   onEdit: (id: string) => void;
   onPreview: (article: Article) => void;
@@ -336,15 +338,27 @@ export function ArticlesView({
           <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-brand">
             {selected.length} ta tanlandi
             {trashed ? (
-              <button
-                onClick={() => {
-                  onBulkRestore(selected);
-                  setSelected([]);
-                }}
-                className="rounded-full bg-brand px-4 py-2 text-white"
-              >
-                Tiklash
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  icon={<RotateCcw size={15} />}
+                  onClick={() => {
+                    onBulkRestore(selected);
+                    setSelected([]);
+                  }}
+                >
+                  Tiklash
+                </Button>
+                <ConfirmButton
+                  label="Butunlay o'chirish"
+                  confirmLabel="Ha, o'chirish"
+                  icon={<Trash2 size={14} />}
+                  onConfirm={() => {
+                    onBulkPermanentDelete(selected);
+                    setSelected([]);
+                  }}
+                />
+              </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative" data-status-menu>

@@ -3,12 +3,13 @@ import { ArrowRight, Clock3, Eye, UserRound } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArticleActions } from "../../../components/ArticleActions";
+import { AdPlacement } from "../../../components/AdPlacement";
 import { ArticleViewTracker } from "../../../components/ArticleViewTracker";
 import { CommentSection } from "../../../components/CommentSection";
 import { Header } from "../../../components/Header";
 import { NewsCard } from "../../../components/NewsCard";
 import { MediaView } from "../../../components/MediaView";
-import { getArticle, getArticleContext, getComments } from "../../../lib/api";
+import { getActiveAdvertisement, getArticle, getArticleContext, getComments } from "../../../lib/api";
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { serializeJsonLd } from "../../../lib/json-ld";
 import { getRequestLang } from "../../../lib/server-lang";
@@ -119,7 +120,14 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   const articleUrl = localizedArticleUrl(article.slug, contentLang);
   const articleDescription = article.shortDescription || article.summary;
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
-  const [comments, context] = await Promise.all([getComments(article.id), getArticleContext(article.slug, lang)]);
+  const [comments, context, inlineDesktopAd, inlineMobileAd, bottomDesktopAd, bottomMobileAd] = await Promise.all([
+    getComments(article.id),
+    getArticleContext(article.slug, lang),
+    getActiveAdvertisement("ARTICLE_INLINE", "desktop"),
+    getActiveAdvertisement("ARTICLE_INLINE", "mobile"),
+    getActiveAdvertisement("ARTICLE_BOTTOM", "desktop"),
+    getActiveAdvertisement("ARTICLE_BOTTOM", "mobile")
+  ]);
   const readTime = readingMinutes(article.content);
   const tags = article.tags?.map((item) => item.tag) ?? [];
   const sourceUrl = parseExternalHttpUrl(article.sourceUrl);
@@ -196,8 +204,11 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
               ) : <strong>{article.sourceName}</strong>}
             </div>
           )}
+          <AdPlacement desktop={inlineDesktopAd} mobile={inlineMobileAd} className="mt-8" />
           <CommentSection articleId={article.id} initialComments={comments} />
         </div>
+
+        <AdPlacement desktop={bottomDesktopAd} mobile={bottomMobileAd} className="mt-7" />
 
         {!!context.related.length && (
           <section className="mt-9" aria-labelledby="related-title">

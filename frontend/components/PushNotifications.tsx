@@ -6,6 +6,7 @@ import { API_URL } from "../lib/config";
 import { readStorage, removeStorage, writeStorage } from "../lib/browser-storage";
 import { timeoutSignal } from "../lib/http";
 import { useUi, type Language } from "../lib/ui-context";
+import { useScrollLock } from "../lib/use-scroll-lock";
 
 type PushState = "loading" | "default" | "enabled" | "denied" | "unsupported";
 
@@ -88,6 +89,8 @@ export function PushNotifications() {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const promptHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useScrollLock(settingsOpen);
+
   const syncSubscription = useCallback(async (subscription: PushSubscription, lang: Language) => {
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error("Subscription kalitlari topilmadi");
@@ -126,14 +129,11 @@ export function PushNotifications() {
 
   useEffect(() => {
     if (!settingsOpen) return;
-    const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !busy) setSettingsOpen(false);
     };
-    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [busy, settingsOpen]);

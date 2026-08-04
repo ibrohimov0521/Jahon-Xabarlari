@@ -17,7 +17,7 @@ import { articleRouter, cleanupOldArticleViews, publishScheduledArticles } from 
 import { categoryRouter } from "./modules/categories/routes.js";
 import { dashboardRouter } from "./modules/dashboard/routes.js";
 import { commentRouter } from "./modules/comments/routes.js";
-import { adRouter } from "./modules/ads/routes.js";
+import { adRouter, publicAdRouter } from "./modules/ads/routes.js";
 import { mediaRouter } from "./modules/media/routes.js";
 import { auditRouter } from "./modules/audit/routes.js";
 import { userRouter } from "./modules/users/routes.js";
@@ -85,6 +85,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api", articleRouter);
 app.use("/api", categoryRouter);
+app.use("/api/advertisements", publicAdRouter);
 app.use("/api/admin/dashboard", dashboardRouter);
 app.use("/api/admin/comments", commentRouter);
 app.use("/api/admin/advertisements", adRouter);

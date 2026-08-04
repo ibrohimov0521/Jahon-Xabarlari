@@ -31,6 +31,19 @@ export type Article = {
   availableLanguages?: Array<"uz" | "ru" | "en">;
 };
 
+export type Advertisement = {
+  id: string;
+  title: string;
+  placement: "HOME_BANNER" | "HOME_FEED" | "HOME_SIDEBAR" | "ARTICLE_INLINE" | "ARTICLE_BOTTOM";
+  imageUrl?: string | null;
+  targetUrl?: string | null;
+  altText?: string | null;
+  sponsorName?: string | null;
+  showOnMobile: boolean;
+  showOnDesktop: boolean;
+  priority?: number;
+};
+
 import { API_URL } from "./config";
 import { timeoutSignal } from "./http";
 
@@ -141,7 +154,7 @@ export async function getComments(articleId: string): Promise<Comment[]> {
   }
 }
 
-export async function submitComment(articleId: string, name: string, body: string): Promise<{ ok: boolean; message: string }> {
+export async function submitComment(articleId: string, name: string, body: string): Promise<{ ok: boolean; message: string; comment?: Comment }> {
   try {
     const res = await fetch(`${API_URL}/articles/${articleId}/comments`, {
       method: "POST",
@@ -151,7 +164,7 @@ export async function submitComment(articleId: string, name: string, body: strin
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, message: data.message ?? "Izohni yuborib bo'lmadi" };
-    return { ok: true, message: data.message ?? "Izohingiz yuborildi" };
+    return { ok: true, message: data.message ?? "Izohingiz yuborildi", comment: data.comment as Comment | undefined };
   } catch {
     return { ok: false, message: "Izohni yuborib bo'lmadi" };
   }
@@ -172,6 +185,17 @@ export async function submitArticleReport(
     return { ok: res.ok, message: data.message ?? (res.ok ? "Xabaringiz yuborildi" : "Xabar yuborilmadi") };
   } catch {
     return { ok: false, message: "Xabar yuborilmadi" };
+  }
+}
+
+export async function getActiveAdvertisement(placement: Advertisement["placement"], device: "mobile" | "desktop") {
+  try {
+    const query = new URLSearchParams({ placement, device });
+    const res = await fetch(`${API_URL}/advertisements?${query}`, { next: { revalidate: 15 }, signal: timeoutSignal() });
+    if (!res.ok) return null;
+    return ((await res.json()) as { item: Advertisement | null }).item;
+  } catch {
+    return null;
   }
 }
 

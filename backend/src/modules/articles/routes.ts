@@ -401,8 +401,8 @@ articleRouter.post("/articles/:id/view", viewRateLimit, async (req, res) => {
   res.json({ viewsCount: result.viewsCount });
 });
 
-// Public comments -- only APPROVED ones are visible; new submissions land as PENDING and wait
-// for admin moderation via the existing /api/admin/comments panel.
+// Public comments are published immediately. Rate limiting and strict length validation protect
+// the endpoint; admins can still hide or permanently remove abusive comments afterwards.
 const commentCreateSchema = z.object({
   name: z.string().trim().min(2, "Ism kamida 2 ta belgidan iborat bo'lsin").max(60),
   body: z.string().trim().min(3, "Izoh kamida 3 ta belgidan iborat bo'lsin").max(1000)
@@ -450,9 +450,12 @@ articleRouter.post("/articles/:id/comments", commentRateLimit, async (req, res) 
   if (!article || article.deletedAt || article.status !== "PUBLISHED") return res.status(404).json({ message: "Maqola topilmadi" });
 
   const comment = await prisma.comment.create({
-    data: { articleId: article.id, name: data.name, body: data.body, status: "PENDING" }
+    data: { articleId: article.id, name: data.name, body: data.body, status: "APPROVED" }
   });
-  res.status(201).json({ id: comment.id, message: "Izohingiz yuborildi, moderatsiyadan so'ng ko'rinadi" });
+  res.status(201).json({
+    comment: { id: comment.id, name: comment.name, body: comment.body, createdAt: comment.createdAt },
+    message: "Izohingiz saqlandi"
+  });
 });
 
 articleRouter.post("/articles/:id/reports", reportRateLimit, async (req, res) => {
@@ -544,6 +547,14 @@ articleRouter.patch("/admin/article-reports/:id/status", requireAuth, permit("co
   const report = await prisma.articleReport.update({ where: { id: req.params.id }, data: { status } });
   await audit(req, "ARTICLE_REPORT_STATUS", "ArticleReport", report.id, { status });
   res.json(report);
+});
+
+articleRouter.post("/admin/article-reports/bulk-status", requireAuth, permit("comments.manage"), async (req, res) => {
+  const { ids } = idsSchema.parse(req.body);
+  const { status } = z.object({ status: z.nativeEnum(ArticleReportStatus) }).parse(req.body);
+  const result = await prisma.articleReport.updateMany({ where: { id: { in: ids } }, data: { status } });
+  await audit(req, "ARTICLE_REPORT_BULK_STATUS", "ArticleReport", undefined, { ids, status, count: result.count });
+  res.json({ ok: true, count: result.count });
 });
 
 articleRouter.get("/admin/articles", requireAuth, permit("articles.read"), async (req, res) => {
@@ -788,6 +799,24 @@ articleRouter.post("/admin/articles/bulk-restore", requireAuth, permit("articles
   const { ids } = idsSchema.parse(req.body);
   const result = await prisma.article.updateMany({ where: { id: { in: ids }, deletedAt: { not: null } }, data: { deletedAt: null } });
   await audit(req, "ARTICLE_BULK_RESTORE", "Article", undefined, { ids, count: result.count });
+  res.json({ ok: true, count: result.count });
+});
+
+articleRouter.post("/admin/articles/bulk-delete", requireAuth, permit("articles.delete"), async (req, res) => {
+  const { ids } = idsSchema.parse(req.body);
+  const rows = await prisma.article.findMany({
+    where: { id: { in: ids }, deletedAt: { not: null } },
+    select: { id: true, title: true }
+  });
+  const deletableIds = rows.map((item) => item.id);
+  const result = deletableIds.length
+    ? await prisma.article.deleteMany({ where: { id: { in: deletableIds }, deletedAt: { not: null } } })
+    : { count: 0 };
+  await audit(req, "ARTICLE_BULK_PERMANENT_DELETE", "Article", undefined, {
+    ids: deletableIds,
+    titles: rows.map((item) => item.title),
+    count: result.count
+  });
   res.json({ ok: true, count: result.count });
 });
 

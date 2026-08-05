@@ -518,7 +518,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-[100svh] overflow-x-clip overscroll-x-none bg-slate-100 text-ink lg:flex">
-      <aside className="hidden w-72 shrink-0 bg-ink p-6 text-white lg:block lg:min-h-screen">
+      <aside className="hidden w-72 shrink-0 bg-ink p-6 text-white lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
           <div className="flex items-center gap-1">

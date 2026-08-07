@@ -10,3 +10,8 @@ class ArticleCreate(StatesGroup):
     status = State()
     visibility = State()
     preview = State()
+
+
+class UserInquiry(StatesGroup):
+    phone = State()
+    message = State()

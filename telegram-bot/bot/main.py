@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import re
 from collections import defaultdict
 from io import BytesIO
 from typing import Any
@@ -15,7 +16,7 @@ from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from .ai_classifier import classify_article
 from .api import BackendApi
@@ -46,9 +47,12 @@ from .keyboards import (
     confirm_reply_keyboard,
     reply_menu,
     status_reply_keyboard,
+    VISITOR_CANCEL,
     visibility_reply_keyboard,
+    visitor_message_keyboard,
+    visitor_phone_keyboard,
 )
-from .states import ArticleCreate
+from .states import ArticleCreate, UserInquiry
 
 settings = load_settings()
 api = BackendApi(settings.api_base, settings.service_secret)
@@ -58,6 +62,7 @@ forward_semaphore = asyncio.Semaphore(settings.forward_concurrency)
 media_group_buffers: dict[str, list[Message]] = defaultdict(list)
 media_group_tasks: dict[str, asyncio.Task] = {}
 media_group_lock = asyncio.Lock()
+phone_pattern = re.compile(r"^[0-9+()\\-\\s]{7,32}$")
 
 
 def allowed(user_id: int) -> bool:
@@ -165,7 +170,15 @@ async def upload_forward_media_many(messages: list[Message], bot: Bot) -> dict[s
 @router.message(CommandStart())
 async def start(message: Message, state: FSMContext):
     await state.clear()
-    if not await guard_message(message):
+    if not message.from_user:
+        return
+    if not allowed(message.from_user.id):
+        await state.set_state(UserInquiry.phone)
+        await message.answer(
+            "Assalomu alaykum. Bu bot tahririyat bilan bog'lanish uchun ishlaydi. "
+            "Sizda admin huquqi yo'q. Admin siz bilan bog'lanishi uchun telefon raqamingizni yuboring.",
+            reply_markup=visitor_phone_keyboard(),
+        )
         return
     try:
         user = await api.login_telegram(message.from_user.id)
@@ -173,6 +186,82 @@ async def start(message: Message, state: FSMContext):
         await message.answer(str(exc))
         return
     await show_main_menu(message, f"Assalomu alaykum, {html.escape(user['user']['name'])}. Admin menyu:")
+
+
+def valid_phone(value: str) -> bool:
+    return bool(phone_pattern.fullmatch(value.strip())) and 7 <= len(re.sub(r"\D", "", value)) <= 15
+
+
+async def request_inquiry_message(message: Message, state: FSMContext, phone: str) -> None:
+    await state.update_data(phone=phone.strip())
+    await state.set_state(UserInquiry.message)
+    await message.answer(
+        "Rahmat. Endi murojaatingizni qisqacha yozing. Tahririyat siz bilan ko'rsatilgan raqam orqali bog'lanadi.",
+        reply_markup=visitor_message_keyboard(),
+    )
+
+
+@router.message(UserInquiry.phone, F.contact)
+async def visitor_contact_phone(message: Message, state: FSMContext) -> None:
+    if not message.contact or not valid_phone(message.contact.phone_number):
+        await message.answer("Telefon raqamini qayta yuboring.", reply_markup=visitor_phone_keyboard())
+        return
+    await request_inquiry_message(message, state, message.contact.phone_number)
+
+
+@router.message(UserInquiry.phone, F.text)
+async def visitor_text_phone(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+    if text == VISITOR_CANCEL:
+        await state.clear()
+        await message.answer("Murojaat bekor qilindi.", reply_markup=ReplyKeyboardRemove())
+        return
+    if not valid_phone(text):
+        await message.answer("Telefon raqamingizni yuboring yoki pastdagi tugmadan foydalaning.", reply_markup=visitor_phone_keyboard())
+        return
+    await request_inquiry_message(message, state, text)
+
+
+@router.message(UserInquiry.message, F.text)
+async def visitor_inquiry(message: Message, state: FSMContext, bot: Bot) -> None:
+    text = (message.text or "").strip()
+    if text == VISITOR_CANCEL:
+        await state.clear()
+        await message.answer("Murojaat bekor qilindi.", reply_markup=ReplyKeyboardRemove())
+        return
+    if len(text) < 5:
+        await message.answer("Murojaat kamida 5 belgidan iborat bo'lsin.", reply_markup=visitor_message_keyboard())
+        return
+    data = await state.get_data()
+    phone = str(data.get("phone", "-"))
+    sender = message.from_user
+    if not sender:
+        return
+    username = f"@{sender.username}" if sender.username else "yo'q"
+    admin_text = (
+        "<b>Yangi foydalanuvchi murojaati</b>\n\n"
+        f"<b>Ism:</b> {html.escape(sender.full_name)}\n"
+        f"<b>Username:</b> {html.escape(username)}\n"
+        f"<b>Telegram ID:</b> <code>{sender.id}</code>\n"
+        f"<b>Telefon:</b> <code>{html.escape(phone)}</code>\n\n"
+        f"<b>Murojaat:</b>\n{html.escape(text)}"
+    )
+    delivered = 0
+    for admin_id in settings.admin_ids:
+        try:
+            await bot.send_message(admin_id, admin_text)
+            delivered += 1
+        except TelegramRetryAfter as exc:
+            await asyncio.sleep(exc.retry_after)
+            await bot.send_message(admin_id, admin_text)
+            delivered += 1
+        except Exception:
+            logger.exception("Foydalanuvchi murojaati admin %s ga yuborilmadi", admin_id)
+    await state.clear()
+    if delivered:
+        await message.answer("Murojaatingiz tahririyatga yuborildi. Tez orada siz bilan bog'lanamiz.", reply_markup=ReplyKeyboardRemove())
+    else:
+        await message.answer("Murojaatni yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.", reply_markup=ReplyKeyboardRemove())
 
 
 @router.message(F.text.in_({MENU_BACK, MENU_CANCEL}))

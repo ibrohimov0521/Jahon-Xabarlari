@@ -14,6 +14,8 @@ MENU_BACK = "↩️ Menyu"
 MENU_CANCEL = "✖️ Bekor qilish"
 MENU_CONTINUE = "➡️ Davom etish"
 
+VISITOR_CANCEL = "Bekor qilish"
+
 STATUS_LABELS = {
     "Draft": "DRAFT",
     "Review": "REVIEW",
@@ -41,6 +43,25 @@ def reply_menu() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         is_persistent=True,
         input_field_placeholder="Yangilik qo'shish, o'chirish yoki statistika",
+    )
+
+
+def visitor_phone_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Telefon raqamimni yuborish", request_contact=True)],
+            [KeyboardButton(text=VISITOR_CANCEL)],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Telefon raqamingizni yuboring",
+    )
+
+
+def visitor_message_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=VISITOR_CANCEL)]],
+        resize_keyboard=True,
+        input_field_placeholder="Murojaatingizni yozing",
     )
 
 

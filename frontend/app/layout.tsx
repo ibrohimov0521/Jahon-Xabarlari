@@ -18,13 +18,13 @@ import "./globals.css";
 const localizedSeo = {
   uz: { title: SITE_TITLE, description: SITE_DESCRIPTION, locale: "uz_UZ" },
   ru: {
-    title: "Jahon Xabarlari — новости Узбекистана и мира",
-    description: "Последние новости Узбекистана и мира: политика, экономика, технологии, спорт и культура.",
+    title: "BEST TEAM NEWS — новости Узбекистана и мира",
+    description: "BEST TEAM NEWS: последние новости Узбекистана и мира, политика, экономика, технологии, спорт и культура.",
     locale: "ru_RU"
   },
   en: {
-    title: "Jahon Xabarlari — Uzbekistan and World News",
-    description: "Latest news from Uzbekistan and around the world, including politics, business, technology, sport and culture.",
+    title: "BEST TEAM NEWS — Uzbekistan and World News",
+    description: "BEST TEAM NEWS brings the latest news from Uzbekistan and around the world, including politics, business, technology, sport and culture.",
     locale: "en_US"
   }
 } as const;
@@ -81,8 +81,6 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: "@jahonxabarlari",
-      creator: "@jahonxabarlari",
       title: seo.title,
       description: seo.description,
       images: [SITE_OG_IMAGE]
@@ -123,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               "@id": `${SITE_URL}/#organization`,
               name: SITE_NAME,
               legalName: SITE_FULL_NAME,
-              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari"],
+              alternateName: [SITE_ALTERNATE_NAME, "BT News"],
               url: `${SITE_URL}/`,
               logo: {
                 "@type": "ImageObject",
@@ -144,7 +142,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               "@type": "WebSite",
               "@id": `${SITE_URL}/#website`,
               name: SITE_NAME,
-              alternateName: [SITE_ALTERNATE_NAME, "JahonXabarlari"],
+              alternateName: [SITE_ALTERNATE_NAME, "BT News"],
               url: `${SITE_URL}/`,
               inLanguage: lang,
               publisher: { "@id": `${SITE_URL}/#organization` },

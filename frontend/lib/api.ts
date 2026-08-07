@@ -83,7 +83,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
         ...article,
         title: "The future of planet Earth: scientists issue an important warning",
         summary: "Climate change, technological progress and human activity are shaping our planet's future.",
-        content: "The Jahon Xabarlari editorial team covers the world's most important events quickly and impartially.",
+        content: "The BEST TEAM NEWS editorial team covers the world's most important events quickly and impartially.",
         contentLanguage: "en",
         availableLanguages: ["uz", "ru", "en"]
       };
@@ -93,7 +93,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
         ...article,
         title: "Будущее планеты Земля: ученые сделали важное предупреждение",
         summary: "Изменение климата, технологический прогресс и деятельность человека формируют будущее планеты.",
-        content: "Редакция Jahon Xabarlari оперативно и объективно освещает важнейшие события мира.",
+        content: "Редакция BEST TEAM NEWS оперативно и объективно освещает важнейшие события мира.",
         contentLanguage: "ru",
         availableLanguages: ["uz", "ru", "en"]
       };
@@ -249,7 +249,7 @@ export const demoArticles: Article[] = [
     title: "Yer sayyorasining kelajagi: olimlar muhim ogohlantirish berdi",
     slug: "yer-sayyorasining-kelajagi",
     summary: "Iqlim o'zgarishi, texnologik taraqqiyot va inson omili sayyoramiz kelajagiga ta'sir ko'rsatmoqda.",
-    content: "Jahon Xabarlari tahririyati dunyodagi eng muhim voqealarni tezkor va xolis yoritadi.",
+    content: "BEST TEAM NEWS tahririyati dunyodagi eng muhim voqealarni tezkor va xolis yoritadi.",
     mainImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=90",
     viewsCount: 12500,
     category: { name: "Dunyo", slug: "dunyo" }

@@ -1,4 +1,4 @@
-# Jahon Xabarlari
+# BEST TEAM NEWS
 
 Professional yangiliklar portali: Next.js frontend, Express/Prisma backend, PostgreSQL, Redis, admin panel va Telegram Admin Bot.
 

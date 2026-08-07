@@ -79,7 +79,7 @@ app.get("/api/health", async (_req, res) => {
     database: database.status === "fulfilled" ? "up" : "down",
     redis: redis.status === "fulfilled" ? "up" : "down",
     uptimeSeconds: Math.round(process.uptime()),
-    name: "Jahon Xabarlari API"
+    name: "BEST TEAM NEWS API"
   });
 });
 app.use("/api/auth", authRouter);
@@ -127,7 +127,7 @@ app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
 });
 
 const server = app.listen(apiPort, () => {
-  console.log(`Jahon Xabarlari API http://localhost:${apiPort}`);
+  console.log(`BEST TEAM NEWS API http://localhost:${apiPort}`);
 });
 
 const scheduledPublisher = setInterval(() => publishScheduledArticles().catch((error) => console.error("[scheduler] failed:", error)), 60_000);

@@ -3,8 +3,8 @@ import test from "node:test";
 import { assertPublicUrl, readTextResponse } from "./net-guard.js";
 
 test("readTextResponse returns a response within the byte limit", async () => {
-  const response = new Response("Jahon Xabarlari");
-  assert.equal(await readTextResponse(response, 100), "Jahon Xabarlari");
+  const response = new Response("BEST TEAM NEWS");
+  assert.equal(await readTextResponse(response, 100), "BEST TEAM NEWS");
 });
 
 test("readTextResponse rejects declared and streamed oversized bodies", async () => {

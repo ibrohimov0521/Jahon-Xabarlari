@@ -1,4 +1,4 @@
-import { ArrowRight, TrendingUp } from "lucide-react";
+import { ArrowRight, Star, TrendingUp, Zap } from "lucide-react";
 import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { Header } from "../components/Header";
@@ -31,7 +31,9 @@ const homeCopy = {
     moreNews: "Ko'proq yangiliklar",
     filter: "Saralash",
     popular: "Eng ko'p o'qilganlar",
-    noPopular: "Oxirgi 4 kunda ko'p o'qilganlar hali yo'q."
+    noPopular: "Oxirgi 4 kunda ko'p o'qilganlar hali yo'q.",
+    breaking: "Tezkor xabarlar",
+    featured: "Tanlangan xabarlar"
   },
   ru: {
     categories: { all: "Все", ozbekiston: "Узбекистан", dunyo: "Мир", siyosat: "Политика", iqtisodiyot: "Экономика", texnologiya: "Технологии", sport: "Спорт", madaniyat: "Культура" },
@@ -50,7 +52,9 @@ const homeCopy = {
     moreNews: "Больше новостей",
     filter: "Фильтр",
     popular: "Самые читаемые",
-    noPopular: "За последние 4 дня популярных новостей пока нет."
+    noPopular: "За последние 4 дня популярных новостей пока нет.",
+    breaking: "Срочные новости",
+    featured: "Избранные новости"
   },
   en: {
     categories: { all: "All", ozbekiston: "Uzbekistan", dunyo: "World", siyosat: "Politics", iqtisodiyot: "Business", texnologiya: "Technology", sport: "Sport", madaniyat: "Culture" },
@@ -69,7 +73,9 @@ const homeCopy = {
     moreNews: "More news",
     filter: "Filter",
     popular: "Most read",
-    noPopular: "There are no popular stories from the last 4 days yet."
+    noPopular: "There are no popular stories from the last 4 days yet.",
+    breaking: "Breaking news",
+    featured: "Featured stories"
   }
 } as const;
 
@@ -113,6 +119,8 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
     sliderArticles,
     sidebarArticles,
     editorArticles,
+    breakingArticles,
+    featuredArticles,
     homeBannerDesktop,
     homeBannerMobile,
     homeFeedDesktop,
@@ -125,6 +133,8 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
     getArticles("?limit=5&home=true&slider=true", lang),
     getArticles("?limit=3&home=true&sidebar=true", lang),
     getArticles("?limit=5&home=true&editorChoice=true", lang),
+    getArticles("?limit=4&home=true&breaking=true", lang),
+    getArticles("?limit=3&home=true&featured=true", lang),
     getActiveAdvertisement("HOME_BANNER", "desktop"),
     getActiveAdvertisement("HOME_BANNER", "mobile"),
     getActiveAdvertisement("HOME_FEED", "desktop"),
@@ -163,6 +173,8 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
 
   const trendingItems = trending;
   const popularItems = popular;
+  const breakingItems = breakingArticles.filter((item) => item.id !== hero?.id);
+  const featuredItems = featuredArticles.filter((item) => item.id !== hero?.id);
   const sectionGroups = categorySections
     .map((section) => ({
       ...section,
@@ -190,6 +202,27 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
   return (
     <main>
       <Header />
+      {breakingItems.length > 0 && (
+        <section className="container-page py-3">
+          <div className="flex items-stretch overflow-hidden rounded-lg border border-red-400/30 bg-red-950/55 shadow-lg">
+            <div className="flex shrink-0 items-center gap-2 bg-red-600 px-4 text-[12px] font-black uppercase tracking-wide text-white">
+              <Zap size={15} fill="currentColor" />
+              {copy.breaking}
+            </div>
+            <div className="flex min-w-0 items-center overflow-x-auto">
+              {breakingItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={localizedHref(`/articles/${item.slug}`, lang)}
+                  className="shrink-0 border-r border-white/15 px-4 py-3 text-[14px] font-bold text-white transition hover:bg-white/10 hover:text-cyan-100"
+                >
+                  {item.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       <section className="home-lead-grid container-page grid gap-4 py-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)] lg:gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.95fr)_minmax(300px,0.9fr)]">
         <Link href={localizedHref(`/articles/${hero.slug}`, lang)} className="home-hero relative block h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow sm:h-[506px]">
           <MediaView
@@ -313,6 +346,30 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
       </section>
 
       <AdPlacement desktop={homeBannerDesktop} mobile={homeBannerMobile} className="container-page pb-5" />
+
+      {featuredItems.length > 0 && (
+        <section className="container-page pb-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Star className="text-amber-400" size={19} fill="currentColor" />
+            <h2 className="text-[22px] font-black text-white">{copy.featured}</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredItems.map((item) => (
+              <Link
+                key={item.id}
+                href={localizedHref(`/articles/${item.slug}`, lang)}
+                className="group grid grid-cols-[104px_1fr] gap-3 overflow-hidden rounded-lg border border-amber-300/25 bg-slate-950/75 p-3 shadow-lg transition hover:-translate-y-0.5 hover:border-amber-300/60"
+              >
+                <MediaView src={item.mainImage} alt={item.title} className="h-[82px] w-[104px] rounded-md object-cover" sizes="104px" optimizedWidth={384} />
+                <span className="min-w-0 py-1">
+                  <span className="text-[11px] font-black uppercase text-amber-300">{categoryName(item.category)}</span>
+                  <span className="mt-1 block line-clamp-3 text-[14px] font-black leading-snug text-white group-hover:text-amber-100">{item.title}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="home-content-grid container-page grid gap-4 pb-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-5 xl:grid-cols-[minmax(0,1fr)_354px]">
         <div className="grid gap-4 lg:gap-6">

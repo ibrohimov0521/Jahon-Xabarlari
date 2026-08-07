@@ -24,7 +24,7 @@ export default function AdsPage() {
       <section className="container-page py-10 text-white sm:py-14">
         <div className="mx-auto max-w-4xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-2 text-xs font-black uppercase text-cyan-300"><ShieldCheck size={15} /> Shaffof hamkorlik</span>
-          <h1 className="mt-5 text-3xl font-black text-white sm:text-5xl">Jahon Xabarlarida reklama</h1>
+          <h1 className="mt-5 text-3xl font-black text-white sm:text-5xl">BEST TEAM NEWS'da reklama</h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">Brendingizni o'quvchiga xalaqit bermaydigan, tahririy kontentdan aniq ajratilgan premium joylashuvlarda ko'rsating.</p>
         </div>
         <div className="mx-auto mt-9 grid max-w-5xl gap-4 sm:grid-cols-2">

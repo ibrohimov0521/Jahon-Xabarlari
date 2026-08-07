@@ -181,10 +181,10 @@ export function Header() {
         <div className="desktop-header-row container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
           <Link href={localizedHref("/", language)} className="desktop-brand flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>
             <Image
-              src="/brand/logo-jx.png"
+              src={SITE_LOGO}
               alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}
-              width={398}
-              height={234}
+              width={512}
+              height={512}
               priority
               className="h-14 w-auto object-contain"
             />

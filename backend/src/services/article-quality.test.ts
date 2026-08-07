@@ -7,7 +7,7 @@ const goodContent = [
   "Mas'ullar loyiha aholiga qulaylik yaratishi hamda xizmat sifatini oshirishini bildirdi.",
   "Dastlabki ishlar shu oyda boshlanadi va bajarilish jarayoni ochiq ma'lumotlar orqali kuzatib boriladi.",
   "Mutaxassislar yakuniy natijalar bo'yicha qo'shimcha hisobot taqdim etilishini qayd etdi.",
-  "Jahon Xabarlari mavzu yuzasidan yangi tafsilotlarni kuzatishda davom etadi."
+  "BEST TEAM NEWS mavzu yuzasidan yangi tafsilotlarni kuzatishda davom etadi."
 ].join(" ");
 
 test("high-quality Latin Uzbek article can be published", () => {

@@ -56,7 +56,7 @@ export function verifyTotp(secret: string, code: string, timestamp = Date.now(),
   return false;
 }
 
-export function totpUri(secret: string, account: string, issuer = "Jahon Xabarlari") {
+export function totpUri(secret: string, account: string, issuer = "BEST TEAM NEWS") {
   const label = `${issuer}:${account}`;
   const query = new URLSearchParams({ secret, issuer, algorithm: "SHA1", digits: "6", period: "30" });
   return `otpauth://totp/${encodeURIComponent(label)}?${query.toString()}`;

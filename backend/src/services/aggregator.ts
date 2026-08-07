@@ -204,7 +204,7 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
     // parser.parseURL, which would fetch the editor-supplied URL directly with no host checks.
     const response = await safeFetch(source.feedUrl, {
       signal: controller.signal,
-      headers: { "user-agent": "JahonXabarlariBot/1.0 (+https://jahonxabarlari.uz)" }
+      headers: { "user-agent": "BESTTeamNewsBot/1.0 (+https://jahonxabarlari.uz)" }
     });
     if (!response.ok) return [];
     const feed = await parser.parseString(await readTextResponse(response, 2_000_000));
@@ -274,7 +274,7 @@ async function processItem(
       {
         role: "system",
         content:
-          "You are a news editor for an Uzbek news portal called Jahon Xabarlari. Given a news item's title and " +
+          "You are a news editor for an Uzbek news portal called BEST TEAM NEWS. Given a news item's title and " +
           "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief in LATIN SCRIPT. " +
           "Use 5-8 complete sentences, preserve every name, number and attribution from the source, and never invent " +
           "a fact that is not present in the supplied text. Choose exactly one category and 2-6 concise Uzbek tags. " +

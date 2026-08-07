@@ -3,7 +3,7 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { title: "Jahon Xabarlari", body: event.data ? event.data.text() : "Yangi muhim xabar" };
+    payload = { title: "BEST TEAM NEWS", body: event.data ? event.data.text() : "Yangi muhim xabar" };
   }
 
   const options = {
@@ -11,14 +11,14 @@ self.addEventListener("push", (event) => {
     icon: payload.icon || "/logo.png",
     badge: payload.badge || "/favicon-96x96.png",
     image: payload.image,
-    tag: payload.tag || "jx-news",
+    tag: payload.tag || "best-team-news",
     renotify: Boolean(payload.renotify),
     requireInteraction: Boolean(payload.requireInteraction),
     data: payload.data || { url: "/" },
     actions: Array.isArray(payload.actions) ? payload.actions : []
   };
 
-  event.waitUntil(self.registration.showNotification(payload.title || "Jahon Xabarlari", options));
+  event.waitUntil(self.registration.showNotification(payload.title || "BEST TEAM NEWS", options));
 });
 
 self.addEventListener("notificationclick", (event) => {

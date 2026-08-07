@@ -13,11 +13,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#07101f",
     theme_color: "#07132f",
     icons: [
-      { src: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
-      { src: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { src: SITE_ICON_192, sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: SITE_ICON_512, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: SITE_ICON_512, sizes: "512x512", type: "image/png", purpose: "maskable" }
+      { src: "/favicon-48x48.png?v=best-team-20260807", sizes: "48x48", type: "image/png" },
+      { src: "/favicon-96x96.png?v=best-team-20260807", sizes: "96x96", type: "image/png" },
+      { src: `${SITE_ICON_192}?v=best-team-20260807`, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: `${SITE_ICON_512}?v=best-team-20260807`, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: `${SITE_ICON_512}?v=best-team-20260807`, sizes: "512x512", type: "image/png", purpose: "maskable" }
     ]
   };
 }

@@ -36,7 +36,8 @@ const schema = z.object({
   // Channel delivery is deliberately separate from the admin bot settings. The same Telegram
   // token can be used, but keeping the variable explicit prevents accidental channel posting.
   TELEGRAM_CHANNEL_BOT_TOKEN: z.string().min(20).optional(),
-  TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID: z.string().regex(/^\d{5,}$/).optional(),
+  // A malformed optional visual setting must never prevent the newsroom backend from starting.
+  TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID: z.string().trim().optional(),
   TELEGRAM_NEWS_CHANNEL: z
     .string()
     .trim()

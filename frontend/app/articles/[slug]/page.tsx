@@ -13,6 +13,7 @@ import { getActiveAdvertisement, getArticle, getArticleContext, getComments } fr
 import { formatArticleDateTime, formatViews } from "../../../lib/format";
 import { serializeJsonLd } from "../../../lib/json-ld";
 import { getRequestLang } from "../../../lib/server-lang";
+import { displayArticleTitle, withoutRepeatedArticleHeading } from "../../../lib/article-content";
 import { SITE_LOGO_SQUARE, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "../../../lib/site";
 import { localizedHref } from "../../../lib/localized-href";
 
@@ -72,7 +73,8 @@ export async function generateMetadata({ params, searchParams }: ArticlePageProp
   const article = await getArticle(slug, canonicalLang);
   if (!article) return {};
   const contentLang = article.contentLanguage ?? canonicalLang;
-  const title = article.seoTitle || article.title;
+  const displayedTitle = displayArticleTitle(article.title, article.content);
+  const title = article.seoTitle && article.seoTitle !== article.title ? article.seoTitle : displayedTitle;
   const description = article.seoDescription || article.shortDescription || article.summary;
   const url = localizedArticleUrl(article.slug, contentLang);
   const baseUrl = `${SITE_URL}/articles/${article.slug}`;
@@ -119,6 +121,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   const categoryName = lang === "uz" ? article.category?.name : articleCategoryLabels[lang][article.category?.slug ?? ""] ?? article.category?.name;
   const articleUrl = localizedArticleUrl(article.slug, contentLang);
   const articleDescription = article.shortDescription || article.summary;
+  const displayedTitle = displayArticleTitle(article.title, article.content);
+  const articleBody = withoutRepeatedArticleHeading(article.content, displayedTitle);
   const images = [article.mainImage, ...(article.gallery ?? [])].filter(Boolean) as string[];
   const [comments, context, inlineDesktopAd, inlineMobileAd, bottomDesktopAd, bottomMobileAd] = await Promise.all([
     getComments(article.id),
@@ -128,7 +132,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
     getActiveAdvertisement("ARTICLE_BOTTOM", "desktop"),
     getActiveAdvertisement("ARTICLE_BOTTOM", "mobile")
   ]);
-  const readTime = readingMinutes(article.content);
+  const readTime = readingMinutes(articleBody);
   const tags = article.tags?.map((item) => item.tag) ?? [];
   const sourceUrl = parseExternalHttpUrl(article.sourceUrl);
 
@@ -142,7 +146,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           __html: serializeJsonLd({
             "@context": "https://schema.org",
             "@type": "NewsArticle",
-            headline: article.title,
+            headline: displayedTitle,
             description: articleDescription,
             image: images.length ? images : undefined,
             datePublished: article.publishedAt,
@@ -168,15 +172,14 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             <span className="article-category-badge">{categoryName}</span>
             {tags.slice(0, 4).map((tag) => <span className="article-tag" key={tag.slug}>#{tag.name}</span>)}
           </div>
-          <h1 className="article-title mt-4 text-[27px] font-black leading-tight sm:text-4xl lg:text-[44px]">{article.title}</h1>
-          <p className="article-summary mt-4 text-base leading-7 sm:text-lg">{articleDescription}</p>
+          <h1 className="article-title mt-4 text-[27px] font-black leading-tight sm:text-4xl lg:text-[44px]">{displayedTitle}</h1>
           <div className="article-trust-row mt-5">
             <span><UserRound size={15} /> {article.author?.name || `${SITE_NAME} ${copy.editorial}`}</span>
             <span><Clock3 size={15} /> {formatArticleDateTime(article.publishedAt, lang)}</span>
             <span><Eye size={15} /> {formatViews(article.viewsCount, lang)}</span>
             <span>{readTime} {copy.read}</span>
           </div>
-          <ArticleActions articleId={article.id} title={article.title} url={articleUrl} />
+          <ArticleActions articleId={article.id} title={displayedTitle} url={articleUrl} />
         </header>
 
         {article.mainImage && (
@@ -195,7 +198,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         )}
 
         <div className="article-body mt-6 rounded-lg border border-slate-200 bg-white p-5 news-shadow sm:p-8">
-          <div className="article-copy whitespace-pre-line">{article.content}</div>
+          <div className="article-copy whitespace-pre-line">{articleBody}</div>
           {(article.sourceName || sourceUrl) && (
             <div className="article-source mt-8">
               <span>{copy.source}</span>

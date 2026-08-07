@@ -12,11 +12,20 @@ class ForwardCleanerTests(unittest.TestCase):
         )
         self.assertEqual(cleaned, "Toshkentda yangi metro bekati ochildi.")
 
-    def test_prepares_bounded_title_and_summary(self):
+    def test_prepares_complete_bounded_title_and_summary(self):
         post = prepare_forward_post("Muhim yangilik. " + "Tafsilot " * 40)
-        self.assertLessEqual(len(post["title"]), 95)
+        self.assertLessEqual(len(post["title"]), 220)
+        self.assertFalse(post["title"].endswith("..."))
         self.assertLessEqual(len(post["summary"]), 180)
         self.assertTrue(post["content"].startswith("Muhim yangilik"))
+
+    def test_uses_first_paragraph_as_a_complete_forwarded_headline(self):
+        post = prepare_forward_post(
+            "Yaxshi yangilik: harbiy pensionarlar 100% gacha oshiriladi\n\n"
+            "Senat qonunni ma'qulladi. O'zgarishlar keyinroq kuchga kiradi."
+        )
+        self.assertEqual(post["title"], "Yaxshi yangilik: harbiy pensionarlar 100% gacha oshiriladi")
+        self.assertNotIn(post["title"], post["summary"])
 
     def test_transliterates_uzbek_cyrillic_without_losing_meaning(self):
         self.assertEqual(transliterate_cyrillic("Ўзбекистонда янги лойиҳа"), "O'zbekistonda yangi loyiha")

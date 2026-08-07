@@ -3,6 +3,7 @@
 import { ArrowRight, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatArticleDateTime, formatViews } from "../lib/format";
+import { displayArticleTitle, withoutRepeatedArticleHeading } from "../lib/article-content";
 import type { Article } from "../lib/api";
 import { API_URL } from "../lib/config";
 import { useUi } from "../lib/ui-context";
@@ -145,9 +146,8 @@ export function ArticleModal() {
               <p className="mt-5 text-sm font-bold text-slate-500">
                 {formatArticleDateTime(article.publishedAt, language)} · {formatViews(article.viewsCount, language)}
               </p>
-              <h1 id="article-modal-title" className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{article.title}</h1>
-              <p className="mt-4 text-lg font-semibold leading-8 text-slate-600">{article.shortDescription || article.summary}</p>
-              <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{article.content}</div>
+              <h1 id="article-modal-title" className="mt-3 text-3xl font-black leading-tight text-ink sm:text-4xl">{displayArticleTitle(article.title, article.content)}</h1>
+              <div className="mt-6 whitespace-pre-line text-[17px] font-medium leading-8 text-ink">{withoutRepeatedArticleHeading(article.content, displayArticleTitle(article.title, article.content))}</div>
               <CommentSection key={article.id} articleId={article.id} initialComments={[]} />
               <a
                 data-full-page="true"

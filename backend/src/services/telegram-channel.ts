@@ -64,11 +64,38 @@ function toExternalUrl(value: string) {
 }
 
 function stripRepeatedHeadline(body: string, headline: string) {
-  const normalizedBody = body.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  const normalizedHeadline = headline.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  if (!normalizedHeadline || !normalizedBody.startsWith(normalizedHeadline)) return body;
-  const firstSentence = body.search(/[.!?]\s|\n/);
-  return firstSentence >= 0 ? body.slice(firstSentence + 1).trim() : "";
+  const text = body.trim();
+  const paragraphEnd = text.search(/\n\s*\n/);
+  if (paragraphEnd < 0) return text;
+
+  const normalize = (value: string) => value
+    .replace(/^\s*(?:[#\p{Extended_Pictographic}\p{P}\p{S}]+\s*)+/gu, "")
+    .toLocaleLowerCase("uz")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  const firstParagraph = normalize(text.slice(0, paragraphEnd));
+  const normalizedHeadline = normalize(headline.replace(/(?:\.\.\.|\u2026)\s*$/, ""));
+  if (!firstParagraph || !normalizedHeadline) return text;
+
+  const repeated =
+    firstParagraph === normalizedHeadline ||
+    firstParagraph.startsWith(normalizedHeadline) ||
+    normalizedHeadline.startsWith(firstParagraph);
+  return repeated ? text.slice(paragraphEnd).trim() : text;
+}
+
+function completeArticleHeadline(title: string, content: string) {
+  if (!/(?:\.\.\.|\u2026)\s*$/.test(title)) return title;
+  const firstParagraph = cleanTelegramText(content).split(/\n\s*\n/, 1)[0]?.trim() ?? "";
+  if (!firstParagraph || firstParagraph.length > 220) return title;
+  const normalize = (value: string) => value
+    .replace(/^\s*(?:[#\p{Extended_Pictographic}\p{P}\p{S}]+\s*)+/gu, "")
+    .toLocaleLowerCase("uz")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  const current = normalize(title.replace(/(?:\.\.\.|\u2026)\s*$/, ""));
+  const candidate = normalize(firstParagraph);
+  return current && candidate && (candidate.startsWith(current) || current.startsWith(candidate)) ? firstParagraph : title;
 }
 
 function channelHashtag(categorySlug: string, categoryName: string) {
@@ -91,7 +118,7 @@ type ChannelPostParts = {
 // The channel template intentionally has only three content blocks:
 // headline, topic hashtag and the full cleaned article body.
 export function buildTelegramChannelPost(article: Pick<ChannelArticle, "title" | "summary" | "content" | "sourceName" | "category">, useCustomEmoji = true): ChannelPostParts {
-  const title = cleanTelegramText(article.title);
+  const title = completeArticleHeadline(cleanTelegramText(article.title), article.content || article.summary);
   const body = stripRepeatedHeadline(cleanTelegramText(article.content || article.summary), title);
   const source = article.sourceName ? cleanTelegramText(article.sourceName).slice(0, 120) : "";
   return {

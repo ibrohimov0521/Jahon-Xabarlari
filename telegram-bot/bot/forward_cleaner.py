@@ -139,15 +139,22 @@ def make_title(content: str) -> str:
     lower = joined.lower()
     if "jahon chempionati" in lower and len(set(years)) >= 2:
         return f"{' va '.join(dict.fromkeys(years[:2]))}-yilgi Jahon Chempionati mezbonlari ma'lum bo'ldi"
-    first = re.split(r"(?<=[.!?])\s+", joined)[0] if joined else "Yangi xabar"
+    first = lines[0] if lines else (re.split(r"(?<=[.!?])\s+", joined)[0] if joined else "Yangi xabar")
     first = first.strip(" -–—")
-    if len(first) <= 95:
+    if len(first) <= 220:
         return first
-    return first[:92].rstrip() + "..."
+    complete_sentence = next(
+        (sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", joined) if 3 <= len(sentence.strip()) <= 220),
+        "",
+    )
+    if complete_sentence:
+        return complete_sentence
+    return first[:220].rsplit(" ", 1)[0].rstrip() or "Yangi xabar"
 
 
 def make_summary(content: str) -> str:
-    joined = " ".join(line.strip() for line in content.splitlines() if line.strip())
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    joined = " ".join(lines[1:] or lines)
     if len(joined) <= 180:
         return joined
     return joined[:177].rstrip() + "..."

@@ -277,7 +277,8 @@ async function processItem(
         content:
           "You are a news editor for an Uzbek news portal called BEST TEAM NEWS. Given a news item's title and " +
           "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief in LATIN SCRIPT. " +
-          "Use 5-8 complete sentences, preserve every name, number and attribution from the source, and never invent " +
+          "Write a complete, standalone title under 180 characters without an ellipsis. Do not repeat the title in " +
+          "the content. Use 5-8 complete sentences, preserve every name, number and attribution from the source, and never invent " +
           "a fact that is not present in the supplied text. Choose exactly one category and 2-6 concise Uzbek tags. " +
           "Set confidence from 0 to 1 based on whether the supplied source text contains enough facts for a reliable " +
           "brief. Respond ONLY with strict JSON: {\"title\": string, \"content\": string, \"category\": string, " +

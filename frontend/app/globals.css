@@ -114,7 +114,7 @@ body {
   background:
     linear-gradient(rgba(227, 237, 251, 0.08), rgba(227, 237, 251, 0.14)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
-    url("/brand/best-team-background.jpg") center 45% / clamp(480px, 40vw, 680px) auto no-repeat,
+    url("/brand/best-team-background-desktop.png") center / cover no-repeat,
     var(--page-bg);
 }
 
@@ -122,7 +122,7 @@ body {
   background:
     linear-gradient(rgba(7, 16, 31, 0.08), rgba(7, 16, 31, 0.18)),
     radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
-    url("/brand/best-team-background.jpg") center 45% / clamp(480px, 40vw, 680px) auto no-repeat,
+    url("/brand/best-team-background-desktop.png") center / cover no-repeat,
     var(--page-bg);
 }
 
@@ -139,8 +139,19 @@ body > footer {
 
 @media (max-width: 768px) {
   .site-backdrop {
-    background-position: center, center, center 34%;
-    background-size: auto, auto, calc(100vw - 28px) auto, auto;
+    background:
+      linear-gradient(rgba(227, 237, 251, 0.08), rgba(227, 237, 251, 0.14)),
+      radial-gradient(circle at top right, rgba(23, 103, 245, 0.08), transparent 32rem),
+      url("/brand/best-team-background-mobile.png") center / cover no-repeat,
+      var(--page-bg);
+  }
+
+  :root[data-theme="dark"] .site-backdrop {
+    background:
+      linear-gradient(rgba(7, 16, 31, 0.08), rgba(7, 16, 31, 0.18)),
+      radial-gradient(circle at top right, rgba(23, 103, 245, 0.12), transparent 32rem),
+      url("/brand/best-team-background-mobile.png") center / cover no-repeat,
+      var(--page-bg);
   }
 }
 

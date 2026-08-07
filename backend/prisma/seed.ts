@@ -77,12 +77,18 @@ async function main() {
     }
     const existing = existingByEmail ?? existingByTelegram;
     if (existing) {
+      // A rebranded managed account may still be found by Telegram ID. Migrate its
+      // initial credentials once, but never replace a password changed in the panel.
+      const isIdentityMigration = !existingByEmail && Boolean(existingByTelegram);
+      const passwordHash = isIdentityMigration && input.password ? await bcrypt.hash(input.password, 12) : undefined;
       await prisma.user.update({
         where: { id: existing.id },
         data: {
           name: input.name,
+          email: input.email,
           roleId: input.roleId,
-          ...(input.telegramId ? { telegramId: input.telegramId } : {})
+          ...(input.telegramId ? { telegramId: input.telegramId } : {}),
+          ...(passwordHash ? { passwordHash } : {})
         }
       });
       return;

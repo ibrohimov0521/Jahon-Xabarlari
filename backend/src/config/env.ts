@@ -38,6 +38,8 @@ const schema = z.object({
   TELEGRAM_CHANNEL_BOT_TOKEN: z.string().min(20).optional(),
   // A malformed optional visual setting must never prevent the newsroom backend from starting.
   TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID: z.string().trim().optional(),
+  // Telegram requires the original Unicode alternative paired with a custom emoji ID.
+  TELEGRAM_CHANNEL_CUSTOM_EMOJI_ALT: z.string().trim().max(16).optional(),
   TELEGRAM_NEWS_CHANNEL: z
     .string()
     .trim()

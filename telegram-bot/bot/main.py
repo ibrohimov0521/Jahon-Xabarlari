@@ -268,21 +268,32 @@ async def visitor_inquiry(message: Message, state: FSMContext, bot: Bot) -> None
 async def custom_emoji_id(message: Message) -> None:
     if not await guard_message(message):
         return
-    ids = [
-        entity.custom_emoji_id
-        for entity in (message.entities or [])
-        if getattr(entity.type, "value", entity.type) == "custom_emoji" and entity.custom_emoji_id
-    ]
+    sources = (message, message.reply_to_message)
+    ids = []
+    for source in sources:
+        if source is None:
+            continue
+        for entity in (source.entities or source.caption_entities or []):
+            if getattr(entity.type, "value", entity.type) == "custom_emoji" and entity.custom_emoji_id:
+                ids.append(entity.custom_emoji_id)
     if not ids:
         await message.answer(
-            "<code>/emojiid</code> dan keyin maxsus videoemoji yuboring. "
-            "Masalan: <code>/emojiid [emoji]</code>.",
+            "Maxsus emoji bilan bir xabarda <code>/emojiid [emoji]</code> yuboring yoki "
+            "emoji bor xabarga javob qilib <code>/emojiid</code> yozing.",
         )
         return
+    custom_emoji_id = ids[0]
+    fallback_emoji = "\U0001F4F0"
+    try:
+        stickers = await message.bot.get_custom_emoji_stickers(custom_emoji_ids=[custom_emoji_id])
+        fallback_emoji = stickers[0].emoji or fallback_emoji
+    except Exception:
+        logger.exception("Maxsus emoji fallbacki olinmadi")
     await message.answer(
-        "Kanal uchun maxsus emoji ID:\n"
-        f"<code>{html.escape(ids[0])}</code>\n\n"
-        "Bu qiymatni Backend Railway service ichidagi <code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID</code> ga qo'ying.",
+        "Kanal uchun Railway Backend variables:\n\n"
+        f"<code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID={html.escape(custom_emoji_id)}</code>\n"
+        f"<code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ALT={html.escape(fallback_emoji)}</code>\n\n"
+        "Ikkalasini ham Backend service ichiga aynan shu ko'rinishda qo'ying. So'ng backend deployini kuting.",
     )
 
 

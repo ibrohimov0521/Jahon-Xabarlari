@@ -106,7 +106,10 @@ function channelHashtag(categorySlug: string, categoryName: string) {
 
 function headlinePrefix(useCustomEmoji: boolean) {
   const id = env.TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID?.replace(/\D/g, "");
-  return useCustomEmoji && id ? `<tg-emoji emoji-id="${id}">\u{1F4F0}</tg-emoji>` : "\u{1F4F0}";
+  const alt = env.TELEGRAM_CHANNEL_CUSTOM_EMOJI_ALT;
+  return useCustomEmoji && id && alt
+    ? `<tg-emoji emoji-id="${id}">${escapeHtml(alt)}</tg-emoji>`
+    : "\u{1F4F0}";
 }
 
 type ChannelPostParts = {

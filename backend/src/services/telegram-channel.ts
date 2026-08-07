@@ -24,15 +24,15 @@ type ChannelArticle = {
   slug: string;
   title: string;
   summary: string;
-  shortDescription: string | null;
+  content: string;
+  sourceName: string | null;
   mainImage: string | null;
   gallery: string[];
-  sourceName: string | null;
   status: ArticleStatus;
   publishedAt: Date | null;
   telegramSentAt: Date | null;
   deletedAt: Date | null;
-  category: { name: string };
+  category: { name: string; slug: string };
 };
 
 function escapeHtml(value: string) {
@@ -43,6 +43,7 @@ function escapeHtml(value: string) {
 // the fixed channel link below stays with every forward or repost.
 export function cleanTelegramText(value: string) {
   return value
+    .replace(/<[^>]*>/g, " ")
     .replace(/(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/)[^\s<]+/gi, "")
     .replace(/\b(?:obuna bo'ling|kanalga qo'shiling|batafsil[^.!?]{0,80})[.!?]?/gi, "")
     .replace(/[ \t]{2,}/g, " ")
@@ -62,18 +63,66 @@ function toExternalUrl(value: string) {
   }
 }
 
-export function buildTelegramChannelPost(article: Pick<ChannelArticle, "title" | "summary" | "shortDescription" | "sourceName" | "category">) {
-  const excerpt = cleanTelegramText(article.shortDescription || article.summary).slice(0, 700);
-  const source = article.sourceName ? `\n\n<i>Manba: ${escapeHtml(cleanTelegramText(article.sourceName))}</i>` : "";
-  return [
-    `<b>${escapeHtml(cleanTelegramText(article.title))}</b>`,
-    `<i>${escapeHtml(article.category.name)}</i>`,
-    excerpt ? escapeHtml(excerpt) : "",
-    source,
-    `<a href="https://t.me/BESTTeam_uz">@BESTTeam_uz</a>`
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+function stripRepeatedHeadline(body: string, headline: string) {
+  const normalizedBody = body.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const normalizedHeadline = headline.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (!normalizedHeadline || !normalizedBody.startsWith(normalizedHeadline)) return body;
+  const firstSentence = body.search(/[.!?]\s|\n/);
+  return firstSentence >= 0 ? body.slice(firstSentence + 1).trim() : "";
+}
+
+function channelHashtag(categorySlug: string, categoryName: string) {
+  const raw = categorySlug || categoryName;
+  const normalized = raw.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "");
+  return `#${normalized || "yangilik"}`;
+}
+
+function headlinePrefix(useCustomEmoji: boolean) {
+  const id = env.TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID;
+  return useCustomEmoji && id ? `<tg-emoji emoji-id="${id}">\u{1F4F0}</tg-emoji>` : "\u{1F4F0}";
+}
+
+type ChannelPostParts = {
+  heading: string;
+  body: string;
+  footer: string;
+};
+
+// The channel template intentionally has only three content blocks:
+// headline, topic hashtag and the full cleaned article body.
+export function buildTelegramChannelPost(article: Pick<ChannelArticle, "title" | "summary" | "content" | "sourceName" | "category">, useCustomEmoji = true): ChannelPostParts {
+  const title = cleanTelegramText(article.title);
+  const body = stripRepeatedHeadline(cleanTelegramText(article.content || article.summary), title);
+  const source = article.sourceName ? cleanTelegramText(article.sourceName).slice(0, 120) : "";
+  return {
+    heading: `${headlinePrefix(useCustomEmoji)} <b>${escapeHtml(title)}</b>\n${channelHashtag(article.category.slug, article.category.name)}`,
+    body,
+    footer: [
+      source ? `<i>Manba: ${escapeHtml(source)}</i>` : "",
+      `\u{1F447} <a href="https://t.me/+0F9uBUV0bPc2OTM6">Eng so'nggi yangiliklarni o'tkazib yubormaslik uchun obuna bo'ling</a>`
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+  };
+}
+
+function splitText(value: string, maxLength: number) {
+  const parts: string[] = [];
+  let remaining = value.trim();
+  while (remaining.length > maxLength) {
+    const boundary = Math.max(
+      remaining.lastIndexOf("\n", maxLength),
+      remaining.lastIndexOf(". ", maxLength),
+      remaining.lastIndexOf("! ", maxLength),
+      remaining.lastIndexOf("? ", maxLength),
+      remaining.lastIndexOf(" ", maxLength)
+    );
+    const cut = boundary > Math.floor(maxLength * 0.5) ? boundary + 1 : maxLength;
+    parts.push(remaining.slice(0, cut).trim());
+    remaining = remaining.slice(cut).trim();
+  }
+  if (remaining) parts.push(remaining);
+  return parts;
 }
 
 async function telegramRequest(method: string, body: Record<string, unknown>) {
@@ -89,18 +138,49 @@ async function telegramRequest(method: string, body: Record<string, unknown>) {
   }
 }
 
-async function postToChannel(article: ChannelArticle) {
-  const caption = buildTelegramChannelPost(article);
+async function sendRemainingText(parts: string[], footer: string) {
+  const chunks = parts.length ? parts : [""];
+  for (const [index, part] of chunks.entries()) {
+    const last = index === chunks.length - 1;
+    await telegramRequest("sendMessage", {
+      chat_id: channel,
+      text: `${escapeHtml(part)}${last ? `\n\n${footer}` : ""}`.trim(),
+      parse_mode: "HTML",
+      disable_web_page_preview: true
+    });
+  }
+}
+
+async function sendTextPost(post: ChannelPostParts) {
+  const chunks = splitText(post.body, 3_000);
+  const messages = chunks.length ? chunks : [""];
+  for (const [index, chunk] of messages.entries()) {
+    const first = index === 0;
+    const last = index === messages.length - 1;
+    await telegramRequest("sendMessage", {
+      chat_id: channel,
+      text: `${first ? `${post.heading}\n\n` : ""}${escapeHtml(chunk)}${last ? `\n\n${post.footer}` : ""}`.trim(),
+      parse_mode: "HTML",
+      disable_web_page_preview: true
+    });
+  }
+}
+
+async function postToChannel(article: ChannelArticle, useCustomEmoji = true) {
+  const post = buildTelegramChannelPost(article, useCustomEmoji);
+  const captionChunks = splitText(post.body, 650);
+  const firstText = captionChunks.shift() ?? "";
+  const captionBase = `${post.heading}${firstText ? `\n\n${escapeHtml(firstText)}` : ""}`;
   const media = [article.mainImage, ...article.gallery]
     .filter((item): item is string => Boolean(item))
     .map(toExternalUrl)
     .filter((item, index, all) => all.indexOf(item) === index)
     .slice(0, 10);
 
-  // Telegram can reject a remote image/video for size or codec reasons. Fall back to text so
-  // a news item never disappears just because its media source is unavailable.
-  try {
-    if (media.length > 1) {
+  // Telegram can reject remote media for size/codec reasons. A clean text post still goes out.
+  if (media.length > 1) {
+    try {
+      const caption = `${captionBase}${captionChunks.length ? "" : `\n\n${post.footer}`}`;
       await telegramRequest("sendMediaGroup", {
         chat_id: channel,
         media: media.map((url, index) => ({
@@ -109,27 +189,28 @@ async function postToChannel(article: ChannelArticle) {
           ...(index === 0 ? { caption, parse_mode: "HTML" } : {})
         }))
       });
+      if (captionChunks.length) await sendRemainingText(captionChunks, post.footer);
       return;
+    } catch (error) {
+      console.warn(`[telegram-channel] ${article.slug} media yuborilmadi, matnli post yuboriladi:`, error);
     }
-    if (media[0]) {
+  } else if (media[0]) {
+    try {
+      const caption = `${captionBase}${captionChunks.length ? "" : `\n\n${post.footer}`}`;
       await telegramRequest(isVideo(media[0]) ? "sendVideo" : "sendPhoto", {
         chat_id: channel,
         [isVideo(media[0]) ? "video" : "photo"]: media[0],
         caption,
         parse_mode: "HTML"
       });
+      if (captionChunks.length) await sendRemainingText(captionChunks, post.footer);
       return;
+    } catch (error) {
+      console.warn(`[telegram-channel] ${article.slug} media yuborilmadi, matnli post yuboriladi:`, error);
     }
-  } catch (error) {
-    console.warn(`[telegram-channel] ${article.slug} media yuborilmadi, matnli post yuboriladi:`, error);
   }
 
-  await telegramRequest("sendMessage", {
-    chat_id: channel,
-    text: caption,
-    parse_mode: "HTML",
-    disable_web_page_preview: true
-  });
+  await sendTextPost(post);
 }
 
 export function queueArticleTelegramPost(article: { id: string; status: ArticleStatus; publishedAt: Date | null }) {
@@ -150,11 +231,18 @@ async function sendArticleToChannel(articleId: string) {
   if (!configured) return;
   const article = await prisma.article.findUnique({
     where: { id: articleId },
-    include: { category: { select: { name: true } } }
+    include: { category: { select: { name: true, slug: true } } }
   });
   if (!article || article.status !== "PUBLISHED" || article.deletedAt || article.telegramSentAt) return;
 
-  await postToChannel(article);
+  try {
+    await postToChannel(article);
+  } catch (error) {
+    // A custom emoji is a visual extra. Never lose a news post when Telegram rejects it.
+    if (!env.TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID) throw error;
+    console.warn(`[telegram-channel] ${article.slug} custom emoji ishlamadi, oddiy emoji bilan qayta uriniladi:`, error);
+    await postToChannel(article, false);
+  }
   await prisma.article.update({ where: { id: article.id }, data: { telegramSentAt: new Date() } });
   console.log(`[telegram-channel] ${article.slug} kanalga yuborildi`);
 }

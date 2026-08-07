@@ -12,7 +12,7 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramRetryAfter
-from aiogram.filters import CommandStart, StateFilter
+from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
@@ -262,6 +262,28 @@ async def visitor_inquiry(message: Message, state: FSMContext, bot: Bot) -> None
         await message.answer("Murojaatingiz tahririyatga yuborildi. Tez orada siz bilan bog'lanamiz.", reply_markup=ReplyKeyboardRemove())
     else:
         await message.answer("Murojaatni yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.", reply_markup=ReplyKeyboardRemove())
+
+
+@router.message(Command("emojiid"))
+async def custom_emoji_id(message: Message) -> None:
+    if not await guard_message(message):
+        return
+    ids = [
+        entity.custom_emoji_id
+        for entity in (message.entities or [])
+        if getattr(entity.type, "value", entity.type) == "custom_emoji" and entity.custom_emoji_id
+    ]
+    if not ids:
+        await message.answer(
+            "<code>/emojiid</code> dan keyin maxsus videoemoji yuboring. "
+            "Masalan: <code>/emojiid [emoji]</code>.",
+        )
+        return
+    await message.answer(
+        "Kanal uchun maxsus emoji ID:\n"
+        f"<code>{html.escape(ids[0])}</code>\n\n"
+        "Bu qiymatni Backend Railway service ichidagi <code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID</code> ga qo'ying.",
+    )
 
 
 @router.message(F.text.in_({MENU_BACK, MENU_CANCEL}))

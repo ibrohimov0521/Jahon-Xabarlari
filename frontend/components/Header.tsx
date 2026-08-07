@@ -10,7 +10,7 @@ import { WeatherModal } from "./WeatherModal";
 import { openPushSettings } from "./PushNotifications";
 import { useSearch } from "../lib/search-context";
 import { Language, useUi } from "../lib/ui-context";
-import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME, SITE_TAGLINE } from "../lib/site";
+import { SITE_ALTERNATE_NAME, SITE_LOGO, SITE_NAME } from "../lib/site";
 import { conditionLabel, fetchFullWeather, findRegionByName, nearestRegion, UZ_REGIONS, weatherButtonBackgroundImage, type FullWeather, type UzRegion } from "../lib/weather";
 import { readStorage, writeStorage } from "../lib/browser-storage";
 import { localizedHref } from "../lib/localized-href";
@@ -186,8 +186,9 @@ export function Header() {
               width={512}
               height={512}
               priority
-              className="h-14 w-auto object-contain"
+              className="h-14 w-14 object-contain"
             />
+            <span className="desktop-brand-news" aria-hidden="true">NEWS</span>
           </Link>
           <nav className="desktop-nav hidden h-full items-center gap-6 text-[15px] font-bold lg:flex">
             {navKeys.map((item) => (
@@ -286,11 +287,8 @@ export function Header() {
         <div className="mobile-header lg:hidden">
           <div className="mh-left">
             <Link href={localizedHref("/", language)} aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} className="mh-logo">
-              <Image src={SITE_LOGO} alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} width={166} height={64} priority className="h-7 w-auto max-w-[92px] object-contain" />
-              <span className="mh-brand-text">
-                <span>{SITE_NAME}</span>
-                <small>{SITE_TAGLINE}</small>
-              </span>
+              <Image src={SITE_LOGO} alt={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`} width={64} height={64} priority className="h-8 w-8 object-contain" />
+              <span className="mh-news-label" aria-hidden="true">NEWS</span>
             </Link>
           </div>
 

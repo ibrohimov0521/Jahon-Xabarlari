@@ -10,6 +10,7 @@ import { audit } from "../../middleware/audit.js";
 import { hasPermission, permit, requireAuth } from "../../middleware/auth.js";
 import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
 import { queueArticlePush } from "../../services/push.js";
+import { queueArticleTelegramPost } from "../../services/telegram-channel.js";
 import { withRedisLock } from "../../services/redis.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
 import { assertPublicUrl } from "../../services/net-guard.js";
@@ -638,6 +639,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
   await audit(req, "ARTICLE_CREATE", "Article", article.id, { title: article.title, status: article.status });
   await queueTranslations(article);
   queueArticlePush(article);
+  queueArticleTelegramPost(article);
   res.status(201).json(article);
 });
 
@@ -718,6 +720,7 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
   }
   if (current.status !== "PUBLISHED" && article.status === "PUBLISHED") {
     queueArticlePush(article);
+    queueArticleTelegramPost(article);
   }
   res.json(article);
 });
@@ -744,6 +747,7 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
   await audit(req, "ARTICLE_STATUS", "Article", article.id, { status });
   if (current.status !== "PUBLISHED" && article.status === "PUBLISHED") {
     queueArticlePush(article);
+    queueArticleTelegramPost(article);
   }
   res.json(article);
 });
@@ -847,7 +851,10 @@ articleRouter.post("/admin/articles/bulk-status", requireAuth, permit("articles.
   await audit(req, "ARTICLE_BULK_STATUS", "Article", undefined, { ids: targetIds, status, scheduledAt, count: targetIds.length });
 
   if (status === "PUBLISHED" && targetIds.length) {
-    targetIds.forEach((id) => queueArticlePush({ id, status, publishedAt }));
+    targetIds.forEach((id) => {
+      queueArticlePush({ id, status, publishedAt });
+      queueArticleTelegramPost({ id, status, publishedAt });
+    });
   }
 
   res.json({ ok: true, count: targetIds.length });
@@ -880,7 +887,10 @@ export async function publishScheduledArticles() {
       where: { id: { in: due.map((item) => item.id) }, deletedAt: null, status: "SCHEDULED", scheduledAt: { lte: publishedAt } },
       data: { status: "PUBLISHED", publishedAt, scheduledAt: null }
     });
-    due.forEach((item) => queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt }));
+    due.forEach((item) => {
+      queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt });
+      queueArticleTelegramPost({ id: item.id, status: "PUBLISHED", publishedAt });
+    });
     console.log(`[scheduler] ${updated.count} ta rejalashtirilgan maqola nashr qilindi`);
   });
 }

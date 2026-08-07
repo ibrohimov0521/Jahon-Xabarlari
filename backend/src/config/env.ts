@@ -33,6 +33,20 @@ const schema = z.object({
   // Shared secret the Telegram bot must send (X-Bot-Secret header) to use /auth/telegram-login.
   // Optional so the API still boots without it, but the route fails closed when it's unset.
   BOT_SERVICE_SECRET: z.string().min(24).optional(),
+  // Channel delivery is deliberately separate from the admin bot settings. The same Telegram
+  // token can be used, but keeping the variable explicit prevents accidental channel posting.
+  TELEGRAM_CHANNEL_BOT_TOKEN: z.string().min(20).optional(),
+  TELEGRAM_NEWS_CHANNEL: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || /^@?[a-zA-Z0-9_]{5,}$/.test(value) || /^-100\d{6,}$/.test(value), {
+      message: "TELEGRAM_NEWS_CHANNEL @kanal_nomi yoki -100... kanal ID bo'lishi kerak"
+    }),
+  TELEGRAM_CHANNEL_POSTING_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
   FRONTEND_URL: webOrigin.default("http://localhost:3000"),
   FRONTEND_URLS: commaSeparatedOrigins,
   API_PORT: port.optional(),

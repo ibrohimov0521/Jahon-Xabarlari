@@ -29,6 +29,7 @@ import { runAggregatorCycle } from "./services/aggregator.js";
 import { closeAggregatorJobs } from "./services/aggregator-jobs.js";
 import { prisma } from "./config/prisma.js";
 import { closePushJobs } from "./services/push.js";
+import { closeTelegramChannelJobs } from "./services/telegram-channel.js";
 import { closeTranslationJobs } from "./services/translate.js";
 import { closeRedisLockConnection, pingRedis } from "./services/redis.js";
 import { logger } from "./services/logger.js";
@@ -184,7 +185,13 @@ async function shutdown(signal: string) {
   if (aggregatorInterval) clearInterval(aggregatorInterval);
   server.close(() => {
     void (async () => {
-      const results = await Promise.allSettled([closeAggregatorJobs(), closePushJobs(), closeTranslationJobs(), closeRedisLockConnection()]);
+      const results = await Promise.allSettled([
+        closeAggregatorJobs(),
+        closePushJobs(),
+        closeTelegramChannelJobs(),
+        closeTranslationJobs(),
+        closeRedisLockConnection()
+      ]);
       results.forEach((result) => {
         if (result.status === "rejected") console.error("[server] servisni yopishda xato:", result.reason);
       });

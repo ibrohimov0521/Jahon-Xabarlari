@@ -12,6 +12,7 @@ import { inspectArticleQuality, normalizeArticleTags, qualityGuardedStatus } fro
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
 import { readTextResponse, safeFetch } from "./net-guard.js";
 import { queueArticlePush } from "./push.js";
+import { queueArticleTelegramPost } from "./telegram-channel.js";
 import { queueTranslations } from "./translate.js";
 import { withRedisLock } from "./redis.js";
 
@@ -377,6 +378,7 @@ async function processItem(
 
   await queueTranslations(article);
   queueArticlePush(article);
+  queueArticleTelegramPost(article);
 }
 
 let running = false;

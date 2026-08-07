@@ -152,6 +152,7 @@ model Article {
   showInPopular    Boolean              @default(false)
   publishedAt      DateTime?
   pushSentAt       DateTime?
+  telegramSentAt   DateTime?
   scheduledAt      DateTime?
   viewsCount       Int                  @default(0)
   seoTitle         String?

@@ -3374,7 +3374,12 @@ footer:not(.site-footer),
   align-items: center;
   gap: 7px;
 }
-.mh-logo img { flex: 0 0 auto; transform-origin: left center; }
+.mh-logo img,
+.desktop-brand img {
+  flex: 0 0 auto;
+  transform-origin: left center;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 7px rgba(37, 99, 235, 0.5));
+}
 .mh-news-label,
 .desktop-brand-news {
   color: var(--text);

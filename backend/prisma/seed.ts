@@ -66,7 +66,16 @@ async function main() {
     password?: string;
     telegramId?: string;
   }) {
-    const existing = await prisma.user.findUnique({ where: { email: input.email }, select: { id: true } });
+    const [existingByEmail, existingByTelegram] = await Promise.all([
+      prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
+      input.telegramId
+        ? prisma.user.findUnique({ where: { telegramId: input.telegramId }, select: { id: true } })
+        : Promise.resolve(null)
+    ]);
+    if (existingByEmail && existingByTelegram && existingByEmail.id !== existingByTelegram.id) {
+      throw new Error(`Admin email va Telegram ID ikki xil foydalanuvchiga tegishli: ${input.email}`);
+    }
+    const existing = existingByEmail ?? existingByTelegram;
     if (existing) {
       await prisma.user.update({
         where: { id: existing.id },

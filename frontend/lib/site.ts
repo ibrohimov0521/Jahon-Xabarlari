@@ -28,7 +28,7 @@ export const SITE_KEYWORDS = [
   "tezkor xabarlar"
 ];
 // Visible header logo — optimized 256px mark (was a 2.3 MB 1254px PNG).
-export const SITE_LOGO = "/brand/best-team-mark.png";
+export const SITE_LOGO = "/brand/best-team-mark-v2.png";
 // Square logo used for schema.org / Google's brand + favicon signals.
 export const SITE_LOGO_SQUARE = "/logo.png";
 export const SITE_ICON_192 = "/brand/icon-192.png";

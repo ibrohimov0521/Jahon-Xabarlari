@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache openssl libc6-compat font-noto
 COPY package*.json ./
 RUN npm ci
 COPY . .

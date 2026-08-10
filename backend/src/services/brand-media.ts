@@ -51,7 +51,7 @@ function instagramOverlay(title: string) {
   const lineHeight = 76;
   const bottom = 112;
   const firstLineY = INSTAGRAM_HEIGHT - bottom - (Math.max(lines.length - 1, 0) * lineHeight);
-  const text = lines.map((line, index) => `<text x="64" y="${firstLineY + (index * lineHeight)}" fill="#ffffff" font-family="Arial, sans-serif" font-size="62" font-weight="700">${line}</text>`).join("");
+  const text = lines.map((line, index) => `<text x="64" y="${firstLineY + (index * lineHeight)}" fill="#ffffff" font-family="Noto Sans, Arial, sans-serif" font-size="62" font-weight="700">${line}</text>`).join("");
 
   return Buffer.from(`
     <svg width="${INSTAGRAM_WIDTH}" height="${INSTAGRAM_HEIGHT}" viewBox="0 0 ${INSTAGRAM_WIDTH} ${INSTAGRAM_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
@@ -63,7 +63,7 @@ function instagramOverlay(title: string) {
       </defs>
       <rect width="100%" height="100%" fill="url(#shade)" />
       <rect x="64" y="${firstLineY - 126}" width="196" height="42" rx="21" fill="#1463ff" />
-      <text x="87" y="${firstLineY - 97}" fill="#ffffff" font-family="Arial, sans-serif" font-size="22" font-weight="700">BEST TEAM NEWS</text>
+      <text x="87" y="${firstLineY - 97}" fill="#ffffff" font-family="Noto Sans, Arial, sans-serif" font-size="22" font-weight="700">BEST TEAM NEWS</text>
       ${text}
     </svg>
   `);
@@ -76,7 +76,7 @@ export async function applyBrandWatermark(source: Buffer) {
   const metadata = await image.metadata();
   const width = Math.max(1, metadata.width ?? 1200);
   const height = Math.max(1, metadata.height ?? 800);
-  const logoWidth = Math.min(260, Math.max(64, Math.round(width * 0.16)));
+  const logoWidth = Math.min(190, Math.max(56, Math.round(width * 0.14)));
   const padding = Math.max(12, Math.round(Math.min(width, height) * 0.025));
   const logo = await resizedBrandLogo(logoWidth);
 
@@ -89,13 +89,14 @@ export async function applyBrandWatermark(source: Buffer) {
 // First carousel slide for Instagram: readable headline over the article image, followed by
 // the branded original image as the second slide.
 export async function createInstagramNewsCover(source: Buffer, title: string) {
-  const logo = await resizedBrandLogo(196);
+  const logoWidth = 168;
+  const logo = await resizedBrandLogo(logoWidth);
   return sharp(source, { failOn: "error", limitInputPixels: 50_000_000 })
     .rotate()
     .resize({ width: INSTAGRAM_WIDTH, height: INSTAGRAM_HEIGHT, fit: "cover", position: "attention" })
     .composite([
       { input: instagramOverlay(title), top: 0, left: 0 },
-      { input: logo, top: 48, left: INSTAGRAM_WIDTH - 48 - 196, blend: "over" }
+      { input: logo, top: 48, left: INSTAGRAM_WIDTH - 48 - logoWidth, blend: "over" }
     ])
     .jpeg({ quality: 91, mozjpeg: true })
     .toBuffer();

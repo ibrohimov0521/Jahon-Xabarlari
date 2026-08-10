@@ -5,8 +5,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY media-renderer/server.mjs ./server.mjs
-COPY backend/assets/brand-watermark.png ./assets/brand-watermark.png
+COPY server.mjs ./server.mjs
+COPY brand-watermark.png ./assets/brand-watermark.png
 
 ENV PORT=8080
 CMD ["node", "server.mjs"]

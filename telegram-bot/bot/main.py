@@ -32,6 +32,7 @@ from .keyboards import (
     MENU_CONTINUE,
     MENU_DRAFTS,
     MENU_FEATURED,
+    MENU_INSTAGRAM,
     INSTAGRAM_POST,
     INSTAGRAM_REEL,
     MENU_NEW,
@@ -48,6 +49,7 @@ from .keyboards import (
     confirm_keyboard,
     confirm_reply_keyboard,
     instagram_format_reply_keyboard,
+    instagram_settings_keyboard,
     reply_menu,
     status_reply_keyboard,
     VISITOR_CANCEL,
@@ -454,6 +456,36 @@ async def settings_message(message: Message):
         f"🖥️ Web admin panel: {html.escape(settings.admin_panel_url)}\n\n"
         "Kategoriya, reklama, foydalanuvchi va boshqa chuqur sozlamalar web admin panelda boshqariladi.",
         reply_markup=reply_menu(),
+    )
+
+
+@router.message(F.text == MENU_INSTAGRAM)
+async def instagram_settings_message(message: Message):
+    if not await guard_message(message):
+        return
+    status = await request_or_error(message, "GET", "/admin/instagram/status")
+    if not status:
+        return
+    enabled = "Yoqilgan" if status.get("enabled") else "O'chirilgan"
+    ready = "Tayyor" if status.get("ready") else "Sozlash kerak"
+    posts = status.get("posts") if isinstance(status.get("posts"), dict) else {}
+    account = status.get("accountHint") or "kiritilmagan"
+    latest_failure = status.get("latestFailure") if isinstance(status.get("latestFailure"), dict) else None
+    failure_text = ""
+    if latest_failure:
+        latest_message = html.escape(str(latest_failure.get("message", "Noma'lum xato"))[:220])
+        failure_text = f"\n\n<b>So'nggi xato:</b> {latest_message}"
+    await message.answer(
+        "<b>Instagram sozlamalari</b>\n\n"
+        f"Avtomatik yuborish: <b>{enabled}</b>\n"
+        f"Ulanish holati: <b>{ready}</b>\n"
+        f"Akkaunt ID: <b>{html.escape(str(account))}</b>\n"
+        f"Yuborilgan: <b>{int(posts.get('sent', 0))}</b>\n"
+        f"Navbatda: <b>{int(posts.get('queued', 0))}</b>\n"
+        f"Xato: <b>{int(posts.get('failed', 0))}</b>"
+        f"{failure_text}\n\n"
+        "Token xavfsizlik uchun botda ko'rsatilmaydi. Ulanish testi, token yo'riqnomasi va qayta yuborish web admin panelda mavjud.",
+        reply_markup=instagram_settings_keyboard(settings.admin_panel_url),
     )
 
 

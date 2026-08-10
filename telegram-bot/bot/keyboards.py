@@ -10,6 +10,7 @@ MENU_STATS = "📈 Statistika"
 MENU_COMMENTS = "💬 Izohlar"
 MENU_ADS = "📣 Reklama"
 MENU_SETTINGS = "⚙️ Sozlamalar"
+MENU_INSTAGRAM = "Instagram"
 MENU_BACK = "↩️ Menyu"
 MENU_CANCEL = "✖️ Bekor qilish"
 MENU_CONTINUE = "➡️ Davom etish"
@@ -41,6 +42,7 @@ def reply_menu() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text=MENU_NEW)],
             [KeyboardButton(text=MENU_ARTICLES), KeyboardButton(text=MENU_STATS)],
+            [KeyboardButton(text=MENU_INSTAGRAM)],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -131,6 +133,14 @@ def confirm_keyboard(prefix: str, item_id: str | None = None) -> InlineKeyboardM
                 InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"{prefix}_yes{suffix}"),
                 InlineKeyboardButton(text="Bekor qilish", callback_data=f"{prefix}_no{suffix}"),
             ]
+        ]
+    )
+
+
+def instagram_settings_keyboard(admin_panel_url: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Web panelda boshqarish", url=f"{admin_panel_url}?section=instagram")]
         ]
     )
 

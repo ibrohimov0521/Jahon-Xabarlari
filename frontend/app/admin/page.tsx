@@ -5,6 +5,7 @@ import {
   FilePlus2,
   Flag,
   History,
+  Instagram,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -34,6 +35,7 @@ import { CommentsView } from "../../components/admin/CommentsView";
 import { Dashboard } from "../../components/admin/Dashboard";
 import { ReportsView } from "../../components/admin/ReportsView";
 import { SecurityView } from "../../components/admin/SecurityView";
+import { InstagramSettingsView } from "../../components/admin/InstagramSettingsView";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, AdPlacement, AdStatus, AdSummary, Category, CommentItem, CommentStatus, CommentSummary, Stats, UserItem } from "../../components/admin/types";
 import { Button, ErrorBanner, IconButton, Input, LoadingBlock, Toast } from "../../components/admin/ui";
@@ -51,7 +53,7 @@ import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 import { useUi } from "../../lib/ui-context";
 import { useScrollLock } from "../../lib/use-scroll-lock";
 
-type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "security";
+type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "instagram" | "security";
 
 const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -64,6 +66,7 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "users", label: "Foydalanuvchilar", icon: Users },
   { id: "auditlog", label: "Audit log", icon: History },
   { id: "aggregator", label: "Agregator", icon: Bot },
+  { id: "instagram", label: "Instagram", icon: Instagram },
   { id: "security", label: "Xavfsizlik", icon: ShieldCheck }
 ];
 
@@ -137,6 +140,11 @@ export default function AdminPage() {
       active = false;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get("section");
+    if (section === "instagram") setView("instagram");
   }, []);
 
   useEffect(() => () => {
@@ -713,6 +721,7 @@ export default function AdminPage() {
           {view === "reports" && <ReportsView />}
           {view === "auditlog" && <AuditLogView />}
           {view === "aggregator" && <AggregatorView />}
+          {view === "instagram" && <InstagramSettingsView />}
           {view === "security" && <SecurityView onReauthenticate={() => { void handleLogout(); setSessionNotice("Xavfsizlik sozlamasi o'zgardi. Qaytadan kiring."); }} />}
         </div>
       </section>

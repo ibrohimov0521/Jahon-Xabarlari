@@ -34,6 +34,13 @@ const configured = Boolean(
 );
 const graphBase = `https://graph.facebook.com/${env.INSTAGRAM_GRAPH_API_VERSION}`;
 
+type InstagramConnectionResult = {
+  ok: boolean;
+  message: string;
+  username?: string;
+  accountType?: string;
+};
+
 function isVideo(url: string) {
   return /\.(?:mp4|mov|m4v|webm)(?:[?#].*)?$/i.test(url);
 }
@@ -104,6 +111,95 @@ async function findPermalink(mediaId: string) {
   });
   const data = (await response.json().catch(() => null)) as { permalink?: string } | null;
   return typeof data?.permalink === "string" ? data.permalink : null;
+}
+
+function configurationMessage() {
+  if (!env.INSTAGRAM_POSTING_ENABLED) return "Instagramga avtomatik yuborish Railway sozlamalarida o'chirilgan";
+  if (!env.INSTAGRAM_ACCESS_TOKEN) return "INSTAGRAM_ACCESS_TOKEN kiritilmagan";
+  if (!env.INSTAGRAM_USER_ID) return "INSTAGRAM_USER_ID kiritilmagan";
+  if (!env.BACKEND_PUBLIC_URL?.startsWith("https://")) return "BACKEND_PUBLIC_URL public HTTPS manzil bo'lishi kerak";
+  return "Instagram sozlamalari to'liq emas";
+}
+
+export async function getInstagramSettingsStatus() {
+  const [sent, failed, queued, latestFailure] = await Promise.all([
+    prisma.article.count({ where: { deletedAt: null, instagramSentAt: { not: null } } }),
+    prisma.article.count({
+      where: {
+        status: "PUBLISHED",
+        deletedAt: null,
+        instagramEnabled: true,
+        instagramSentAt: null,
+        instagramError: { not: null }
+      }
+    }),
+    prisma.article.count({
+      where: {
+        status: "PUBLISHED",
+        deletedAt: null,
+        instagramEnabled: true,
+        instagramSentAt: null,
+        instagramError: null
+      }
+    }),
+    prisma.article.findFirst({
+      where: {
+        status: "PUBLISHED",
+        deletedAt: null,
+        instagramEnabled: true,
+        instagramSentAt: null,
+        instagramError: { not: null }
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { title: true, instagramError: true, updatedAt: true }
+    })
+  ]);
+
+  return {
+    enabled: env.INSTAGRAM_POSTING_ENABLED,
+    ready: configured,
+    graphApiVersion: env.INSTAGRAM_GRAPH_API_VERSION,
+    tokenConfigured: Boolean(env.INSTAGRAM_ACCESS_TOKEN),
+    userIdConfigured: Boolean(env.INSTAGRAM_USER_ID),
+    accountHint: env.INSTAGRAM_USER_ID ? `••••${env.INSTAGRAM_USER_ID.slice(-4)}` : null,
+    publicMediaReady: Boolean(env.BACKEND_PUBLIC_URL?.startsWith("https://")),
+    mediaRendererReady: Boolean(env.MEDIA_RENDERER_URL && env.MEDIA_RENDERER_SECRET),
+    posts: { sent, failed, queued },
+    latestFailure: latestFailure
+      ? { title: latestFailure.title, message: latestFailure.instagramError, at: latestFailure.updatedAt }
+      : null,
+    configurationMessage: configured ? "Instagram avtomatik yuborishga tayyor" : configurationMessage()
+  };
+}
+
+export async function testInstagramConnection(): Promise<InstagramConnectionResult> {
+  if (!configured) return { ok: false, message: configurationMessage() };
+
+  try {
+    const response = await fetch(
+      `${graphBase}/${env.INSTAGRAM_USER_ID}?fields=id,username,account_type&access_token=${encodeURIComponent(env.INSTAGRAM_ACCESS_TOKEN!)}`,
+      { signal: AbortSignal.timeout(20_000) }
+    );
+    const data = (await response.json().catch(() => null)) as {
+      username?: string;
+      account_type?: string;
+      error?: { message?: string; code?: number };
+    } | null;
+    if (!response.ok || data?.error) {
+      if (data?.error?.code === 190) {
+        return { ok: false, message: "Instagram access token yaroqsiz, eskirgan yoki to'liq kiritilmagan" };
+      }
+      return { ok: false, message: `Instagram API: ${data?.error?.message ?? response.status}` };
+    }
+    return {
+      ok: true,
+      message: "Instagram akkaunti bilan ulanish muvaffaqiyatli",
+      username: data?.username,
+      accountType: data?.account_type
+    };
+  } catch {
+    return { ok: false, message: "Instagram bilan ulanishni tekshirib bo'lmadi. Birozdan keyin qayta urinib ko'ring." };
+  }
 }
 
 async function publishCarousel(caption: string, articleId: string) {

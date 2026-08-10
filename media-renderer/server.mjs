@@ -52,7 +52,7 @@ const server = http.createServer((req, res) => {
   const sourceUrl = new URL(`/api/social/instagram/articles/${encodeURIComponent(articleId)}/video/${mediaIndex}`, backendUrl).toString();
   const args = [
     "-hide_banner", "-loglevel", "error", "-i", sourceUrl, "-i", brandMark,
-    "-filter_complex", "[1:v]scale=160:-1[logo];[0:v][logo]overlay=W-w-28:28:format=auto[video]",
+    "-filter_complex", "[1:v]scale=98:-1[logo];[0:v][logo]overlay=W-w-18:18:format=auto[video]",
     "-map", "[video]", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
     "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"
   ];

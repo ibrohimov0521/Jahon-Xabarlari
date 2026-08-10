@@ -76,8 +76,8 @@ export async function applyBrandWatermark(source: Buffer) {
   const metadata = await image.metadata();
   const width = Math.max(1, metadata.width ?? 1200);
   const height = Math.max(1, metadata.height ?? 800);
-  const logoWidth = Math.min(190, Math.max(56, Math.round(width * 0.14)));
-  const padding = Math.max(12, Math.round(Math.min(width, height) * 0.025));
+  const logoWidth = Math.min(124, Math.max(48, Math.round(width * 0.09)));
+  const padding = Math.max(10, Math.round(Math.min(width, height) * 0.018));
   const logo = await resizedBrandLogo(logoWidth);
 
   return image
@@ -89,14 +89,14 @@ export async function applyBrandWatermark(source: Buffer) {
 // First carousel slide for Instagram: readable headline over the article image, followed by
 // the branded original image as the second slide.
 export async function createInstagramNewsCover(source: Buffer, title: string) {
-  const logoWidth = 168;
+  const logoWidth = 118;
   const logo = await resizedBrandLogo(logoWidth);
   return sharp(source, { failOn: "error", limitInputPixels: 50_000_000 })
     .rotate()
     .resize({ width: INSTAGRAM_WIDTH, height: INSTAGRAM_HEIGHT, fit: "cover", position: "attention" })
     .composite([
       { input: instagramOverlay(title), top: 0, left: 0 },
-      { input: logo, top: 48, left: INSTAGRAM_WIDTH - 48 - logoWidth, blend: "over" }
+      { input: logo, top: 34, left: INSTAGRAM_WIDTH - 34 - logoWidth, blend: "over" }
     ])
     .jpeg({ quality: 91, mozjpeg: true })
     .toBuffer();

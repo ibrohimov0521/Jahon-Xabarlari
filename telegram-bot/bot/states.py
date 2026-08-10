@@ -6,6 +6,7 @@ class ArticleCreate(StatesGroup):
     summary = State()
     content = State()
     image = State()
+    instagram_format = State()
     category = State()
     status = State()
     visibility = State()

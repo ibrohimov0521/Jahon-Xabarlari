@@ -1,4 +1,4 @@
-import { ArticleReportStatus, ArticleStatus, Prisma } from "@prisma/client";
+import { ArticleReportStatus, ArticleStatus, InstagramFormat, Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
@@ -10,6 +10,7 @@ import { audit } from "../../middleware/audit.js";
 import { hasPermission, permit, requireAuth } from "../../middleware/auth.js";
 import { AiNotConfiguredError, generateArticleShortDescription } from "../../services/ai.js";
 import { queueArticlePush } from "../../services/push.js";
+import { queueArticleInstagramPost } from "../../services/instagram.js";
 import { queueArticleTelegramPost } from "../../services/telegram-channel.js";
 import { withRedisLock } from "../../services/redis.js";
 import { LANGS, queueTranslations, regenerateTranslation, type Lang } from "../../services/translate.js";
@@ -21,14 +22,23 @@ import { daysAgoFromTashkentDay, startOfTashkentDay } from "../../utils/time.js"
 
 export const articleRouter = Router();
 
+function isHttpUrl(value: string) {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const httpUrl = z
   .string()
   .url()
   .max(2_048)
-  .refine((value) => {
-    const protocol = new URL(value).protocol;
-    return protocol === "http:" || protocol === "https:";
-  }, "Faqat http/https URL ruxsat etiladi");
+  // Zod executes refinements even when .url() has already rejected a value. Keep this
+  // predicate total so an empty optional media field becomes a 400 validation error,
+  // never an unhandled 500 response.
+  .refine(isHttpUrl, "Faqat http/https URL ruxsat etiladi");
 
 const articleSchema = z.object({
   title: z.string().trim().min(3).max(220),
@@ -53,6 +63,10 @@ const articleSchema = z.object({
   showInSidebar: z.boolean().default(false),
   showInLatest: z.boolean().default(true),
   showInPopular: z.boolean().default(false),
+  // Existing articles are intentionally excluded by the database default. New articles opt in
+  // here, so enabling Instagram later never floods the account with the old archive.
+  instagramEnabled: z.boolean().optional(),
+  instagramFormat: z.nativeEnum(InstagramFormat).optional().nullable(),
   seoTitle: z.string().trim().max(220).optional(),
   seoDescription: z.string().trim().max(500).optional(),
   seoKeywords: z.string().trim().max(500).optional()
@@ -631,6 +645,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
       seoTitle: data.seoTitle || buildSeoTitle(data.title),
       seoDescription: data.seoDescription || buildSeoDescription(data.shortDescription, data.summary),
       extraCategoryIds: (data.extraCategoryIds ?? []).filter((id) => id !== data.categoryId),
+      instagramEnabled: data.instagramEnabled ?? Boolean(data.mainImage),
       authorId: req.user!.id,
       slug: data.slug || slugify(data.title, { lower: true, strict: true }),
       publishedAt: data.status === "PUBLISHED" ? new Date() : null
@@ -640,6 +655,7 @@ articleRouter.post("/admin/articles", requireAuth, permit("articles.create"), as
   await queueTranslations(article);
   queueArticlePush(article);
   queueArticleTelegramPost(article);
+  queueArticleInstagramPost(article);
   res.status(201).json(article);
 });
 
@@ -661,7 +677,9 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
       categoryId: true,
       extraCategoryIds: true,
       seoTitle: true,
-      seoDescription: true
+      seoDescription: true,
+      instagramEnabled: true,
+      instagramFormat: true
     }
   });
   if (data.status && data.status !== current.status && !hasPermission(req, "articles.publish")) {
@@ -721,6 +739,14 @@ articleRouter.put("/admin/articles/:id", requireAuth, permit("articles.update"),
   if (current.status !== "PUBLISHED" && article.status === "PUBLISHED") {
     queueArticlePush(article);
     queueArticleTelegramPost(article);
+    queueArticleInstagramPost(article);
+  } else if (
+    article.status === "PUBLISHED" &&
+    (data.instagramEnabled === true || data.instagramFormat !== undefined || data.mainImage !== undefined)
+  ) {
+    // An editor can enable social delivery or correct the media after the article was already
+    // published. The Instagram worker remains idempotent through instagramSentAt.
+    queueArticleInstagramPost(article);
   }
   res.json(article);
 });
@@ -748,6 +774,7 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
   if (current.status !== "PUBLISHED" && article.status === "PUBLISHED") {
     queueArticlePush(article);
     queueArticleTelegramPost(article);
+    queueArticleInstagramPost(article);
   }
   res.json(article);
 });
@@ -854,6 +881,7 @@ articleRouter.post("/admin/articles/bulk-status", requireAuth, permit("articles.
     targetIds.forEach((id) => {
       queueArticlePush({ id, status, publishedAt });
       queueArticleTelegramPost({ id, status, publishedAt });
+      queueArticleInstagramPost({ id, status, publishedAt });
     });
   }
 
@@ -890,6 +918,7 @@ export async function publishScheduledArticles() {
     due.forEach((item) => {
       queueArticlePush({ id: item.id, status: "PUBLISHED", publishedAt });
       queueArticleTelegramPost({ id: item.id, status: "PUBLISHED", publishedAt });
+      queueArticleInstagramPost({ id: item.id, status: "PUBLISHED", publishedAt });
     });
     console.log(`[scheduler] ${updated.count} ta rejalashtirilgan maqola nashr qilindi`);
   });

@@ -3,6 +3,7 @@ import { Queue, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { createBullConnection, withRedisLock } from "./redis.js";
+import { brandedArticleImageUrl, brandedArticleVideoUrl } from "./brand-media-url.js";
 
 const configured = Boolean(
   env.TELEGRAM_CHANNEL_POSTING_ENABLED && env.TELEGRAM_CHANNEL_BOT_TOKEN && env.TELEGRAM_NEWS_CHANNEL
@@ -202,9 +203,10 @@ async function postToChannel(article: ChannelArticle, useCustomEmoji = true) {
   const firstText = captionChunks.shift() ?? "";
   const captionBase = `${post.heading}${firstText ? `\n\n${escapeHtml(firstText)}` : ""}`;
   const media = [article.mainImage, ...article.gallery]
-    .filter((item): item is string => Boolean(item))
-    .map(toExternalUrl)
-    .filter((item, index, all) => all.indexOf(item) === index)
+    .map((item, mediaIndex) => item ? { item: toExternalUrl(item), mediaIndex } : null)
+    .filter((item): item is { item: string; mediaIndex: number } => Boolean(item))
+    .filter(({ item }, index, all) => all.findIndex((candidate) => candidate.item === item) === index)
+    .map(({ item, mediaIndex }) => isVideo(item) ? brandedArticleVideoUrl(article.id, mediaIndex) ?? item : brandedArticleImageUrl(article.id, mediaIndex) ?? item)
     .slice(0, 10);
 
   // Telegram can reject remote media for size/codec reasons. A clean text post still goes out.

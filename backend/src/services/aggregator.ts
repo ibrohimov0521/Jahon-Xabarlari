@@ -12,6 +12,7 @@ import { inspectArticleQuality, normalizeArticleTags, qualityGuardedStatus } fro
 import { NEWS_SOURCES, type NewsSource } from "./aggregator-sources.js";
 import { readTextResponse, safeFetch } from "./net-guard.js";
 import { queueArticlePush } from "./push.js";
+import { queueArticleInstagramPost } from "./instagram.js";
 import { queueArticleTelegramPost } from "./telegram-channel.js";
 import { queueTranslations } from "./translate.js";
 import { withRedisLock } from "./redis.js";
@@ -335,6 +336,7 @@ async function processItem(
         categoryId: category.id,
         authorId,
         status,
+        instagramEnabled: Boolean(mainImage),
         isBreaking: Boolean(parsed.isBreaking),
         mainImage,
         sourceName: item.sourceName,
@@ -380,6 +382,7 @@ async function processItem(
   await queueTranslations(article);
   queueArticlePush(article);
   queueArticleTelegramPost(article);
+  queueArticleInstagramPost(article);
 }
 
 let running = false;

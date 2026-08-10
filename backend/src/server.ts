@@ -25,10 +25,12 @@ import { aggregatorRouter } from "./modules/aggregator/routes.js";
 import { weatherRouter } from "./modules/weather/routes.js";
 import { subscriberRouter } from "./modules/subscribers/routes.js";
 import { pushRouter } from "./modules/push/routes.js";
+import { instagramRouter } from "./modules/instagram/routes.js";
 import { runAggregatorCycle } from "./services/aggregator.js";
 import { closeAggregatorJobs } from "./services/aggregator-jobs.js";
 import { prisma } from "./config/prisma.js";
 import { closePushJobs } from "./services/push.js";
+import { closeInstagramJobs } from "./services/instagram.js";
 import { closeTelegramChannelJobs } from "./services/telegram-channel.js";
 import { closeTranslationJobs } from "./services/translate.js";
 import { closeRedisLockConnection, pingRedis } from "./services/redis.js";
@@ -97,6 +99,9 @@ app.use("/api/admin/aggregator", aggregatorRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/subscribe", subscriberRouter);
 app.use("/api/push", pushRouter);
+// A public, read-only image render route. Meta fetches this URL to receive a branded image
+// when publishing an Instagram post; it exposes no authoring or account data.
+app.use("/api", instagramRouter);
 
 app.use((_req, res) => res.status(404).json({ message: "Topilmadi" }));
 
@@ -188,6 +193,7 @@ async function shutdown(signal: string) {
       const results = await Promise.allSettled([
         closeAggregatorJobs(),
         closePushJobs(),
+        closeInstagramJobs(),
         closeTelegramChannelJobs(),
         closeTranslationJobs(),
         closeRedisLockConnection()

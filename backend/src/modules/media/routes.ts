@@ -7,6 +7,7 @@ import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
 import { parseByteRange } from "../../utils/http-range.js";
 import { pagination } from "../../utils/query.js";
+import { applyBrandWatermark } from "../../services/brand-media.js";
 
 export const mediaRouter = Router();
 
@@ -71,17 +72,29 @@ mediaRouter.use(requireAuth, permit("media.manage"));
 
 mediaRouter.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Fayl kerak" });
-  const sniffed = sniffMedia(req.file.buffer);
+  let storedBuffer = req.file.buffer;
+  let sniffed = sniffMedia(storedBuffer);
   if (!sniffed) return res.status(400).json({ message: "Fayl turi qo'llab-quvvatlanmaydi" });
+  // Animated GIFs stay untouched so their frames are never discarded. Other uploaded images
+  // receive the permanent upper-right brand mark before being stored.
+  if (sniffed.mime.startsWith("image/") && sniffed.mime !== "image/gif") {
+    try {
+      storedBuffer = await applyBrandWatermark(storedBuffer);
+      sniffed = { mime: "image/jpeg", ext: "jpg" };
+    } catch (error) {
+      console.error("[media] watermark failed:", error);
+      return res.status(422).json({ message: "Rasmga brend belgisi qo'shib bo'lmadi" });
+    }
+  }
   // Key/extension/mimeType all come from the sniffed content, not req.file, so a spoofed
   // filename or Content-Type can't influence what we store or later serve.
   const key = `${crypto.randomUUID()}.${sniffed.ext}`;
   const url = `/api/admin/media/file/${key}`;
-  const sha256 = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
+  const sha256 = crypto.createHash("sha256").update(storedBuffer).digest("hex");
   const item = await prisma.mediaFile.upsert({
     where: { sha256 },
     update: {},
-    create: { key, url, sha256, mimeType: sniffed.mime, size: req.file.size, data: req.file.buffer },
+    create: { key, url, sha256, mimeType: sniffed.mime, size: storedBuffer.length, data: storedBuffer },
     select: { id: true, url: true, key: true, mimeType: true, size: true, createdAt: true }
   });
   await audit(req, "MEDIA_UPLOAD", "MediaFile", item.id, { key: item.key, mimeType: item.mimeType, size: item.size });

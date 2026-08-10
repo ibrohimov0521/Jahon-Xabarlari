@@ -6,16 +6,22 @@ import { getPushPublicKey } from "../../services/push.js";
 
 export const pushRouter = Router();
 
-const pushEndpoint = z
-  .string()
-  .url()
-  .max(2048)
-  .refine((value) => {
+function isSupportedPushEndpoint(value: string) {
+  try {
     const hostname = new URL(value).hostname.toLowerCase();
     return ["googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com"].some(
       (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
     );
-  }, "Push endpoint qo'llab-quvvatlanmaydi");
+  } catch {
+    return false;
+  }
+}
+
+const pushEndpoint = z
+  .string()
+  .url()
+  .max(2048)
+  .refine(isSupportedPushEndpoint, "Push endpoint qo'llab-quvvatlanmaydi");
 
 const subscriptionSchema = z.object({
   endpoint: pushEndpoint,

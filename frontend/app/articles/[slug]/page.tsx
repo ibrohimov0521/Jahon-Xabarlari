@@ -185,6 +185,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         {article.mainImage && (
           <div className="article-main-frame mt-6 rounded-lg bg-black/80 news-shadow">
             <ArticleMedia src={article.mainImage} alt={article.title} className="article-main-media" eager />
+            <span aria-hidden="true" className="brand-media-watermark brand-media-watermark-detail" />
           </div>
         )}
         {!!article.gallery?.length && (
@@ -192,6 +193,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             {article.gallery.map((src) => (
               <div key={src} className="article-gallery-frame rounded-lg bg-black/80 news-shadow">
                 <ArticleMedia src={src} alt={article.title} className="article-gallery-media" />
+                <span aria-hidden="true" className="brand-media-watermark brand-media-watermark-detail" />
               </div>
             ))}
           </div>

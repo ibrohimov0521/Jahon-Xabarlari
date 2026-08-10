@@ -266,6 +266,7 @@ export default function SearchExperience() {
       style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
     >
       <MediaView src={a.mainImage} className={`se-card-img ${big ? "" : "se-card-img-sm"}`} />
+      <span aria-hidden="true" className="brand-media-watermark" />
       <div className="se-card-body">
         <span className="se-card-cat">{a.category?.name}</span>
         <h4 className="se-card-title">{hasQuery ? highlight(a.title, debounced) : a.title}</h4>

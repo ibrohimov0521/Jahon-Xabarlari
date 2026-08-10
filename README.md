@@ -67,6 +67,32 @@ Bot menyusi:
 Forward qilingan matn, rasm, video va media albomlari tozalanib, AI/fallback
 klassifikatsiyadan so'ng `REVIEW` statusida admin panelga yuboriladi.
 
+## Telegram va Instagram nashri
+
+Maqola `PUBLISHED` bo'lganda kanalga avtomatik yuboriladi. Bot orqali qo'shilgan media uchun
+Instagram formati tanlanadi: `Instagram Post` faqat rasm, `Instagram Reel` faqat video. Story
+funksiyasi yo'q. Rasmga yuqori o'ng burchakda BEST TEAM belgisi yuklash vaqtida qo'shiladi;
+avvalgi tashqi rasmlar Telegram yoki Instagramga yuborilganda belgilangan nusxa orqali jo'natiladi.
+
+Instagramni Meta hisob tayyor bo'lgach backend servisiga quyidagilarni kiriting:
+
+```env
+INSTAGRAM_POSTING_ENABLED=true
+INSTAGRAM_ACCESS_TOKEN=meta_long_lived_access_token
+INSTAGRAM_USER_ID=instagram_professional_account_id
+BACKEND_PUBLIC_URL=https://your-public-backend-domain
+```
+
+Reel video tepasiga belgi qo'yish `media-renderer` xizmati bilan bajariladi. U ffmpeg ishini
+asosiy API dan alohida bajaradi, shuning uchun katta video tahririyat, bot yoki agregatorni
+qotirmaydi. `MEDIA_RENDERER_URL` hamda bir xil `MEDIA_RENDERER_SECRET` qiymatini backend va
+renderer xizmatiga kiriting.
+
+Rendererni Railway'da shu repodan alohida servis sifatida oching: Dockerfile manzili
+`media-renderer/Dockerfile`, build context esa repo ildizi bo'lsin. Rendererga
+`BACKEND_PUBLIC_URL` va `MEDIA_RENDERER_SECRET` beriladi; uning public HTTPS manzili backenddagi
+`MEDIA_RENDERER_URL` bo'ladi. U bir vaqtda bitta videoni qayta ishlaydi.
+
 ## Muhim endpointlar
 
 - `POST /api/auth/login`

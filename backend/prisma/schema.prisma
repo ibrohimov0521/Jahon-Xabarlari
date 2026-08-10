@@ -15,6 +15,11 @@ enum ArticleStatus {
   ARCHIVED
 }
 
+enum InstagramFormat {
+  POST
+  REEL
+}
+
 enum CommentStatus {
   PENDING
   APPROVED
@@ -153,6 +158,12 @@ model Article {
   publishedAt      DateTime?
   pushSentAt       DateTime?
   telegramSentAt   DateTime?
+  instagramEnabled Boolean              @default(false)
+  instagramFormat  InstagramFormat?
+  instagramSentAt  DateTime?
+  instagramMediaId String?
+  instagramUrl     String?
+  instagramError   String?
   scheduledAt      DateTime?
   viewsCount       Int                  @default(0)
   seoTitle         String?
@@ -180,6 +191,7 @@ model Article {
   @@index([status, deletedAt, showInSlider, publishedAt])
   @@index([status, deletedAt, isEditorChoice, publishedAt])
   @@index([status, deletedAt, showInPopular, viewsCount, publishedAt])
+  @@index([status, deletedAt, instagramEnabled, instagramSentAt])
   @@index([extraCategoryIds], type: Gin, map: "Article_extraCategoryIds_gin_idx")
 }
 

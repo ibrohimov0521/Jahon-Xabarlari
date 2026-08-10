@@ -22,6 +22,8 @@ const commaSeparatedOrigins = z.string().optional().refine((value) => {
 }, "FRONTEND_URLS faqat vergul bilan ajratilgan http(s) originlardan iborat bo'lishi kerak");
 
 const port = z.coerce.number().int().min(1).max(65_535);
+const optionalEnv = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => typeof value === "string" && !value.trim() ? undefined : value, schema.optional());
 
 const schema = z.object({
   DATABASE_URL: z.string().url(),
@@ -51,6 +53,22 @@ const schema = z.object({
     .string()
     .optional()
     .transform((value) => value === "true"),
+  // Instagram publishing uses the official Meta Graph API. It remains disabled until all
+  // credentials are present, so publishing ordinary news never depends on Meta availability.
+  INSTAGRAM_POSTING_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
+  INSTAGRAM_ACCESS_TOKEN: optionalEnv(z.string().trim().min(20)),
+  INSTAGRAM_USER_ID: optionalEnv(z.string().trim().regex(/^\d+$/, "INSTAGRAM_USER_ID faqat raqamlardan iborat bo'lishi kerak")),
+  INSTAGRAM_GRAPH_API_VERSION: z.string().trim().regex(/^v\d+\.\d+$/, "Masalan v24.0").default("v24.0"),
+  // Meta fetches the asset itself. This must be the public HTTPS URL of the backend service,
+  // not a private Railway hostname or localhost.
+  BACKEND_PUBLIC_URL: optionalEnv(webOrigin),
+  // Video branding runs in the isolated media-renderer service. Keeping ffmpeg away from the
+  // newsroom API prevents one large video from blocking articles, the bot, or the aggregator.
+  MEDIA_RENDERER_URL: optionalEnv(z.string().trim().url()),
+  MEDIA_RENDERER_SECRET: optionalEnv(z.string().trim().min(32)),
   FRONTEND_URL: webOrigin.default("http://localhost:3000"),
   FRONTEND_URLS: commaSeparatedOrigins,
   API_PORT: port.optional(),

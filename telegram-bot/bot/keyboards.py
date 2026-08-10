@@ -15,6 +15,8 @@ MENU_CANCEL = "✖️ Bekor qilish"
 MENU_CONTINUE = "➡️ Davom etish"
 
 VISITOR_CANCEL = "Bekor qilish"
+INSTAGRAM_POST = "Instagram Post"
+INSTAGRAM_REEL = "Instagram Reel"
 
 STATUS_LABELS = {
     "Draft": "DRAFT",
@@ -80,6 +82,17 @@ def status_reply_keyboard() -> ReplyKeyboardMarkup:
             [KeyboardButton(text=MENU_CANCEL)],
         ],
         resize_keyboard=True,
+    )
+
+
+def instagram_format_reply_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=INSTAGRAM_POST), KeyboardButton(text=INSTAGRAM_REEL)],
+            [KeyboardButton(text=MENU_CANCEL)],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Instagram uchun Post yoki Reel tanlang",
     )
 
 

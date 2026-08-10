@@ -20,14 +20,20 @@ export const AD_PLACEMENTS = [
 const placementSchema = z.enum(AD_PLACEMENTS);
 const adIdsSchema = z.object({ ids: z.array(z.string().min(1)).min(1).max(100) });
 
+function isHttpUrl(value: string) {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const optionalHttpUrl = z
   .string()
   .url()
   .max(2_048)
-  .refine((value) => {
-    const protocol = new URL(value).protocol;
-    return protocol === "http:" || protocol === "https:";
-  }, "Faqat http/https URL ruxsat etiladi")
+  .refine(isHttpUrl, "Faqat http/https URL ruxsat etiladi")
   .optional()
   .or(z.literal(""));
 

@@ -232,6 +232,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
             priority
             sizes="(max-width: 900px) calc(100vw - 20px), (max-width: 1279px) 62vw, 46vw"
           />
+          <span aria-hidden="true" className="brand-media-watermark brand-media-watermark-hero" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
           <div className="relative flex h-full flex-col justify-end p-5 sm:p-7">
             <span className="absolute left-5 top-5 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase shadow-lg sm:left-6 sm:top-7">{categoryName(hero.category)}</span>
@@ -377,6 +378,7 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
             <section className="home-editor-section grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
               <Link href={localizedHref(`/articles/${editorLead.slug}`, lang)} className="home-editor-lead relative min-h-[360px] overflow-hidden rounded-lg bg-ink text-white news-shadow">
                 <MediaView src={editorLead.mainImage} className="absolute inset-0 h-full w-full object-cover" sizes="(max-width: 1023px) calc(100vw - 20px), 55vw" />
+                <span aria-hidden="true" className="brand-media-watermark brand-media-watermark-hero" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                 <div className="relative flex min-h-[360px] flex-col justify-end p-7">
                   <span className="mb-4 w-fit rounded-md bg-brand px-3 py-1.5 text-xs font-black uppercase">{categoryName(editorLead.category)}</span>

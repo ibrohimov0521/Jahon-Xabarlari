@@ -32,6 +32,8 @@ from .keyboards import (
     MENU_CONTINUE,
     MENU_DRAFTS,
     MENU_FEATURED,
+    INSTAGRAM_POST,
+    INSTAGRAM_REEL,
     MENU_NEW,
     MENU_REVIEW,
     MENU_SETTINGS,
@@ -45,6 +47,7 @@ from .keyboards import (
     comment_actions,
     confirm_keyboard,
     confirm_reply_keyboard,
+    instagram_format_reply_keyboard,
     reply_menu,
     status_reply_keyboard,
     VISITOR_CANCEL,
@@ -63,6 +66,10 @@ media_group_buffers: dict[str, list[Message]] = defaultdict(list)
 media_group_tasks: dict[str, asyncio.Task] = {}
 media_group_lock = asyncio.Lock()
 phone_pattern = re.compile(r"^[0-9+()\\-\\s]{7,32}$")
+
+
+def is_video_url(url: str) -> bool:
+    return bool(re.search(r"\.(?:mp4|mov|m4v|webm)(?:[?#].*)?$", url, re.IGNORECASE))
 
 
 def allowed(user_id: int) -> bool:
@@ -546,6 +553,8 @@ async def process_forwarded_post(messages: list[Message], bot: Bot, prepared: di
         "isEditorChoice": classification.get("isEditorChoice", False),
         "seoTitle": prepared["title"],
         "seoDescription": prepared["summary"],
+        "instagramEnabled": bool(media_urls),
+        "instagramFormat": "REEL" if media_urls and is_video_url(media_urls[0]) else "POST" if media_urls else None,
     }
     saved = await request_or_error(message, "POST", "/admin/articles", json=payload)
     await safe_delete(status)
@@ -578,7 +587,7 @@ async def article_new(message: Message, state: FSMContext):
         return
     await state.clear()
     await state.set_state(ArticleCreate.title)
-    await message.answer("1/9 Sarlavhani yuboring:", reply_markup=cancel_keyboard())
+    await message.answer("1/10 Sarlavhani yuboring:", reply_markup=cancel_keyboard())
 
 
 @router.message(ArticleCreate.title)
@@ -590,7 +599,7 @@ async def set_title(message: Message, state: FSMContext):
         return
     await state.update_data(title=message.text.strip())
     await state.set_state(ArticleCreate.summary)
-    await message.answer("2/9 Qisqa tavsifni yuboring:", reply_markup=cancel_keyboard())
+    await message.answer("2/10 Qisqa tavsifni yuboring:", reply_markup=cancel_keyboard())
 
 
 @router.message(ArticleCreate.summary)
@@ -602,7 +611,7 @@ async def set_summary(message: Message, state: FSMContext):
         return
     await state.update_data(summary=message.text.strip())
     await state.set_state(ArticleCreate.content)
-    await message.answer("3/9 Asosiy matnni yuboring:", reply_markup=cancel_keyboard())
+    await message.answer("3/10 Asosiy matnni yuboring:", reply_markup=cancel_keyboard())
 
 
 @router.message(ArticleCreate.content)
@@ -614,7 +623,7 @@ async def set_content(message: Message, state: FSMContext):
         return
     await state.update_data(content=message.text.strip())
     await state.set_state(ArticleCreate.image)
-    await message.answer("4/9 Rasm URL yuboring yoki '-' deb o'tkazib yuboring:", reply_markup=cancel_keyboard())
+    await message.answer("4/10 Rasm yoki video yuboring, URL yuboring yoki '-' deb o'tkazib yuboring:", reply_markup=cancel_keyboard())
 
 
 async def proceed_to_category(message: Message, state: FSMContext) -> None:
@@ -623,7 +632,20 @@ async def proceed_to_category(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(categoryOptions={item["name"]: item["id"] for item in categories})
     await state.set_state(ArticleCreate.category)
-    await message.answer("5/9 Kategoriyani tanlang:", reply_markup=category_reply_keyboard(categories))
+    await message.answer("6/10 Kategoriyani tanlang:", reply_markup=category_reply_keyboard(categories))
+
+
+async def proceed_to_instagram_format(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    if not data.get("mainImage"):
+        await state.update_data(instagramEnabled=False, instagramFormat=None)
+        await proceed_to_category(message, state)
+        return
+    await state.set_state(ArticleCreate.instagram_format)
+    await message.answer(
+        "5/10 Instagram uchun formatni tanlang. Rasm uchun Post, video uchun Reel tanlanadi.",
+        reply_markup=instagram_format_reply_keyboard(),
+    )
 
 
 @router.message(ArticleCreate.image, F.photo)
@@ -643,7 +665,21 @@ async def set_image_photo(message: Message, state: FSMContext, bot: Bot):
         return
     await state.update_data(mainImage=absolute_media_url(uploaded["url"]))
     await status_message.edit_text("✅ Rasm yuklandi.")
-    await proceed_to_category(message, state)
+    await proceed_to_instagram_format(message, state)
+
+
+@router.message(ArticleCreate.image, F.video)
+async def set_image_video(message: Message, state: FSMContext, bot: Bot):
+    if not await guard_message(message):
+        return
+    status_message = await message.answer("Video yuklanmoqda...")
+    uploaded = await upload_forward_media(message, bot)
+    if not uploaded["url"]:
+        await status_message.edit_text(f"Video yuklanmadi. {uploaded['message'] or 'Qayta urinib ko\'ring.'}")
+        return
+    await state.update_data(mainImage=uploaded["url"])
+    await status_message.edit_text("Video yuklandi.")
+    await proceed_to_instagram_format(message, state)
 
 
 @router.message(ArticleCreate.image)
@@ -655,6 +691,26 @@ async def set_image(message: Message, state: FSMContext):
         await message.answer("Rasm URL http:// yoki https:// bilan boshlanishi kerak, rasm yuklang yoki '-' yuboring.")
         return
     await state.update_data(mainImage=image)
+    await proceed_to_instagram_format(message, state)
+
+
+@router.message(ArticleCreate.instagram_format)
+async def set_instagram_format(message: Message, state: FSMContext):
+    if not await guard_message(message):
+        return
+    selected = {INSTAGRAM_POST: "POST", INSTAGRAM_REEL: "REEL"}.get(message.text or "")
+    if not selected:
+        await message.answer("Instagram formatini pastdagi klaviaturadan tanlang.")
+        return
+    data = await state.get_data()
+    video = is_video_url(data.get("mainImage", ""))
+    if selected == "POST" and video:
+        await message.answer("Video uchun Instagram Reel tanlang.")
+        return
+    if selected == "REEL" and not video:
+        await message.answer("Instagram Reel uchun video yuboring. Rasm uchun Post tanlang.")
+        return
+    await state.update_data(instagramEnabled=True, instagramFormat=selected)
     await proceed_to_category(message, state)
 
 
@@ -670,7 +726,7 @@ async def set_category(message: Message, state: FSMContext):
         return
     await state.update_data(categoryId=category_id)
     await state.set_state(ArticleCreate.status)
-    await message.answer("6/9 Statusni tanlang:", reply_markup=status_reply_keyboard())
+    await message.answer("7/10 Statusni tanlang:", reply_markup=status_reply_keyboard())
 
 
 @router.message(ArticleCreate.status)
@@ -683,7 +739,7 @@ async def set_status(message: Message, state: FSMContext):
         return
     await state.update_data(status=status, visibility=[])
     await state.set_state(ArticleCreate.visibility)
-    await message.answer("7/9 Qayerda ko'rinishini tanlang. Tanlab bo'lgach Davom etish bosing.", reply_markup=visibility_reply_keyboard())
+    await message.answer("8/10 Qayerda ko'rinishini tanlang. Tanlab bo'lgach Davom etish bosing.", reply_markup=visibility_reply_keyboard())
 
 
 @router.message(ArticleCreate.visibility)
@@ -694,7 +750,7 @@ async def set_visibility(message: Message, state: FSMContext):
         data = await state.get_data()
         await state.set_state(ArticleCreate.preview)
         await message.answer(
-            "8/9 <b>Preview</b>\n"
+            "9/10 <b>Preview</b>\n"
             f"Sarlavha: {html.escape(data['title'])}\n"
             f"Tavsif: {html.escape(data['summary'])}\n"
             f"Status: {data['status']}\n"
@@ -733,7 +789,7 @@ async def save_article(message: Message, state: FSMContext):
     saved = await request_or_error(message, "POST", "/admin/articles", json=payload)
     await state.clear()
     if saved:
-        await message.answer(f"9/9 Maqola saqlandi: <b>{html.escape(saved['title'])}</b>", reply_markup=reply_menu())
+        await message.answer(f"10/10 Maqola saqlandi: <b>{html.escape(saved['title'])}</b>", reply_markup=reply_menu())
 
 
 @router.callback_query(F.data.startswith("status:"))

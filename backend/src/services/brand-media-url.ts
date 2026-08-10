@@ -11,6 +11,14 @@ export function brandedArticleImageUrl(articleId: string, mediaIndex = 0) {
   ).toString();
 }
 
+export function instagramArticleCoverUrl(articleId: string) {
+  if (!env.BACKEND_PUBLIC_URL) return null;
+  return new URL(
+    `/api/social/instagram/articles/${encodeURIComponent(articleId)}/cover`,
+    env.BACKEND_PUBLIC_URL
+  ).toString();
+}
+
 // The renderer only accepts signed article references. The original source URL never appears in
 // the public render URL, so the renderer cannot be turned into a generic video-fetching proxy.
 export function brandedArticleVideoUrl(articleId: string, mediaIndex = 0) {

@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 const port = Number(process.env.PORT ?? 8080);
 const backendUrl = process.env.BACKEND_PUBLIC_URL;
 const sharedSecret = process.env.MEDIA_RENDERER_SECRET;
-const brandMark = process.env.BRAND_MARK_PATH ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "assets", "brand-mark.png");
+const brandMark = process.env.BRAND_MARK_PATH ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "assets", "brand-watermark.png");
 const maxConcurrentRenders = Math.max(1, Number(process.env.MAX_CONCURRENT_RENDERS ?? 1));
 let activeRenders = 0;
 

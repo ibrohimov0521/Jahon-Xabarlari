@@ -2,7 +2,7 @@ import { Router, type Request, type Response as ExpressResponse } from "express"
 import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { safeFetch } from "../../services/net-guard.js";
-import { applyBrandWatermark } from "../../services/brand-media.js";
+import { applyBrandWatermark, createInstagramNewsCover } from "../../services/brand-media.js";
 
 export const instagramRouter = Router();
 
@@ -58,6 +58,28 @@ async function sendBrandedArticleImage(req: Request, res: ExpressResponse) {
   }
 }
 
+async function sendInstagramArticleCover(req: Request, res: ExpressResponse) {
+  const article = await prisma.article.findUnique({
+    where: { id: req.params.id },
+    select: { title: true, mainImage: true, status: true, deletedAt: true }
+  });
+  if (!article || article.status !== "PUBLISHED" || article.deletedAt || !article.mainImage) {
+    return res.status(404).json({ message: "Rasm topilmadi" });
+  }
+  if (/\.(?:mp4|mov|m4v|webm)(?:[?#].*)?$/i.test(article.mainImage)) {
+    return res.status(415).json({ message: "Video uchun Reel media manzili kerak" });
+  }
+
+  try {
+    const source = await articleImageBuffer(article.mainImage);
+    const cover = await createInstagramNewsCover(source.buffer, article.title);
+    res.set({ "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" }).send(cover);
+  } catch (error) {
+    console.error("[instagram] cover render failed:", error);
+    res.status(502).json({ message: "Instagram uchun sarlavhali rasm tayyorlanmadi" });
+  }
+}
+
 async function sendArticleVideo(req: Request, res: ExpressResponse) {
   const article = await prisma.article.findUnique({
     where: { id: req.params.id },
@@ -94,5 +116,6 @@ async function sendArticleVideo(req: Request, res: ExpressResponse) {
 
 instagramRouter.get("/social/instagram/articles/:id/image", sendBrandedArticleImage);
 instagramRouter.get("/social/instagram/articles/:id/image/:index", sendBrandedArticleImage);
+instagramRouter.get("/social/instagram/articles/:id/cover", sendInstagramArticleCover);
 instagramRouter.get("/social/instagram/articles/:id/video", sendArticleVideo);
 instagramRouter.get("/social/instagram/articles/:id/video/:index", sendArticleVideo);

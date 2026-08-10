@@ -3,7 +3,7 @@ import { Queue, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { createBullConnection, withRedisLock } from "./redis.js";
-import { brandedArticleImageUrl, brandedArticleVideoUrl } from "./brand-media-url.js";
+import { brandedArticleImageUrl, brandedArticleVideoUrl, instagramArticleCoverUrl } from "./brand-media-url.js";
 
 type InstagramJob = { articleId: string };
 type InstagramJobName = "article";
@@ -102,6 +102,35 @@ async function findPermalink(mediaId: string) {
   return typeof data?.permalink === "string" ? data.permalink : null;
 }
 
+async function publishCarousel(caption: string, articleId: string) {
+  const coverUrl = instagramArticleCoverUrl(articleId);
+  const originalImageUrl = brandedArticleImageUrl(articleId);
+  if (!coverUrl || !originalImageUrl) throw new Error("Instagram uchun public media URL sozlanmagan");
+
+  const coverId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
+    access_token: env.INSTAGRAM_ACCESS_TOKEN!,
+    image_url: coverUrl,
+    is_carousel_item: true
+  });
+  await waitForContainer(coverId);
+
+  const originalId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
+    access_token: env.INSTAGRAM_ACCESS_TOKEN!,
+    image_url: originalImageUrl,
+    is_carousel_item: true
+  });
+  await waitForContainer(originalId);
+
+  const carouselId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
+    access_token: env.INSTAGRAM_ACCESS_TOKEN!,
+    media_type: "CAROUSEL",
+    children: `${coverId},${originalId}`,
+    caption
+  });
+  await waitForContainer(carouselId);
+  return carouselId;
+}
+
 async function publishArticleToInstagram(articleId: string) {
   if (!configured) return;
   const article = await prisma.article.findUnique({
@@ -121,21 +150,19 @@ async function publishArticleToInstagram(articleId: string) {
     if (format === "REEL" && !isVideo(article.mainImage)) throw new Error("Instagram Reel uchun video kerak");
 
     const caption = buildInstagramCaption(article);
-    const containerId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
-      access_token: env.INSTAGRAM_ACCESS_TOKEN!,
-      caption,
-      ...(format === "POST"
-        ? { image_url: brandedArticleImageUrl(article.id)! }
-        : {
-            media_type: "REELS",
-            video_url: (() => {
-              const url = brandedArticleVideoUrl(article.id);
-              if (!url) throw new Error("Instagram Reel uchun media-renderer xizmatini sozlang");
-              return url;
-            })(),
-            share_to_feed: true
-          })
-    });
+    const containerId = format === "POST"
+      ? await publishCarousel(caption, article.id)
+      : await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
+          access_token: env.INSTAGRAM_ACCESS_TOKEN!,
+          caption,
+          media_type: "REELS",
+          video_url: (() => {
+            const url = brandedArticleVideoUrl(article.id);
+            if (!url) throw new Error("Instagram Reel uchun media-renderer xizmatini sozlang");
+            return url;
+          })(),
+          share_to_feed: true
+        });
     if (format === "REEL") await waitForContainer(containerId);
     const mediaId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media_publish`, {
       access_token: env.INSTAGRAM_ACCESS_TOKEN!,

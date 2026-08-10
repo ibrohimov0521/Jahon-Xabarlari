@@ -419,6 +419,14 @@ export default function AdminPage() {
     });
   }
 
+  async function retryInstagramPost(id: string) {
+    await withErrorHandling(async () => {
+      const result = await adminRequest<{ message: string }>(`/admin/articles/${id}/instagram/retry`, { method: "POST" });
+      flash(result.message);
+      await loadArticles();
+    });
+  }
+
   async function deleteComment(id: string) {
     await withErrorHandling(async () => {
       await adminRequest(`/admin/comments/${id}`, { method: "DELETE" });
@@ -626,6 +634,7 @@ export default function AdminPage() {
               onEdit={openEditor}
               onPreview={openPreviewFromArticle}
               onRegenerateTranslation={regenerateTranslation}
+              onRetryInstagram={retryInstagramPost}
             />
           )}
           {(view === "new" || view === "edit") && (

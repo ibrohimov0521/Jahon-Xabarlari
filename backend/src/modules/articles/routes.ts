@@ -779,6 +779,37 @@ articleRouter.patch("/admin/articles/:id/status", requireAuth, permit("articles.
   res.json(article);
 });
 
+articleRouter.post("/admin/articles/:id/instagram/retry", requireAuth, permit("articles.publish"), async (req, res) => {
+  const article = await prisma.article.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      status: true,
+      publishedAt: true,
+      deletedAt: true,
+      mainImage: true,
+      instagramEnabled: true,
+      instagramSentAt: true
+    }
+  });
+  if (!article || article.deletedAt || article.status !== "PUBLISHED") {
+    return res.status(400).json({ message: "Faqat nashr qilingan faol maqolani Instagramga qayta yuborish mumkin" });
+  }
+  if (!article.instagramEnabled) {
+    return res.status(400).json({ message: "Bu maqola uchun Instagramga yuborish o'chirilgan" });
+  }
+  if (!article.mainImage) {
+    return res.status(400).json({ message: "Instagramga yuborish uchun rasm yoki video biriktiring" });
+  }
+  if (article.instagramSentAt) {
+    return res.status(400).json({ message: "Bu maqola Instagramga allaqachon yuborilgan" });
+  }
+
+  queueArticleInstagramPost(article, { force: true });
+  await audit(req, "ARTICLE_INSTAGRAM_RETRY", "Article", article.id);
+  res.status(202).json({ ok: true, message: "Instagram posti qayta navbatga qo'shildi" });
+});
+
 articleRouter.patch("/admin/articles/:id/flags", requireAuth, permit("articles.update"), async (req, res) => {
   const flagsSchema = z
     .object({

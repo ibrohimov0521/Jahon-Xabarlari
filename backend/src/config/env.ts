@@ -99,6 +99,45 @@ const schema = z.object({
       message: "VAPID_PUBLIC_KEY va VAPID_PRIVATE_KEY birga sozlanishi kerak"
     });
   }
+
+  if (value.TELEGRAM_CHANNEL_POSTING_ENABLED && (!value.TELEGRAM_CHANNEL_BOT_TOKEN || !value.TELEGRAM_NEWS_CHANNEL)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: !value.TELEGRAM_CHANNEL_BOT_TOKEN ? ["TELEGRAM_CHANNEL_BOT_TOKEN"] : ["TELEGRAM_NEWS_CHANNEL"],
+      message: "Telegram kanalga yuborish uchun bot tokeni va kanal manzili birga sozlanishi kerak"
+    });
+  }
+
+  if (value.INSTAGRAM_POSTING_ENABLED) {
+    const missingKey = !value.INSTAGRAM_ACCESS_TOKEN
+      ? "INSTAGRAM_ACCESS_TOKEN"
+      : !value.INSTAGRAM_USER_ID
+        ? "INSTAGRAM_USER_ID"
+        : !value.BACKEND_PUBLIC_URL
+          ? "BACKEND_PUBLIC_URL"
+          : null;
+    if (missingKey) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [missingKey],
+        message: "Instagramga yuborish uchun access token, Instagram user ID va public HTTPS backend manzili kerak"
+      });
+    } else if (new URL(value.BACKEND_PUBLIC_URL!).protocol !== "https:") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["BACKEND_PUBLIC_URL"],
+        message: "Instagram Meta public media fayllarini olishi uchun BACKEND_PUBLIC_URL https:// bilan boshlanishi kerak"
+      });
+    }
+  }
+
+  if (Boolean(value.MEDIA_RENDERER_URL) !== Boolean(value.MEDIA_RENDERER_SECRET)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: value.MEDIA_RENDERER_URL ? ["MEDIA_RENDERER_SECRET"] : ["MEDIA_RENDERER_URL"],
+      message: "MEDIA_RENDERER_URL va MEDIA_RENDERER_SECRET birga sozlanishi kerak"
+    });
+  }
 });
 
 export const env = schema.parse(process.env);

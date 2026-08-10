@@ -1,4 +1,5 @@
 import type { ArticleStatus, InstagramFormat } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { Queue, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
@@ -74,6 +75,9 @@ async function graphRequest(path: string, body: Record<string, string | boolean>
   });
   const data = (await response.json().catch(() => null)) as { id?: string; error?: { message?: string; code?: number } } | null;
   if (!response.ok || data?.error || !data?.id) {
+    if (data?.error?.code === 190) {
+      throw new Error("Instagram access token yaroqsiz yoki to'liq kiritilmagan. Railway'da INSTAGRAM_ACCESS_TOKEN qiymatini yangilang");
+    }
     throw new Error(`Instagram API: ${data?.error?.message ?? response.status}`);
   }
   return data.id;
@@ -181,11 +185,16 @@ async function publishArticleToInstagram(articleId: string) {
   }
 }
 
-export function queueArticleInstagramPost(article: { id: string; status: ArticleStatus; publishedAt: Date | null }) {
+export function queueArticleInstagramPost(
+  article: { id: string; status: ArticleStatus; publishedAt: Date | null },
+  options: { force?: boolean } = {}
+) {
   if (!configured || !instagramQueue || article.status !== "PUBLISHED") return;
   const revision = article.publishedAt?.getTime() ?? Date.now();
   void instagramQueue.add("article", { articleId: article.id }, {
-    jobId: `instagram-${article.id}-${revision}`,
+    // A failed BullMQ job with the same id remains retained for diagnostics. A deliberate
+    // retry must get a fresh id after an editor fixes the Meta token or article media.
+    jobId: options.force ? `instagram-${article.id}-retry-${Date.now()}-${randomUUID()}` : `instagram-${article.id}-${revision}`,
     attempts: 5,
     backoff: { type: "exponential", delay: 30_000 },
     removeOnComplete: { age: 7 * 24 * 60 * 60, count: 5_000 },

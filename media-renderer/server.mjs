@@ -58,16 +58,31 @@ const server = http.createServer((req, res) => {
   ];
   const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
   let errorText = "";
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    activeRenders = Math.max(0, activeRenders - 1);
+  };
   ffmpeg.stderr.on("data", (chunk) => { errorText = `${errorText}${chunk}`.slice(-2000); });
-  res.writeHead(200, { "content-type": "video/mp4", "cache-control": "public, max-age=3600" });
-  ffmpeg.stdout.pipe(res);
-  const finish = () => { activeRenders = Math.max(0, activeRenders - 1); };
-  ffmpeg.once("error", () => {
-    if (!res.headersSent) respondJson(res, 500, "Video render ishga tushmadi");
+  ffmpeg.once("spawn", () => {
+    if (res.destroyed) return ffmpeg.kill("SIGTERM");
+    res.writeHead(200, { "content-type": "video/mp4", "cache-control": "public, max-age=3600" });
+    ffmpeg.stdout.pipe(res);
+  });
+  ffmpeg.once("error", (error) => {
+    finish();
+    console.error("[media-renderer] ffmpeg ishga tushmadi:", error);
+    if (!res.headersSent) return respondJson(res, 500, "Video render ishga tushmadi");
+    res.destroy(error);
   });
   ffmpeg.once("close", (code) => {
     finish();
-    if (code !== 0) console.error("[media-renderer] ffmpeg failed:", errorText);
+    if (code !== 0) {
+      console.error("[media-renderer] ffmpeg failed:", errorText);
+      if (!res.headersSent) respondJson(res, 502, "Video render yakunlanmadi");
+      else if (!res.writableEnded) res.destroy();
+    }
   });
   res.once("close", () => {
     if (!res.writableEnded && !ffmpeg.killed) ffmpeg.kill("SIGTERM");

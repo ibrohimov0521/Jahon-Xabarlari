@@ -35,6 +35,9 @@ export type Article = ArticleFlags & {
   extraCategoryIds?: string[];
   sourceName?: string | null;
   sourceUrl?: string | null;
+  instagramEnabled?: boolean;
+  instagramSentAt?: string | null;
+  instagramError?: string | null;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;

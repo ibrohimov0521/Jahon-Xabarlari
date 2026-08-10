@@ -1,4 +1,5 @@
 import { Router, type Request, type Response as ExpressResponse } from "express";
+import rateLimit from "express-rate-limit";
 import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { safeFetch } from "../../services/net-guard.js";
@@ -6,14 +7,24 @@ import { applyBrandWatermark, createInstagramNewsCover } from "../../services/br
 
 export const instagramRouter = Router();
 
+// Meta and Telegram fetch these generated assets themselves. A conservative public limit
+// prevents remote-media buffering from being abused without blocking normal carousel delivery.
+instagramRouter.use(rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Media so'rovlari juda ko'p. Birozdan keyin qayta urinib ko'ring." }
+}));
+
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 async function responseBuffer(response: globalThis.Response, maxBytes: number) {
   const size = Number(response.headers.get("content-length"));
-  if (Number.isFinite(size) && size > maxBytes) throw new Error("Rasm hajmi limitdan katta");
+  if (Number.isFinite(size) && size > maxBytes) throw new Error("Media hajmi limitdan katta");
   const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length > maxBytes) throw new Error("Rasm hajmi limitdan katta");
+  if (buffer.length > maxBytes) throw new Error("Media hajmi limitdan katta");
   return buffer;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, CheckCircle2, Clock3, Edit3, Eye, FileText, Languages, MoreVertical, RotateCcw, Send, ShieldCheck, Trash2 } from "lucide-react";
+import { Archive, CheckCircle2, Clock3, Edit3, Eye, FileText, Instagram, Languages, MoreVertical, RotateCcw, Send, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { adminRequest } from "../../lib/admin-api";
@@ -76,6 +76,7 @@ export function ArticlesView({
   onEdit,
   onPreview,
   onRegenerateTranslation,
+  onRetryInstagram,
   page,
   pages,
   total,
@@ -98,6 +99,7 @@ export function ArticlesView({
   onEdit: (id: string) => void;
   onPreview: (article: Article) => void;
   onRegenerateTranslation: (id: string, lang: string) => void;
+  onRetryInstagram: (id: string) => void;
   page: number;
   pages: number;
   total: number;
@@ -517,6 +519,16 @@ export function ArticlesView({
                         );
                       })}
                     </div>
+                    {item.instagramEnabled && item.instagramError && !item.instagramSentAt && item.status === "PUBLISHED" && !trashed && (
+                      <button
+                        type="button"
+                        onClick={() => onRetryInstagram(item.id)}
+                        className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 transition hover:border-amber-500"
+                        title={item.instagramError}
+                      >
+                        <Instagram size={14} /> Instagramga qayta yuborish
+                      </button>
+                    )}
                   </div>
                 </div>
 

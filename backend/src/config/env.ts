@@ -65,6 +65,7 @@ const schema = z.object({
   // "Instagram Login" receive IGA... tokens and must use graph.instagram.com.
   INSTAGRAM_API_MODE: z.enum(["instagram_login", "facebook_login"]).default("instagram_login"),
   INSTAGRAM_GRAPH_API_VERSION: z.string().trim().regex(/^v\d+\.\d+$/, "Masalan v24.0").default("v24.0"),
+  INSTAGRAM_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(2),
   // Meta fetches the asset itself. This must be the public HTTPS URL of the backend service,
   // not a private Railway hostname or localhost.
   BACKEND_PUBLIC_URL: optionalEnv(webOrigin),

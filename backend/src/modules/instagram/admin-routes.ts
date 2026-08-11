@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
-import { cancelInstagramDelivery, getInstagramDeliveries, getInstagramSettingsStatus, repairInstagramQueue, type InstagramDeliveryState, testInstagramConnection } from "../../services/instagram.js";
+import { cancelInstagramDeliveries, cancelInstagramDelivery, getInstagramDeliveries, getInstagramSettingsStatus, prioritizeInstagramDeliveries, repairInstagramQueue, type InstagramDeliveryState, testInstagramConnection } from "../../services/instagram.js";
 
 export const instagramAdminRouter = Router();
 
@@ -32,6 +32,24 @@ instagramAdminRouter.post("/deliveries/:id/cancel", async (req, res) => {
   const result = await cancelInstagramDelivery(id);
   await audit(req, "ARTICLE_INSTAGRAM_CANCEL", "Article", id, result);
   res.json({ ok: true, message: "Maqola Instagram navbatidan olib tashlandi", ...result });
+});
+
+instagramAdminRouter.post("/deliveries/bulk", async (req, res) => {
+  const { ids, action } = z.object({
+    ids: z.array(z.string().min(1).max(64)).min(1).max(100),
+    action: z.enum(["prioritize", "cancel"])
+  }).parse(req.body);
+  const result = action === "prioritize"
+    ? await prioritizeInstagramDeliveries(ids)
+    : await cancelInstagramDeliveries(ids);
+  await audit(req, action === "prioritize" ? "ARTICLE_INSTAGRAM_BULK_RETRY" : "ARTICLE_INSTAGRAM_BULK_CANCEL", "Instagram", "deliveries", { ids, ...result });
+  res.json({
+    ok: true,
+    message: action === "prioritize"
+      ? `${result.affected} ta post tezkor navbatga olindi`
+      : `${result.affected} ta post Instagram navbatidan olib tashlandi`,
+    ...result
+  });
 });
 
 instagramAdminRouter.post("/queue/repair", async (req, res) => {

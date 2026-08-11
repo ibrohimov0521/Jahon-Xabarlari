@@ -270,14 +270,18 @@ export async function getInstagramDeliveries(state: InstagramDeliveryState, page
   const take = 12;
   const safePage = Math.max(1, Math.floor(page) || 1);
   const queuedArticleIds = state === "sent" ? [] : [...await getQueuedInstagramArticleIds()];
-  const where = {
-    ...activeInstagramWhere(),
-    ...(state === "sent"
-      ? { instagramSentAt: { not: null } }
-      : state === "failed"
+  const where = state === "sent"
+    ? {
+      status: "PUBLISHED" as const,
+      deletedAt: null,
+      instagramSentAt: { not: null }
+    }
+    : {
+      ...activeInstagramWhere(),
+      ...(state === "failed"
         ? { instagramError: { not: null }, ...(queuedArticleIds.length ? { id: { notIn: queuedArticleIds } } : {}) }
         : { id: { in: queuedArticleIds } })
-  };
+    };
   const [items, total] = await Promise.all([
     prisma.article.findMany({
       where,
@@ -343,6 +347,108 @@ export async function cancelInstagramDelivery(articleId: string) {
     }
   }
   return { removedJobs };
+}
+
+const INSTAGRAM_BULK_LIMIT = 100;
+
+function normalizeDeliveryIds(articleIds: string[]) {
+  return [...new Set(articleIds.map((id) => id.trim()).filter(Boolean))].slice(0, INSTAGRAM_BULK_LIMIT);
+}
+
+export async function cancelInstagramDeliveries(articleIds: string[]) {
+  const ids = normalizeDeliveryIds(articleIds);
+  if (!ids.length) return { affected: 0, removedJobs: 0 };
+
+  const articles = await prisma.article.findMany({
+    where: {
+      id: { in: ids },
+      status: "PUBLISHED",
+      deletedAt: null,
+      instagramEnabled: true,
+      instagramSentAt: null
+    },
+    select: { id: true }
+  });
+  const eligibleIds = articles.map((article) => article.id);
+  if (!eligibleIds.length) return { affected: 0, removedJobs: 0 };
+
+  await prisma.article.updateMany({
+    where: { id: { in: eligibleIds } },
+    data: {
+      instagramEnabled: false,
+      instagramError: null
+    }
+  });
+
+  const jobs = instagramQueue
+    ? await instagramQueue.getJobs(["waiting", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
+    : [];
+  const eligibleSet = new Set(eligibleIds);
+  let removedJobs = 0;
+  for (const job of jobs) {
+    if (!eligibleSet.has(job.data.articleId)) continue;
+    try {
+      await job.remove();
+      removedJobs += 1;
+    } catch {
+      // Active work cannot always be removed. The disabled flag makes it a no-op on retry.
+    }
+  }
+  return { affected: eligibleIds.length, removedJobs };
+}
+
+export async function prioritizeInstagramDeliveries(articleIds: string[]) {
+  const ids = normalizeDeliveryIds(articleIds);
+  if (!ids.length) return { affected: 0, prioritized: 0, requeued: 0 };
+
+  const articles = await prisma.article.findMany({
+    where: {
+      id: { in: ids },
+      status: "PUBLISHED",
+      deletedAt: null,
+      instagramSentAt: null,
+      mainImage: { not: null }
+    },
+    select: { id: true, status: true, publishedAt: true }
+  });
+  const eligibleIds = articles.map((article) => article.id);
+  if (!eligibleIds.length) return { affected: 0, prioritized: 0, requeued: 0 };
+
+  await prisma.article.updateMany({
+    where: { id: { in: eligibleIds } },
+    data: { instagramEnabled: true, instagramError: null }
+  });
+
+  const eligibleSet = new Set(eligibleIds);
+  const jobs = instagramQueue
+    ? await instagramQueue.getJobs(["waiting", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
+    : [];
+  const queuedIds = new Set<string>();
+  let prioritized = 0;
+  for (const job of jobs) {
+    const articleId = job.data.articleId;
+    if (!eligibleSet.has(articleId)) continue;
+    const state = await job.getState().catch(() => "unknown");
+    if (state === "failed") {
+      await job.remove().catch(() => undefined);
+      continue;
+    }
+    queuedIds.add(articleId);
+    if (state === "delayed") {
+      await job.promote().catch(() => undefined);
+      prioritized += 1;
+    } else if (state === "waiting" || state === "prioritized") {
+      await job.changePriority({ priority: 1, lifo: true }).catch(() => undefined);
+      prioritized += 1;
+    }
+  }
+
+  let requeued = 0;
+  for (const article of articles) {
+    if (queuedIds.has(article.id)) continue;
+    if (await queueArticleInstagramPost(article, { force: true })) requeued += 1;
+  }
+  return { affected: eligibleIds.length, prioritized, requeued };
 }
 
 export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueRepairResult> {
@@ -550,7 +656,7 @@ if (configured) {
       });
       if (!handled) throw new Error("Bu maqolaning Instagram posti hali ishlamoqda");
     },
-    { connection: createBullConnection(), concurrency: 1 }
+    { connection: createBullConnection(), concurrency: env.INSTAGRAM_WORKER_CONCURRENCY }
   );
   instagramWorker.on("failed", (job, error) => {
     console.error(`[instagram] job ${job?.id ?? "unknown"} failed:`, error);

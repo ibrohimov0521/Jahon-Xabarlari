@@ -71,6 +71,7 @@ export function InstagramSettingsView() {
   const [deliveries, setDeliveries] = useState<DeliveryResponse | null>(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<InstagramDelivery | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useScrollLock(Boolean(selectedDelivery));
 
@@ -137,12 +138,51 @@ export function InstagramSettingsView() {
 
   async function loadDeliveries(state: DeliveryState, page = 1) {
     setDeliveryState(state);
+    setSelectedIds(new Set());
     setDeliveryLoading(true);
     setError("");
     try {
       setDeliveries(await adminRequest<DeliveryResponse>(`/admin/instagram/deliveries?state=${state}&page=${page}`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram xabarlari yuklanmadi");
+    } finally {
+      setDeliveryLoading(false);
+    }
+  }
+
+  function toggleDelivery(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleCurrentPage() {
+    const pageIds = deliveries?.items.map((item) => item.id) ?? [];
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(pageIds));
+  }
+
+  async function runBulkAction(action: "prioritize" | "cancel") {
+    const ids = [...selectedIds];
+    if (!ids.length || !deliveryState) return;
+    if (action === "cancel" && !window.confirm(`${ids.length} ta post Instagram navbatidan olib tashlansinmi? Maqolalar saytda qoladi.`)) return;
+    setDeliveryLoading(true);
+    setError("");
+    try {
+      const result = await adminRequest<{ message: string }>("/admin/instagram/deliveries/bulk", {
+        method: "POST",
+        body: JSON.stringify({ ids, action })
+      });
+      setMessage(result.message);
+      setSelectedIds(new Set());
+      const nextPage = deliveries?.page ?? 1;
+      setDeliveries(await adminRequest<DeliveryResponse>(`/admin/instagram/deliveries?state=${deliveryState}&page=${nextPage}`));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tanlangan postlar uchun amal bajarilmadi");
     } finally {
       setDeliveryLoading(false);
     }
@@ -317,19 +357,48 @@ export function InstagramSettingsView() {
           {deliveryLoading && !deliveries && <p className="mt-4 text-sm text-slate-500">Xabarlar yuklanmoqda...</p>}
           {deliveries && (
             <>
+              {deliveryState !== "sent" && deliveries.items.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/90 p-3 dark:border-white/10 dark:bg-slate-900/70">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-black">
+                    <input
+                      type="checkbox"
+                      checked={deliveries.items.every((item) => selectedIds.has(item.id))}
+                      onChange={toggleCurrentPage}
+                      className="size-5 accent-blue-600"
+                    />
+                    Sahifadagilarni tanlash
+                  </label>
+                  <span className="text-xs font-bold text-slate-500">{selectedIds.size} ta tanlandi</span>
+                  <div className="ml-auto flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => void runBulkAction("prioritize")} disabled={!selectedIds.size || deliveryLoading} icon={deliveryLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}>
+                      {deliveryState === "failed" ? "Qayta yuborish" : "Tezkor yuborish"}
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void runBulkAction("cancel")} disabled={!selectedIds.size || deliveryLoading} icon={<Trash2 size={15} />}>
+                      Olib tashlash
+                    </Button>
+                  </div>
+                </div>
+              )}
               {!deliveries.items.length ? (
                 <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950/35 dark:text-slate-400">{DELIVERY_META[deliveryState].empty}</p>
               ) : (
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {deliveries.items.map((item) => (
-                    <button key={item.id} type="button" onClick={() => openDeliveryPreview(item)} className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand/40 dark:border-white/10 dark:bg-slate-950/35">
-                      {item.previewUrl ? <img src={item.previewUrl} alt="" className="h-32 w-full bg-slate-950 object-cover" /> : <div className="grid h-32 place-items-center bg-slate-950 text-slate-400"><Video size={28} /></div>}
-                      <div className="p-3">
-                        <div className="flex items-center justify-between gap-2"><span className="text-xs font-black text-brand">{item.category.name}</span><span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><Eye size={13} /> Ko'rish</span></div>
-                        <p className="mt-2 line-clamp-2 font-black">{item.title}</p>
-                        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{deliveryState === "failed" ? item.instagramError : item.summary}</p>
-                      </div>
-                    </button>
+                    <article key={item.id} className={`relative overflow-hidden rounded-xl border bg-white transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg dark:bg-slate-950/35 ${selectedIds.has(item.id) ? "border-brand ring-2 ring-brand/25" : "border-slate-200 dark:border-white/10"}`}>
+                      {deliveryState !== "sent" && (
+                        <label className="absolute left-2 top-2 z-10 grid size-9 cursor-pointer place-items-center rounded-full border border-white/20 bg-slate-950/80 shadow-lg backdrop-blur" aria-label={`${item.title} postini tanlash`}>
+                          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleDelivery(item.id)} className="size-5 accent-blue-600" />
+                        </label>
+                      )}
+                      <button type="button" onClick={() => openDeliveryPreview(item)} className="group block w-full text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/40">
+                        {item.previewUrl ? <img src={item.previewUrl} alt="" className="h-32 w-full bg-slate-950 object-cover" /> : <div className="grid h-32 place-items-center bg-slate-950 text-slate-400"><Video size={28} /></div>}
+                        <div className="p-3">
+                          <div className="flex items-center justify-between gap-2"><span className="text-xs font-black text-brand">{item.category.name}</span><span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><Eye size={13} /> Ko'rish</span></div>
+                          <p className="mt-2 line-clamp-2 font-black">{item.title}</p>
+                          <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{deliveryState === "failed" ? item.instagramError : item.summary}</p>
+                        </div>
+                      </button>
+                    </article>
                   ))}
                 </div>
               )}

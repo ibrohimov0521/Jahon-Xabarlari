@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Instagram, Loader2, RefreshCcw, Send, ShieldCheck, Trash2, Video, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Globe2, Instagram, Loader2, PauseCircle, PlayCircle, RefreshCcw, Send, ShieldCheck, Trash2, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { useScrollLock } from "../../lib/use-scroll-lock";
@@ -8,6 +8,7 @@ import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
 
 type InstagramStatus = {
   enabled: boolean;
+  autoPublishEnabled: boolean;
   ready: boolean;
   apiMode: "instagram_login" | "facebook_login";
   apiEndpoint: string;
@@ -39,6 +40,8 @@ type InstagramDelivery = {
   category: { name: string; slug: string };
 };
 type DeliveryResponse = { state: DeliveryState; items: InstagramDelivery[]; total: number; page: number; pages: number };
+type InstagramSource = { id: string; name: string; feedUrl: string; instagramEnabled: boolean };
+type InstagramSourcesResponse = { items: InstagramSource[] };
 
 const DELIVERY_META: Record<DeliveryState, { label: string; empty: string; icon: typeof Send; tone: string }> = {
   sent: { label: "Yuborilgan", empty: "Hali Instagramga yuborilgan maqola yo'q.", icon: Send, tone: "text-brand" },
@@ -65,6 +68,9 @@ export function InstagramSettingsView() {
   const [status, setStatus] = useState<InstagramStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
+  const [savingAutoPublish, setSavingAutoPublish] = useState(false);
+  const [sources, setSources] = useState<InstagramSource[]>([]);
+  const [sourceSavingId, setSourceSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [deliveryState, setDeliveryState] = useState<DeliveryState | null>(null);
@@ -82,7 +88,12 @@ export function InstagramSettingsView() {
   async function load() {
     setLoading(true);
     try {
-      setStatus(await adminRequest<InstagramStatus>("/admin/instagram/status"));
+      const [statusResult, sourceResult] = await Promise.all([
+        adminRequest<InstagramStatus>("/admin/instagram/status"),
+        adminRequest<InstagramSourcesResponse>("/admin/instagram/sources")
+      ]);
+      setStatus(statusResult);
+      setSources(sourceResult.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram holatini yuklab bo'lmadi");
     } finally {
@@ -137,6 +148,46 @@ export function InstagramSettingsView() {
       await load();
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function toggleAutoPublish() {
+    if (!status || !status.enabled) return;
+    const nextValue = !status.autoPublishEnabled;
+    setSavingAutoPublish(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await adminRequest<{ autoPublishEnabled: boolean; message: string }>("/admin/instagram/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ autoPublishEnabled: nextValue })
+      });
+      setStatus((current) => current ? { ...current, autoPublishEnabled: result.autoPublishEnabled } : current);
+      setMessage(result.message);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram avtomatik yuborish sozlamasi saqlanmadi");
+    } finally {
+      setSavingAutoPublish(false);
+    }
+  }
+
+  async function toggleSource(source: InstagramSource) {
+    setSourceSavingId(source.id);
+    setError("");
+    setMessage("");
+    try {
+      const result = await adminRequest<{ source: InstagramSource; message: string }>(`/admin/instagram/sources/${source.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ enabled: !source.instagramEnabled })
+      });
+      setSources((current) => current.map((item) => item.id === result.source.id ? result.source : item));
+      setMessage(result.message);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram manba sozlamasi saqlanmadi");
+    } finally {
+      setSourceSavingId(null);
     }
   }
 
@@ -283,8 +334,35 @@ export function InstagramSettingsView() {
               </div>
             </div>
 
+            <div className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${status.autoPublishEnabled ? "border-green-300 bg-green-50/80 dark:border-green-400/30 dark:bg-green-400/10" : "border-amber-300 bg-amber-50/80 dark:border-amber-400/30 dark:bg-amber-400/10"}`}>
+              <div className="flex min-w-0 items-center gap-3">
+                <span className={`grid size-11 shrink-0 place-items-center rounded-full ${status.autoPublishEnabled ? "bg-green-600 text-white" : "bg-amber-500 text-white"}`}>
+                  {status.autoPublishEnabled ? <PlayCircle size={22} /> : <PauseCircle size={22} />}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-black">Avtomatik Instagram nashri</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    {status.autoPublishEnabled
+                      ? "Yangi postlar navbat bo'yicha avtomatik yuboriladi"
+                      : "Pauzada: yangi postlar yo'qolmaydi, navbatda saqlanadi"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={status.autoPublishEnabled}
+                aria-label="Instagramga avtomatik yuborish"
+                onClick={() => void toggleAutoPublish()}
+                disabled={savingAutoPublish || !status.enabled}
+                className={`relative h-8 w-14 shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50 ${status.autoPublishEnabled ? "border-green-600 bg-green-600" : "border-slate-300 bg-slate-300 dark:border-slate-600 dark:bg-slate-700"}`}
+              >
+                <span className={`absolute top-1 size-6 rounded-full bg-white shadow-sm transition-transform ${status.autoPublishEnabled ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
-              <CheckItem ok={status.enabled} label="Avtomatik yuborish" value={status.enabled ? "Yoqilgan" : "Railway'da INSTAGRAM_POSTING_ENABLED=true qiling"} />
+              <CheckItem ok={status.enabled} label="Instagram nashr xizmati" value={status.enabled ? "Serverda ishga tushirilgan" : "Server sozlamasida yoqish kerak"} />
               <CheckItem ok={status.tokenConfigured} label="Access token" value={status.tokenConfigured ? "Maxfiy token saqlangan" : "Railway'da token kiritilmagan"} />
               <CheckItem ok={status.userIdConfigured} label="Instagram akkaunt" value={status.accountHint ? `ID ${status.accountHint}` : "Instagram User ID kerak"} />
               <CheckItem ok={status.publicMediaReady} label="Public media URL" value={status.publicMediaReady ? "Meta rasm/video olishi mumkin" : "HTTPS BACKEND_PUBLIC_URL kerak"} />
@@ -346,6 +424,48 @@ export function InstagramSettingsView() {
             )}
           </div>
         </div>
+      )}
+      {status && (
+        <section className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/30">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand"><Globe2 size={20} /></span>
+            <div>
+              <h3 className="font-black">Instagram manbalari</h3>
+              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Faqat Aggregatorda yoqilgan saytlar ko'rsatiladi. O'chirilgan manba saytda ishlashda davom etadi, ammo uning yangi postlari Instagram navbatiga kirmaydi.
+              </p>
+            </div>
+          </div>
+          {!sources.length ? (
+            <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">Aggregatorda yoqilgan manba yo'q.</p>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {sources.map((source) => {
+                let host = source.feedUrl;
+                try { host = new URL(source.feedUrl).hostname.replace(/^www\./, ""); } catch { /* Keep the feed URL. */ }
+                return (
+                  <div key={source.id} className={`flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3 transition ${source.instagramEnabled ? "border-green-200 bg-green-50/75 dark:border-green-400/25 dark:bg-green-400/10" : "border-slate-200 bg-slate-50/80 dark:border-white/10 dark:bg-slate-900/70"}`}>
+                    <div className="min-w-0">
+                      <p className="truncate font-black">{source.name}</p>
+                      <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{host}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={source.instagramEnabled}
+                      aria-label={`${source.name} manbasini Instagram uchun ${source.instagramEnabled ? "o'chirish" : "yoqish"}`}
+                      onClick={() => void toggleSource(source)}
+                      disabled={sourceSavingId === source.id}
+                      className={`relative h-7 w-12 shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-wait disabled:opacity-60 ${source.instagramEnabled ? "border-green-600 bg-green-600" : "border-slate-300 bg-slate-300 dark:border-slate-600 dark:bg-slate-700"}`}
+                    >
+                      <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform ${source.instagramEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
       {deliveryState && (
         <section className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/30">

@@ -34,6 +34,11 @@ const configured = Boolean(
   env.INSTAGRAM_USER_ID &&
   env.BACKEND_PUBLIC_URL
 );
+const INSTAGRAM_AUTO_PUBLISH_SETTING_KEY = "instagram.autoPublishEnabled";
+// Meta allows only a limited number of publishing actions. Keeping one complete
+// article workflow per 15 minutes also leaves room for carousel child containers.
+const INSTAGRAM_MIN_PUBLISH_INTERVAL_MS = 15 * 60 * 1000;
+const INSTAGRAM_RATE_LIMIT_RETRY_MS = 6 * 60 * 60 * 1000;
 // The Meta app is configured with "API setup with Instagram Login". Tokens from
 // that product are accepted by graph.instagram.com, while Facebook Login keeps
 // using graph.facebook.com for older Page-connected setups.
@@ -61,6 +66,13 @@ class InstagramPermanentApiError extends Error {
   }
 }
 
+class InstagramRateLimitApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InstagramRateLimitApiError";
+  }
+}
+
 function instagramGraphErrorMessage(error: InstagramGraphError | undefined, fallback: string | number) {
   const details = [
     typeof error?.code === "number" ? `code ${error.code}` : "",
@@ -73,6 +85,20 @@ function isPermanentInstagramGraphError(error: InstagramGraphError | undefined) 
   const message = error?.message?.toLocaleLowerCase("en") ?? "";
   return [10, 190, 200].includes(error?.code ?? -1) ||
     /api access blocked|invalid oauth|access token|permission|not authorized|not authorised/.test(message);
+}
+
+function isInstagramRateLimitGraphError(error: InstagramGraphError | undefined, status: number) {
+  const message = error?.message?.toLocaleLowerCase("en") ?? "";
+  return status === 429 ||
+    [4, 9, 17, 32, 613].includes(error?.code ?? -1) ||
+    error?.error_subcode === 2207069 ||
+    /too many actions|rate limit|temporarily blocked|try again later/.test(message);
+}
+
+function isInstagramRateLimitFailure(error: unknown) {
+  if (error instanceof InstagramRateLimitApiError) return true;
+  const message = error instanceof Error ? error.message.toLocaleLowerCase("en") : "";
+  return /code 9|subcode 2207069|too many actions|rate limit|temporarily blocked/.test(message);
 }
 
 function isPermanentInstagramFailure(error: unknown) {
@@ -144,6 +170,11 @@ async function graphRequest(path: string, body: Record<string, string | boolean>
   const data = (await response.json().catch(() => null)) as { id?: string; error?: InstagramGraphError } | null;
   if (!response.ok || data?.error || !data?.id) {
     const message = `Instagram API: ${instagramGraphErrorMessage(data?.error, response.status)}`;
+    if (isInstagramRateLimitGraphError(data?.error, response.status)) {
+      throw new InstagramRateLimitApiError(
+        `${message}. Meta vaqtinchalik cheklov qo'ydi; yuborish navbati avtomatik kutadi`
+      );
+    }
     if (isPermanentInstagramGraphError(data?.error)) throw new InstagramPermanentApiError(message);
     throw new Error(message);
   }
@@ -223,9 +254,101 @@ function configurationMessage() {
   return "Instagram sozlamalari to'liq emas";
 }
 
+export async function getInstagramAutoPublishEnabled() {
+  if (!env.INSTAGRAM_POSTING_ENABLED) return false;
+  const setting = await prisma.setting.findUnique({
+    where: { key: INSTAGRAM_AUTO_PUBLISH_SETTING_KEY },
+    select: { value: true }
+  });
+  return setting?.value !== "false";
+}
+
+export async function setInstagramAutoPublishEnabled(enabled: boolean) {
+  if (!env.INSTAGRAM_POSTING_ENABLED) {
+    throw new Error("Instagram yuborish Railway sozlamalarida o'chirilgan");
+  }
+
+  if (!enabled && instagramQueue) await instagramQueue.pause();
+  try {
+    await prisma.setting.upsert({
+      where: { key: INSTAGRAM_AUTO_PUBLISH_SETTING_KEY },
+      update: { value: String(enabled) },
+      create: { key: INSTAGRAM_AUTO_PUBLISH_SETTING_KEY, value: String(enabled) }
+    });
+  } catch (error) {
+    if (!enabled && instagramQueue) await instagramQueue.resume().catch(() => undefined);
+    throw error;
+  }
+  if (enabled && instagramQueue) await instagramQueue.resume();
+  return enabled;
+}
+
+export async function getInstagramAggregatorSources() {
+  return prisma.aggregatorSource.findMany({
+    where: { enabled: true },
+    select: {
+      id: true,
+      name: true,
+      feedUrl: true,
+      instagramEnabled: true
+    },
+    orderBy: { createdAt: "asc" }
+  });
+}
+
+export async function setInstagramAggregatorSourceEnabled(sourceId: string, enabled: boolean) {
+  const source = await prisma.aggregatorSource.findFirst({
+    where: { id: sourceId, enabled: true },
+    select: { id: true, name: true, feedUrl: true, instagramEnabled: true }
+  });
+  if (!source) throw new Error("Aggregatorda faol manba topilmadi");
+
+  const savedSource = await prisma.aggregatorSource.update({
+    where: { id: source.id },
+    data: { instagramEnabled: enabled },
+    select: { id: true, name: true, feedUrl: true, instagramEnabled: true }
+  });
+
+  if (enabled) return { source: savedSource, affected: 0, removedJobs: 0 };
+
+  const articles = await prisma.article.findMany({
+    where: {
+      deletedAt: null,
+      sourceName: source.name,
+      instagramEnabled: true,
+      instagramSentAt: null
+    },
+    select: { id: true }
+  });
+  const articleIds = articles.map((article) => article.id);
+  if (!articleIds.length) return { source: savedSource, affected: 0, removedJobs: 0 };
+
+  await prisma.article.updateMany({
+    where: { id: { in: articleIds } },
+    data: { instagramEnabled: false, instagramError: null }
+  });
+
+  const articleIdSet = new Set(articleIds);
+  const jobs = instagramQueue
+    ? await instagramQueue.getJobs(["waiting", "paused", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
+    : [];
+  let removedJobs = 0;
+  for (const job of jobs) {
+    if (!articleIdSet.has(job.data.articleId)) continue;
+    try {
+      await job.remove();
+      removedJobs += 1;
+    } catch {
+      // An active job cannot always be removed, but the article flag prevents a later retry.
+    }
+  }
+
+  return { source: savedSource, affected: articleIds.length, removedJobs };
+}
+
 async function getQueuedInstagramArticleIds() {
   if (!instagramQueue) return new Set<string>();
-  const jobs = await instagramQueue.getJobs(["waiting", "active", "delayed"], 0, 10_000, true);
+  const jobs = await instagramQueue.getJobs(["waiting", "paused", "active", "delayed"], 0, 10_000, true);
   return new Set(jobs.map((job) => job.data.articleId).filter(Boolean));
 }
 
@@ -245,7 +368,7 @@ export async function getInstagramSettingsStatus() {
     return new Set<string>();
   });
   const queuedIds = [...queuedArticleIds];
-  const [sent, failed, queued, recoverable, latestFailure, connection] = await Promise.all([
+  const [sent, failed, queued, recoverable, latestFailure, connection, autoPublishEnabled] = await Promise.all([
     prisma.article.count({ where: { deletedAt: null, instagramSentAt: { not: null } } }),
     prisma.article.count({
       where: {
@@ -271,13 +394,15 @@ export async function getInstagramSettingsStatus() {
       orderBy: { updatedAt: "desc" },
       select: { title: true, instagramError: true, updatedAt: true }
     }),
-    configured ? testInstagramConnection() : Promise.resolve({ ok: false, message: configurationMessage() })
+    configured ? testInstagramConnection() : Promise.resolve({ ok: false, message: configurationMessage() }),
+    getInstagramAutoPublishEnabled()
   ]);
 
   const ready = configured && connection.ok;
 
   return {
     enabled: env.INSTAGRAM_POSTING_ENABLED,
+    autoPublishEnabled,
     ready,
     apiMode: env.INSTAGRAM_API_MODE,
     apiEndpoint: graphHost,
@@ -363,7 +488,7 @@ export async function cancelInstagramDelivery(articleId: string) {
     data: { instagramEnabled: false, instagramError: null }
   });
   const jobs = instagramQueue
-    ? await instagramQueue.getJobs(["waiting", "active", "delayed"], 0, 10_000, true).catch(() => [])
+    ? await instagramQueue.getJobs(["waiting", "paused", "active", "delayed"], 0, 10_000, true).catch(() => [])
     : [];
   const matchingJobs = jobs.filter((job) => job.data.articleId === article.id);
   let removedJobs = 0;
@@ -410,7 +535,7 @@ export async function cancelInstagramDeliveries(articleIds: string[]) {
   });
 
   const jobs = instagramQueue
-    ? await instagramQueue.getJobs(["waiting", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
+    ? await instagramQueue.getJobs(["waiting", "paused", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
     : [];
   const eligibleSet = new Set(eligibleIds);
   let removedJobs = 0;
@@ -452,7 +577,7 @@ export async function prioritizeInstagramDeliveries(articleIds: string[]) {
 
   const eligibleSet = new Set(eligibleIds);
   const jobs = instagramQueue
-    ? await instagramQueue.getJobs(["waiting", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
+    ? await instagramQueue.getJobs(["waiting", "paused", "active", "delayed", "failed"], 0, 10_000, true).catch(() => [])
     : [];
   const queuedIds = new Set<string>();
   let prioritized = 0;
@@ -689,6 +814,13 @@ if (configured) {
         });
         if (!handled) throw new Error("Bu maqolaning Instagram posti hali ishlamoqda");
       } catch (error) {
+        if (isInstagramRateLimitFailure(error)) {
+          // Return this job to the waiting list without consuming an attempt and stop
+          // every worker from hammering Meta with the rest of the queued articles.
+          await instagramQueue!.rateLimit(INSTAGRAM_RATE_LIMIT_RETRY_MS);
+          console.warn(`[instagram] Meta action limiti: navbat 6 soatga kutishga o'tkazildi (job ${job.id})`);
+          throw Worker.RateLimitError();
+        }
         if (isPermanentInstagramFailure(error)) {
           const message = error instanceof Error ? error.message : "Instagram API doimiy xatosi";
           throw new UnrecoverableError(message);
@@ -696,7 +828,13 @@ if (configured) {
         throw error;
       }
     },
-    { connection: createBullConnection(), concurrency: env.INSTAGRAM_WORKER_CONCURRENCY }
+    {
+      autorun: false,
+      connection: createBullConnection(),
+      concurrency: env.INSTAGRAM_WORKER_CONCURRENCY,
+      limiter: { max: 1, duration: INSTAGRAM_MIN_PUBLISH_INTERVAL_MS },
+      maximumRateLimitDelay: 5 * 60 * 1000
+    }
   );
   instagramWorker.on("failed", (job, error) => {
     console.error(`[instagram] job ${job?.id ?? "unknown"} failed:`, error);
@@ -709,6 +847,15 @@ if (configured) {
   });
   instagramWorker.on("error", (error) => console.error("[instagram] worker xatosi:", error));
   instagramQueue.on("error", (error) => console.error("[instagram] queue xatosi:", error));
+
+  const queue = instagramQueue;
+  const worker = instagramWorker;
+  void (async () => {
+    const autoPublishEnabled = await getInstagramAutoPublishEnabled();
+    if (autoPublishEnabled) await queue.resume();
+    else await queue.pause();
+    await worker.run();
+  })().catch((error) => console.error("[instagram] worker ishga tushmadi:", error));
 }
 
 export async function closeInstagramJobs() {

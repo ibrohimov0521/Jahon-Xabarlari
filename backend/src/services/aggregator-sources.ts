@@ -1,4 +1,4 @@
-export type NewsSource = { name: string; feedUrl: string };
+export type NewsSource = { name: string; feedUrl: string; instagramEnabled?: boolean };
 
 // Every URL below was verified with a live rss-parser fetch before being added here.
 // Reuters and AP are intentionally excluded: neither offers a public RSS feed anymore (both

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
-import { cancelInstagramDeliveries, cancelInstagramDelivery, getInstagramDeliveries, getInstagramSettingsStatus, prioritizeInstagramDeliveries, repairInstagramQueue, type InstagramDeliveryState, testInstagramConnection } from "../../services/instagram.js";
+import { cancelInstagramDeliveries, cancelInstagramDelivery, getInstagramAggregatorSources, getInstagramAutoPublishEnabled, getInstagramDeliveries, getInstagramSettingsStatus, prioritizeInstagramDeliveries, repairInstagramQueue, setInstagramAggregatorSourceEnabled, setInstagramAutoPublishEnabled, type InstagramDeliveryState, testInstagramConnection } from "../../services/instagram.js";
 
 export const instagramAdminRouter = Router();
 
@@ -10,6 +10,43 @@ instagramAdminRouter.use(requireAuth, permit("articles.publish"));
 
 instagramAdminRouter.get("/status", async (_req, res) => {
   res.json(await getInstagramSettingsStatus());
+});
+
+instagramAdminRouter.patch("/settings", async (req, res) => {
+  const { autoPublishEnabled } = z.object({ autoPublishEnabled: z.boolean() }).parse(req.body);
+  const previousValue = await getInstagramAutoPublishEnabled();
+  const savedValue = await setInstagramAutoPublishEnabled(autoPublishEnabled);
+  await audit(req, "INSTAGRAM_SETTINGS_UPDATE", "Setting", "instagram.autoPublishEnabled", {
+    previousValue,
+    autoPublishEnabled: savedValue
+  });
+  res.json({
+    autoPublishEnabled: savedValue,
+    message: savedValue
+      ? "Instagramga avtomatik yuborish davom ettirildi"
+      : "Avtomatik yuborish to'xtatildi. Yangi postlar navbatda saqlanadi"
+  });
+});
+
+instagramAdminRouter.get("/sources", async (_req, res) => {
+  res.json({ items: await getInstagramAggregatorSources() });
+});
+
+instagramAdminRouter.patch("/sources/:id", async (req, res) => {
+  const id = z.string().min(1).max(64).parse(req.params.id);
+  const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+  const result = await setInstagramAggregatorSourceEnabled(id, enabled);
+  await audit(req, "INSTAGRAM_SOURCE_UPDATE", "AggregatorSource", id, {
+    enabled,
+    affectedArticles: result.affected,
+    removedJobs: result.removedJobs
+  });
+  res.json({
+    ...result,
+    message: enabled
+      ? `${result.source.name} Instagram uchun yoqildi`
+      : `${result.source.name} Instagram uchun o'chirildi. ${result.affected} ta navbatdagi post bekor qilindi`
+  });
 });
 
 instagramAdminRouter.get("/deliveries", async (req, res) => {

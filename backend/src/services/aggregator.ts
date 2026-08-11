@@ -87,6 +87,7 @@ export async function getAggregatorSources(options: { enabledOnly?: boolean } = 
 
 type FeedItem = {
   sourceName: string;
+  instagramEnabled: boolean;
   title: string;
   link: string;
   snippet: string;
@@ -226,6 +227,7 @@ async function fetchSource(source: NewsSource): Promise<FeedItem[]> {
         }
         return [{
           sourceName: source.name,
+          instagramEnabled: source.instagramEnabled !== false,
           title: item.title.trim(),
           link,
           snippet: (item.contentSnippet || item.content || item.summary || "").toString().trim().slice(0, 2000),
@@ -336,7 +338,7 @@ async function processItem(
         categoryId: category.id,
         authorId,
         status,
-        instagramEnabled: Boolean(mainImage),
+        instagramEnabled: Boolean(mainImage) && item.instagramEnabled,
         isBreaking: Boolean(parsed.isBreaking),
         mainImage,
         sourceName: item.sourceName,
@@ -382,7 +384,7 @@ async function processItem(
   await queueTranslations(article);
   queueArticlePush(article);
   queueArticleTelegramPost(article);
-  queueArticleInstagramPost(article);
+  if (article.instagramEnabled) queueArticleInstagramPost(article);
 }
 
 let running = false;

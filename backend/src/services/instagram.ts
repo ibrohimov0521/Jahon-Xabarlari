@@ -1,6 +1,6 @@
 import type { ArticleStatus, InstagramFormat } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { Queue, Worker } from "bullmq";
+import { Queue, UnrecoverableError, Worker } from "bullmq";
 import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { createBullConnection, withRedisLock } from "./redis.js";
@@ -53,6 +53,33 @@ type InstagramConnectionResult = {
   username?: string;
   accountType?: string;
 };
+
+class InstagramPermanentApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InstagramPermanentApiError";
+  }
+}
+
+function instagramGraphErrorMessage(error: InstagramGraphError | undefined, fallback: string | number) {
+  const details = [
+    typeof error?.code === "number" ? `code ${error.code}` : "",
+    typeof error?.error_subcode === "number" ? `subcode ${error.error_subcode}` : ""
+  ].filter(Boolean).join(", ");
+  return `${error?.message ?? fallback}${details ? ` (${details})` : ""}`;
+}
+
+function isPermanentInstagramGraphError(error: InstagramGraphError | undefined) {
+  const message = error?.message?.toLocaleLowerCase("en") ?? "";
+  return [10, 190, 200].includes(error?.code ?? -1) ||
+    /api access blocked|invalid oauth|access token|permission|not authorized|not authorised/.test(message);
+}
+
+function isPermanentInstagramFailure(error: unknown) {
+  if (error instanceof InstagramPermanentApiError || error instanceof UnrecoverableError) return true;
+  const message = error instanceof Error ? error.message.toLocaleLowerCase("en") : "";
+  return /api access blocked|invalid oauth|access token|permission|not authorized|not authorised/.test(message);
+}
 
 export type InstagramDeliveryState = "sent" | "queued" | "failed";
 
@@ -116,10 +143,9 @@ async function graphRequest(path: string, body: Record<string, string | boolean>
   });
   const data = (await response.json().catch(() => null)) as { id?: string; error?: InstagramGraphError } | null;
   if (!response.ok || data?.error || !data?.id) {
-    if (data?.error?.code === 190) {
-      throw new Error("Instagram access token Meta tomonidan qabul qilinmadi. Token, Instagram User ID va Meta API ulanish turini tekshiring");
-    }
-    throw new Error(`Instagram API: ${data?.error?.message ?? response.status}`);
+    const message = `Instagram API: ${instagramGraphErrorMessage(data?.error, response.status)}`;
+    if (isPermanentInstagramGraphError(data?.error)) throw new InstagramPermanentApiError(message);
+    throw new Error(message);
   }
   return data.id;
 }
@@ -219,7 +245,7 @@ export async function getInstagramSettingsStatus() {
     return new Set<string>();
   });
   const queuedIds = [...queuedArticleIds];
-  const [sent, failed, queued, recoverable, latestFailure] = await Promise.all([
+  const [sent, failed, queued, recoverable, latestFailure, connection] = await Promise.all([
     prisma.article.count({ where: { deletedAt: null, instagramSentAt: { not: null } } }),
     prisma.article.count({
       where: {
@@ -244,12 +270,15 @@ export async function getInstagramSettingsStatus() {
       },
       orderBy: { updatedAt: "desc" },
       select: { title: true, instagramError: true, updatedAt: true }
-    })
+    }),
+    configured ? testInstagramConnection() : Promise.resolve({ ok: false, message: configurationMessage() })
   ]);
+
+  const ready = configured && connection.ok;
 
   return {
     enabled: env.INSTAGRAM_POSTING_ENABLED,
-    ready: configured,
+    ready,
     apiMode: env.INSTAGRAM_API_MODE,
     apiEndpoint: graphHost,
     graphApiVersion: env.INSTAGRAM_GRAPH_API_VERSION,
@@ -262,7 +291,7 @@ export async function getInstagramSettingsStatus() {
     latestFailure: latestFailure
       ? { title: latestFailure.title, message: latestFailure.instagramError, at: latestFailure.updatedAt }
       : null,
-    configurationMessage: configured ? "Instagram avtomatik yuborishga tayyor" : configurationMessage()
+    configurationMessage: ready ? connection.message : (configured ? connection.message : configurationMessage())
   };
 }
 
@@ -400,6 +429,8 @@ export async function cancelInstagramDeliveries(articleIds: string[]) {
 export async function prioritizeInstagramDeliveries(articleIds: string[]) {
   const ids = normalizeDeliveryIds(articleIds);
   if (!ids.length) return { affected: 0, prioritized: 0, requeued: 0 };
+  const connection = await testInstagramConnection();
+  if (!connection.ok) throw new Error(connection.message);
 
   const articles = await prisma.article.findMany({
     where: {
@@ -446,7 +477,7 @@ export async function prioritizeInstagramDeliveries(articleIds: string[]) {
   let requeued = 0;
   for (const article of articles) {
     if (queuedIds.has(article.id)) continue;
-    if (await queueArticleInstagramPost(article, { force: true })) requeued += 1;
+    if (await queueArticleInstagramPost(article, { force: true, connectionVerified: true })) requeued += 1;
   }
   return { affected: eligibleIds.length, prioritized, requeued };
 }
@@ -455,6 +486,8 @@ export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueR
   if (!configured || !instagramQueue) {
     return { requeued: 0, skipped: 0, message: "Instagram ulanishi tayyor emas, navbatni tiklab bo'lmadi" };
   }
+  const connection = await testInstagramConnection();
+  if (!connection.ok) return { requeued: 0, skipped: 0, message: connection.message };
   const queuedIds = [...await getQueuedInstagramArticleIds()];
   const candidates = await prisma.article.findMany({
     where: {
@@ -468,7 +501,7 @@ export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueR
   });
   let requeued = 0;
   for (const article of candidates) {
-    if (await queueArticleInstagramPost(article, { force: true })) requeued += 1;
+    if (await queueArticleInstagramPost(article, { force: true, connectionVerified: true })) requeued += 1;
   }
   return {
     requeued,
@@ -491,13 +524,7 @@ export async function testInstagramConnection(): Promise<InstagramConnectionResu
       error?: InstagramGraphError;
     } | null;
     if (!response.ok || data?.error) {
-      if (data?.error?.code === 190) {
-        return {
-          ok: false,
-          message: `Meta tokenni qabul qilmadi (${env.INSTAGRAM_API_MODE === "instagram_login" ? "Instagram Login" : "Facebook Login"} ulanishi). Token yoki Meta'dagi akkaunt ruxsatini tekshiring`
-        };
-      }
-      return { ok: false, message: `Instagram API: ${data?.error?.message ?? response.status}` };
+      return { ok: false, message: `Instagram API: ${instagramGraphErrorMessage(data?.error, response.status)}` };
     }
     return {
       ok: true,
@@ -505,8 +532,9 @@ export async function testInstagramConnection(): Promise<InstagramConnectionResu
       username: data?.username,
       accountType: data?.account_type
     };
-  } catch {
-    return { ok: false, message: "Instagram bilan ulanishni tekshirib bo'lmadi. Birozdan keyin qayta urinib ko'ring." };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "noma'lum tarmoq xatosi";
+    return { ok: false, message: `Instagram bilan ulanishni tekshirib bo'lmadi: ${reason}` };
   }
 }
 
@@ -621,9 +649,13 @@ async function publishArticleToInstagram(articleId: string) {
 
 export async function queueArticleInstagramPost(
   article: { id: string; status: ArticleStatus; publishedAt: Date | null },
-  options: { force?: boolean } = {}
+  options: { force?: boolean; connectionVerified?: boolean } = {}
 ) {
   if (!configured || !instagramQueue || article.status !== "PUBLISHED") return false;
+  if (options.force && !options.connectionVerified) {
+    const connection = await testInstagramConnection();
+    if (!connection.ok) throw new Error(connection.message);
+  }
   const revision = article.publishedAt?.getTime() ?? Date.now();
   try {
     await instagramQueue.add("article", { articleId: article.id }, {
@@ -650,17 +682,25 @@ if (configured) {
   instagramWorker = new Worker<InstagramJob, void, InstagramJobName>(
     "instagram-posts",
     async (job) => {
-      const handled = await withRedisLock(`lock:instagram:${job.data.articleId}`, 15 * 60 * 1000, async () => {
-        await publishArticleToInstagram(job.data.articleId);
-        return true;
-      });
-      if (!handled) throw new Error("Bu maqolaning Instagram posti hali ishlamoqda");
+      try {
+        const handled = await withRedisLock(`lock:instagram:${job.data.articleId}`, 15 * 60 * 1000, async () => {
+          await publishArticleToInstagram(job.data.articleId);
+          return true;
+        });
+        if (!handled) throw new Error("Bu maqolaning Instagram posti hali ishlamoqda");
+      } catch (error) {
+        if (isPermanentInstagramFailure(error)) {
+          const message = error instanceof Error ? error.message : "Instagram API doimiy xatosi";
+          throw new UnrecoverableError(message);
+        }
+        throw error;
+      }
     },
     { connection: createBullConnection(), concurrency: env.INSTAGRAM_WORKER_CONCURRENCY }
   );
   instagramWorker.on("failed", (job, error) => {
     console.error(`[instagram] job ${job?.id ?? "unknown"} failed:`, error);
-    if (!job || job.attemptsMade < (job.opts.attempts ?? 1)) return;
+    if (!job || (!isPermanentInstagramFailure(error) && job.attemptsMade < (job.opts.attempts ?? 1))) return;
     const message = error instanceof Error ? error.message.slice(0, 1_500) : "Instagram yuborish navbati tugadi";
     void prisma.article.update({
       where: { id: job.data.articleId },

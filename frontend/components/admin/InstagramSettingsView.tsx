@@ -73,6 +73,10 @@ export function InstagramSettingsView() {
   const [selectedDelivery, setSelectedDelivery] = useState<InstagramDelivery | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  const connectionConfigured = Boolean(
+    status?.enabled && status.tokenConfigured && status.userIdConfigured && status.publicMediaReady
+  );
+
   useScrollLock(Boolean(selectedDelivery));
 
   async function load() {
@@ -254,18 +258,18 @@ export function InstagramSettingsView() {
       {status && (
         <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
           <div className="space-y-4">
-            <div className={`rounded-xl border p-4 ${status.ready ? "border-green-300 bg-green-50/80 dark:border-green-400/30 dark:bg-green-400/10" : "border-amber-300 bg-amber-50/80 dark:border-amber-400/30 dark:bg-amber-400/10"}`}>
+            <div className={`rounded-xl border p-4 ${status.ready ? "border-green-300 bg-green-50/80 dark:border-green-400/30 dark:bg-green-400/10" : connectionConfigured ? "border-red-300 bg-red-50/80 dark:border-red-400/30 dark:bg-red-400/10" : "border-amber-300 bg-amber-50/80 dark:border-amber-400/30 dark:bg-amber-400/10"}`}>
               <div className="flex gap-3">
-                <span className={`grid size-11 shrink-0 place-items-center rounded-lg ${status.ready ? "bg-green-600 text-white" : "bg-amber-500 text-white"}`}>
+                <span className={`grid size-11 shrink-0 place-items-center rounded-lg ${status.ready ? "bg-green-600 text-white" : connectionConfigured ? "bg-red-600 text-white" : "bg-amber-500 text-white"}`}>
                   <Instagram size={21} />
                 </span>
                 <div>
-                  <p className="font-black">{status.ready ? "Instagram nashr tizimi tayyor" : "Instagram sozlanishi kerak"}</p>
+                  <p className="font-black">{status.ready ? "Instagram ulanishi faol" : connectionConfigured ? "Meta Instagram ulanishini bloklagan" : "Instagram sozlanishi kerak"}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{status.configurationMessage}</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button onClick={() => void testConnection()} disabled={testing || !status.ready} icon={testing ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}>
+                <Button onClick={() => void testConnection()} disabled={testing || !connectionConfigured} icon={testing ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}>
                   {testing ? "Tekshirilmoqda..." : "Ulanishni tekshirish"}
                 </Button>
                 <a

@@ -8,6 +8,8 @@ import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
 type InstagramStatus = {
   enabled: boolean;
   ready: boolean;
+  apiMode: "instagram_login" | "facebook_login";
+  apiEndpoint: string;
   graphApiVersion: string;
   tokenConfigured: boolean;
   userIdConfigured: boolean;
@@ -119,7 +121,7 @@ export function InstagramSettingsView() {
               <CheckItem ok={status.userIdConfigured} label="Instagram akkaunt" value={status.accountHint ? `ID ${status.accountHint}` : "Instagram User ID kerak"} />
               <CheckItem ok={status.publicMediaReady} label="Public media URL" value={status.publicMediaReady ? "Meta rasm/video olishi mumkin" : "HTTPS BACKEND_PUBLIC_URL kerak"} />
               <CheckItem ok={status.mediaRendererReady} label="Reel media-renderer" value={status.mediaRendererReady ? "Video Reels uchun tayyor" : "MEDIA_RENDERER sozlanmagan"} />
-              <CheckItem ok={status.ready} label="Graph API" value={status.graphApiVersion} />
+              <CheckItem ok={status.ready} label="Meta ulanishi" value={`${status.apiMode === "instagram_login" ? "Instagram Login" : "Facebook Login"} - ${status.apiEndpoint.replace("https://", "")}/${status.graphApiVersion}`} />
             </div>
           </div>
 

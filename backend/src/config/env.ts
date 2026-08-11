@@ -61,6 +61,9 @@ const schema = z.object({
     .transform((value) => value === "true"),
   INSTAGRAM_ACCESS_TOKEN: optionalEnv(z.string().trim().min(20)),
   INSTAGRAM_USER_ID: optionalEnv(z.string().trim().regex(/^\d+$/, "INSTAGRAM_USER_ID faqat raqamlardan iborat bo'lishi kerak")),
+  // Meta has two Instagram API products with different Graph hosts. New apps using
+  // "Instagram Login" receive IGA... tokens and must use graph.instagram.com.
+  INSTAGRAM_API_MODE: z.enum(["instagram_login", "facebook_login"]).default("instagram_login"),
   INSTAGRAM_GRAPH_API_VERSION: z.string().trim().regex(/^v\d+\.\d+$/, "Masalan v24.0").default("v24.0"),
   // Meta fetches the asset itself. This must be the public HTTPS URL of the backend service,
   // not a private Railway hostname or localhost.

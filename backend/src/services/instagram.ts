@@ -32,7 +32,18 @@ const configured = Boolean(
   env.INSTAGRAM_USER_ID &&
   env.BACKEND_PUBLIC_URL
 );
-const graphBase = `https://graph.facebook.com/${env.INSTAGRAM_GRAPH_API_VERSION}`;
+// The Meta app is configured with "API setup with Instagram Login". Tokens from
+// that product are accepted by graph.instagram.com, while Facebook Login keeps
+// using graph.facebook.com for older Page-connected setups.
+const graphHost = env.INSTAGRAM_API_MODE === "facebook_login" ? "https://graph.facebook.com" : "https://graph.instagram.com";
+const graphBase = `${graphHost}/${env.INSTAGRAM_GRAPH_API_VERSION}`;
+
+type InstagramGraphError = {
+  message?: string;
+  type?: string;
+  code?: number;
+  error_subcode?: number;
+};
 
 type InstagramConnectionResult = {
   ok: boolean;
@@ -80,10 +91,10 @@ async function graphRequest(path: string, body: Record<string, string | boolean>
     body: new URLSearchParams(Object.entries(body).map(([key, value]) => [key, String(value)])).toString(),
     signal: AbortSignal.timeout(35_000)
   });
-  const data = (await response.json().catch(() => null)) as { id?: string; error?: { message?: string; code?: number } } | null;
+  const data = (await response.json().catch(() => null)) as { id?: string; error?: InstagramGraphError } | null;
   if (!response.ok || data?.error || !data?.id) {
     if (data?.error?.code === 190) {
-      throw new Error("Instagram access token yaroqsiz yoki to'liq kiritilmagan. Railway'da INSTAGRAM_ACCESS_TOKEN qiymatini yangilang");
+      throw new Error("Instagram access token Meta tomonidan qabul qilinmadi. Token, Instagram User ID va Meta API ulanish turini tekshiring");
     }
     throw new Error(`Instagram API: ${data?.error?.message ?? response.status}`);
   }
@@ -158,6 +169,8 @@ export async function getInstagramSettingsStatus() {
   return {
     enabled: env.INSTAGRAM_POSTING_ENABLED,
     ready: configured,
+    apiMode: env.INSTAGRAM_API_MODE,
+    apiEndpoint: graphHost,
     graphApiVersion: env.INSTAGRAM_GRAPH_API_VERSION,
     tokenConfigured: Boolean(env.INSTAGRAM_ACCESS_TOKEN),
     userIdConfigured: Boolean(env.INSTAGRAM_USER_ID),
@@ -183,11 +196,14 @@ export async function testInstagramConnection(): Promise<InstagramConnectionResu
     const data = (await response.json().catch(() => null)) as {
       username?: string;
       account_type?: string;
-      error?: { message?: string; code?: number };
+      error?: InstagramGraphError;
     } | null;
     if (!response.ok || data?.error) {
       if (data?.error?.code === 190) {
-        return { ok: false, message: "Instagram access token yaroqsiz, eskirgan yoki to'liq kiritilmagan" };
+        return {
+          ok: false,
+          message: `Meta tokenni qabul qilmadi (${env.INSTAGRAM_API_MODE === "instagram_login" ? "Instagram Login" : "Facebook Login"} ulanishi). Token yoki Meta'dagi akkaunt ruxsatini tekshiring`
+        };
       }
       return { ok: false, message: `Instagram API: ${data?.error?.message ?? response.status}` };
     }

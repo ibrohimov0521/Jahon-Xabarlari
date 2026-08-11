@@ -99,10 +99,10 @@ function completeArticleHeadline(title: string, content: string) {
   return current && candidate && (candidate.startsWith(current) || current.startsWith(candidate)) ? firstParagraph : title;
 }
 
-function channelHashtag(categorySlug: string, categoryName: string) {
+function channelHashtags(categorySlug: string, categoryName: string) {
   const raw = categorySlug || categoryName;
   const normalized = raw.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "");
-  return `#${normalized || "yangilik"}`;
+  return [`#${normalized || "yangilik"}`, "#bestteamnews", "#yangiliklar"].join(" ");
 }
 
 function headlinePrefix(useCustomEmoji: boolean) {
@@ -126,7 +126,7 @@ export function buildTelegramChannelPost(article: Pick<ChannelArticle, "title" |
   const body = stripRepeatedHeadline(cleanTelegramText(article.content || article.summary), title);
   const source = article.sourceName ? cleanTelegramText(article.sourceName).slice(0, 120) : "";
   return {
-    heading: `${headlinePrefix(useCustomEmoji)} <b>${escapeHtml(title)}</b>\n${channelHashtag(article.category.slug, article.category.name)}`,
+    heading: `${headlinePrefix(useCustomEmoji)} <b>${escapeHtml(title)}</b>\n${channelHashtags(article.category.slug, article.category.name)}`,
     body,
     footer: [
       source ? `<i>Manba: ${escapeHtml(source)}</i>` : "",

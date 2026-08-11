@@ -805,6 +805,7 @@ articleRouter.post("/admin/articles/:id/instagram/retry", requireAuth, permit("a
     return res.status(400).json({ message: "Bu maqola Instagramga allaqachon yuborilgan" });
   }
 
+  await prisma.article.update({ where: { id: article.id }, data: { instagramError: null } });
   queueArticleInstagramPost(article, { force: true });
   await audit(req, "ARTICLE_INSTAGRAM_RETRY", "Article", article.id);
   res.status(202).json({ ok: true, message: "Instagram posti qayta navbatga qo'shildi" });

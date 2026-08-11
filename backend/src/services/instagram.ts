@@ -52,6 +52,8 @@ type InstagramConnectionResult = {
   accountType?: string;
 };
 
+export type InstagramDeliveryState = "sent" | "queued" | "failed";
+
 function isVideo(url: string) {
   return /\.(?:mp4|mov|m4v|webm)(?:[?#].*)?$/i.test(url);
 }
@@ -65,8 +67,9 @@ function cleanText(value: string) {
     .trim();
 }
 
-function instagramHashtag(categorySlug: string, categoryName: string) {
-  return `#${(categorySlug || categoryName).toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "") || "yangilik"}`;
+function instagramHashtags(categorySlug: string, categoryName: string) {
+  const category = (categorySlug || categoryName).toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "") || "yangilik";
+  return [`#${category}`, "#bestteamnews", "#yangiliklar"].join(" ");
 }
 
 // Instagram captions are intentionally short. The original article stays on the site, while
@@ -78,7 +81,7 @@ export function buildInstagramCaption(article: Pick<InstagramArticle, "title" | 
     .trim();
   const compactBody = body.length > 1_700 ? `${body.slice(0, 1_680).trimEnd()}...` : body;
   const source = article.sourceName ? `Manba: ${cleanText(article.sourceName).slice(0, 110)}` : "";
-  return [title, instagramHashtag(article.category.slug, article.category.name), compactBody, source, "@BESTTeam_uz"]
+  return [title, instagramHashtags(article.category.slug, article.category.name), compactBody, source, "@BESTTeamNEWS"]
     .filter(Boolean)
     .join("\n\n")
     .slice(0, 2_150);
@@ -182,6 +185,54 @@ export async function getInstagramSettingsStatus() {
       ? { title: latestFailure.title, message: latestFailure.instagramError, at: latestFailure.updatedAt }
       : null,
     configurationMessage: configured ? "Instagram avtomatik yuborishga tayyor" : configurationMessage()
+  };
+}
+
+export async function getInstagramDeliveries(state: InstagramDeliveryState, page = 1) {
+  const take = 12;
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const where = {
+    status: "PUBLISHED" as const,
+    deletedAt: null,
+    instagramEnabled: true,
+    ...(state === "sent"
+      ? { instagramSentAt: { not: null } }
+      : state === "failed"
+        ? { instagramSentAt: null, instagramError: { not: null } }
+        : { instagramSentAt: null, instagramError: null })
+  };
+  const [items, total] = await Promise.all([
+    prisma.article.findMany({
+      where,
+      orderBy: state === "sent" ? { instagramSentAt: "desc" } : { updatedAt: "desc" },
+      skip: (safePage - 1) * take,
+      take,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        summary: true,
+        mainImage: true,
+        instagramFormat: true,
+        instagramSentAt: true,
+        instagramUrl: true,
+        instagramError: true,
+        updatedAt: true,
+        category: { select: { name: true, slug: true } }
+      }
+    }),
+    prisma.article.count({ where })
+  ]);
+
+  return {
+    state,
+    items: items.map((article) => ({
+      ...article,
+      previewUrl: article.mainImage && !isVideo(article.mainImage) ? instagramArticleCoverUrl(article.id) : null
+    })),
+    total,
+    page: safePage,
+    pages: Math.max(1, Math.ceil(total / take))
   };
 }
 

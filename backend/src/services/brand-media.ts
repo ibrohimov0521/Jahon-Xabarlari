@@ -13,7 +13,8 @@ async function brandLogo() {
 }
 
 async function resizedBrandLogo(width: number) {
-  // The watermark asset is a compact transparent crop of the supplied BEST TEAM NEWS logo.
+  // The supplied BEST TEAM mark already has a transparent background. Keep the brand mark
+  // compact so it signs the media without competing with the photo or video itself.
   return sharp(await brandLogo())
     .resize({ width, withoutEnlargement: true })
     .png()
@@ -76,7 +77,7 @@ export async function applyBrandWatermark(source: Buffer) {
   const metadata = await image.metadata();
   const width = Math.max(1, metadata.width ?? 1200);
   const height = Math.max(1, metadata.height ?? 800);
-  const logoWidth = Math.min(124, Math.max(48, Math.round(width * 0.09)));
+  const logoWidth = Math.min(138, Math.max(54, Math.round(width * 0.085)));
   const padding = Math.max(10, Math.round(Math.min(width, height) * 0.018));
   const logo = await resizedBrandLogo(logoWidth);
 

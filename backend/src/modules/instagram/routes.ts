@@ -35,14 +35,19 @@ async function articleImageBuffer(source: string) {
   if (keyMatch) {
     const media = await prisma.mediaFile.findUnique({ where: { key: decodeURIComponent(keyMatch[1]) }, select: { data: true, mimeType: true } });
     if (!media?.data || !media.mimeType.startsWith("image/")) throw new Error("Saqlangan rasm topilmadi");
-    return { buffer: Buffer.isBuffer(media.data) ? media.data : Buffer.from(media.data), alreadyBranded: true };
+    return {
+      buffer: Buffer.isBuffer(media.data) ? media.data : Buffer.from(media.data),
+      // URLs from the new pipeline keep raw source bytes. Legacy database rows require their
+      // retired corner mark to be hidden before applying the current transparent logo.
+      replaceExistingWatermark: url.searchParams.get("brand") !== "best-team-v3" || url.searchParams.get("replace") !== "0"
+    };
   }
   const response = await safeFetch(url.toString(), {
     headers: { "user-agent": "BEST-TEAM-NEWS-Media/1.0", accept: "image/avif,image/webp,image/*,*/*;q=0.8" },
     signal: AbortSignal.timeout(25_000)
   });
   if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) throw new Error("Asl rasmni olishning iloji bo'lmadi");
-  return { buffer: await responseBuffer(response, MAX_IMAGE_BYTES), alreadyBranded: false };
+  return { buffer: await responseBuffer(response, MAX_IMAGE_BYTES), replaceExistingWatermark: false };
 }
 
 async function sendBrandedArticleImage(req: Request, res: ExpressResponse) {
@@ -61,7 +66,7 @@ async function sendBrandedArticleImage(req: Request, res: ExpressResponse) {
 
   try {
     const source = await articleImageBuffer(sourceUrl);
-    const branded = source.alreadyBranded ? source.buffer : await applyBrandWatermark(source.buffer);
+    const branded = await applyBrandWatermark(source.buffer, { replaceExistingWatermark: source.replaceExistingWatermark });
     res.set({ "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" }).send(branded);
   } catch (error) {
     console.error("[instagram] branded image render failed:", error);

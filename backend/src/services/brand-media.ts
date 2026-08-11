@@ -1,11 +1,17 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 
 const watermarkPath = path.resolve(process.cwd(), "assets", "brand-watermark.png");
 let logoPromise: Promise<Buffer> | null = null;
 const INSTAGRAM_WIDTH = 1080;
 const INSTAGRAM_HEIGHT = 1350;
+
+type WatermarkOptions = {
+  // Media uploaded before the BEST TEAM identity was introduced already contains the old mark
+  // in its upper-right corner. Hide that small area before drawing the current transparent mark.
+  replaceExistingWatermark?: boolean;
+};
 
 async function brandLogo() {
   logoPromise ??= readFile(watermarkPath);
@@ -13,12 +19,21 @@ async function brandLogo() {
 }
 
 async function resizedBrandLogo(width: number) {
-  // The supplied BEST TEAM mark already has a transparent background. Keep the brand mark
-  // compact so it signs the media without competing with the photo or video itself.
+  // Trim transparent canvas space first. The supplied logo intentionally has generous empty
+  // space around it, which otherwise made the visible mark look far too small on media.
   return sharp(await brandLogo())
+    .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 8 })
     .resize({ width, withoutEnlargement: true })
     .png()
     .toBuffer();
+}
+
+function legacyWatermarkMask(width: number, height: number) {
+  return Buffer.from(`
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${width}" height="${height}" rx="${Math.max(8, Math.round(width * 0.12))}" fill="#020813" fill-opacity="0.84"/>
+    </svg>
+  `);
 }
 
 function escapeSvg(value: string) {
@@ -70,19 +85,34 @@ function instagramOverlay(title: string) {
   `);
 }
 
-// Images are branded once at upload time. The stored image can then be used safely on the
-// site, Telegram and Instagram without an additional client-side modification.
-export async function applyBrandWatermark(source: Buffer) {
+// Current uploads remain unmodified in storage. The current logo is rendered when the image is
+// delivered, so an identity update never leaves an outdated logo permanently baked into media.
+export async function applyBrandWatermark(source: Buffer, options: WatermarkOptions = {}) {
   const image = sharp(source, { failOn: "error", limitInputPixels: 50_000_000 }).rotate();
   const metadata = await image.metadata();
   const width = Math.max(1, metadata.width ?? 1200);
   const height = Math.max(1, metadata.height ?? 800);
-  const logoWidth = Math.min(138, Math.max(54, Math.round(width * 0.085)));
+  const logoWidth = Math.min(220, Math.max(84, Math.round(width * 0.13)));
   const padding = Math.max(10, Math.round(Math.min(width, height) * 0.018));
   const logo = await resizedBrandLogo(logoWidth);
+  const logoMetadata = await sharp(logo).metadata();
+  const logoHeight = Math.max(1, logoMetadata.height ?? logoWidth);
+  const logoLeft = Math.max(padding, width - logoWidth - padding);
+  const composites: OverlayOptions[] = [];
+
+  if (options.replaceExistingWatermark) {
+    const maskSize = Math.max(logoWidth + (padding * 2), logoHeight + (padding * 2), Math.round(logoWidth * 1.18));
+    composites.push({
+      input: legacyWatermarkMask(maskSize, maskSize),
+      top: Math.max(0, padding - Math.round(padding * 0.45)),
+      left: Math.max(0, width - maskSize - Math.max(0, padding - Math.round(padding * 0.45))),
+      blend: "over"
+    });
+  }
+  composites.push({ input: logo, top: padding, left: logoLeft, blend: "over" });
 
   return image
-    .composite([{ input: logo, top: padding, left: Math.max(padding, width - logoWidth - padding), blend: "over" }])
+    .composite(composites)
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
 }
@@ -90,7 +120,7 @@ export async function applyBrandWatermark(source: Buffer) {
 // First carousel slide for Instagram: readable headline over the article image, followed by
 // the branded original image as the second slide.
 export async function createInstagramNewsCover(source: Buffer, title: string) {
-  const logoWidth = 118;
+  const logoWidth = 158;
   const logo = await resizedBrandLogo(logoWidth);
   return sharp(source, { failOn: "error", limitInputPixels: 50_000_000 })
     .rotate()

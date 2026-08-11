@@ -54,6 +54,12 @@ type InstagramConnectionResult = {
 
 export type InstagramDeliveryState = "sent" | "queued" | "failed";
 
+type InstagramQueueRepairResult = {
+  requeued: number;
+  skipped: number;
+  message: string;
+};
+
 function isVideo(url: string) {
   return /\.(?:mp4|mov|m4v|webm)(?:[?#].*)?$/i.test(url);
 }
@@ -69,7 +75,19 @@ function cleanText(value: string) {
 
 function instagramHashtags(categorySlug: string, categoryName: string) {
   const category = (categorySlug || categoryName).toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "") || "yangilik";
-  return [`#${category}`, "#bestteamnews", "#yangiliklar"].join(" ");
+  const categoryTags: Record<string, string[]> = {
+    ozbekiston: ["#ozbekiston", "#uzbekistan", "#uzbekistonyangiliklari"],
+    dunyo: ["#dunyo", "#jahon", "#worldnews"],
+    siyosat: ["#siyosat", "#politika", "#siyosiyyangiliklar"],
+    iqtisodiyot: ["#iqtisodiyot", "#biznes", "#moliya"],
+    texnologiya: ["#texnologiya", "#technews", "#innovatsiya"],
+    sport: ["#sport", "#sportyangiliklari", "#football"],
+    madaniyat: ["#madaniyat", "#sanat", "#culture"]
+  };
+  const related = Object.entries(categoryTags).find(([key]) => category.includes(key))?.[1] ?? [`#${category}`];
+  return [...new Set([`#${category}`, ...related, "#bestteamnews", "#yangiliklar", "#uzbekistan"])]
+    .slice(0, 7)
+    .join(" ");
 }
 
 // Instagram captions are intentionally short. The original article stays on the site, while
@@ -135,34 +153,50 @@ function configurationMessage() {
   return "Instagram sozlamalari to'liq emas";
 }
 
+async function getQueuedInstagramArticleIds() {
+  if (!instagramQueue) return new Set<string>();
+  const jobs = await instagramQueue.getJobs(["waiting", "active", "delayed"], 0, 10_000, true);
+  return new Set(jobs.map((job) => job.data.articleId).filter(Boolean));
+}
+
+function activeInstagramWhere(articleIds: string[] = []) {
+  return {
+    status: "PUBLISHED" as const,
+    deletedAt: null,
+    instagramEnabled: true,
+    instagramSentAt: null,
+    ...(articleIds.length ? { id: { in: articleIds } } : {})
+  };
+}
+
 export async function getInstagramSettingsStatus() {
-  const [sent, failed, queued, latestFailure] = await Promise.all([
+  const queuedArticleIds = await getQueuedInstagramArticleIds().catch((error) => {
+    console.error("[instagram] navbat holatini o'qib bo'lmadi:", error);
+    return new Set<string>();
+  });
+  const queuedIds = [...queuedArticleIds];
+  const [sent, failed, queued, recoverable, latestFailure] = await Promise.all([
     prisma.article.count({ where: { deletedAt: null, instagramSentAt: { not: null } } }),
     prisma.article.count({
       where: {
-        status: "PUBLISHED",
-        deletedAt: null,
-        instagramEnabled: true,
-        instagramSentAt: null,
-        instagramError: { not: null }
+        ...activeInstagramWhere(),
+        instagramError: { not: null },
+        ...(queuedIds.length ? { id: { notIn: queuedIds } } : {})
       }
     }),
+    queuedIds.length ? prisma.article.count({ where: activeInstagramWhere(queuedIds) }) : Promise.resolve(0),
     prisma.article.count({
       where: {
-        status: "PUBLISHED",
-        deletedAt: null,
-        instagramEnabled: true,
-        instagramSentAt: null,
-        instagramError: null
+        ...activeInstagramWhere(),
+        instagramError: null,
+        ...(queuedIds.length ? { id: { notIn: queuedIds } } : {})
       }
     }),
     prisma.article.findFirst({
       where: {
-        status: "PUBLISHED",
-        deletedAt: null,
-        instagramEnabled: true,
-        instagramSentAt: null,
-        instagramError: { not: null }
+        ...activeInstagramWhere(),
+        instagramError: { not: null },
+        ...(queuedIds.length ? { id: { notIn: queuedIds } } : {})
       },
       orderBy: { updatedAt: "desc" },
       select: { title: true, instagramError: true, updatedAt: true }
@@ -180,7 +214,7 @@ export async function getInstagramSettingsStatus() {
     accountHint: env.INSTAGRAM_USER_ID ? `••••${env.INSTAGRAM_USER_ID.slice(-4)}` : null,
     publicMediaReady: Boolean(env.BACKEND_PUBLIC_URL?.startsWith("https://")),
     mediaRendererReady: Boolean(env.MEDIA_RENDERER_URL && env.MEDIA_RENDERER_SECRET),
-    posts: { sent, failed, queued },
+    posts: { sent, failed, queued, recoverable },
     latestFailure: latestFailure
       ? { title: latestFailure.title, message: latestFailure.instagramError, at: latestFailure.updatedAt }
       : null,
@@ -191,15 +225,14 @@ export async function getInstagramSettingsStatus() {
 export async function getInstagramDeliveries(state: InstagramDeliveryState, page = 1) {
   const take = 12;
   const safePage = Math.max(1, Math.floor(page) || 1);
+  const queuedArticleIds = state === "sent" ? [] : [...await getQueuedInstagramArticleIds()];
   const where = {
-    status: "PUBLISHED" as const,
-    deletedAt: null,
-    instagramEnabled: true,
+    ...activeInstagramWhere(),
     ...(state === "sent"
       ? { instagramSentAt: { not: null } }
       : state === "failed"
-        ? { instagramSentAt: null, instagramError: { not: null } }
-        : { instagramSentAt: null, instagramError: null })
+        ? { instagramError: { not: null }, ...(queuedArticleIds.length ? { id: { notIn: queuedArticleIds } } : {}) }
+        : { id: { in: queuedArticleIds } })
   };
   const [items, total] = await Promise.all([
     prisma.article.findMany({
@@ -233,6 +266,64 @@ export async function getInstagramDeliveries(state: InstagramDeliveryState, page
     total,
     page: safePage,
     pages: Math.max(1, Math.ceil(total / take))
+  };
+}
+
+export async function cancelInstagramDelivery(articleId: string) {
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: { id: true, status: true, deletedAt: true, instagramSentAt: true, instagramEnabled: true }
+  });
+  if (!article || article.deletedAt || article.status !== "PUBLISHED") {
+    throw new Error("Faqat faol nashr qilingan maqolani Instagram navbatidan chiqarish mumkin");
+  }
+  if (article.instagramSentAt) throw new Error("Instagramga yuborilgan postni navbatdan chiqarib bo'lmaydi");
+  if (!article.instagramEnabled) throw new Error("Bu maqola Instagram navbatida emas");
+
+  // Disable first so an active worker safely skips the item if it reaches the article after this point.
+  await prisma.article.update({
+    where: { id: article.id },
+    data: { instagramEnabled: false, instagramError: null }
+  });
+  const jobs = instagramQueue
+    ? await instagramQueue.getJobs(["waiting", "active", "delayed"], 0, 10_000, true).catch(() => [])
+    : [];
+  const matchingJobs = jobs.filter((job) => job.data.articleId === article.id);
+  let removedJobs = 0;
+  for (const job of matchingJobs) {
+    try {
+      await job.remove();
+      removedJobs += 1;
+    } catch {
+      // Active jobs cannot always be removed by BullMQ. The disabled flag above still prevents retries.
+    }
+  }
+  return { removedJobs };
+}
+
+export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueRepairResult> {
+  if (!configured || !instagramQueue) {
+    return { requeued: 0, skipped: 0, message: "Instagram ulanishi tayyor emas, navbatni tiklab bo'lmadi" };
+  }
+  const queuedIds = [...await getQueuedInstagramArticleIds()];
+  const candidates = await prisma.article.findMany({
+    where: {
+      ...activeInstagramWhere(),
+      instagramError: null,
+      ...(queuedIds.length ? { id: { notIn: queuedIds } } : {})
+    },
+    orderBy: { publishedAt: "desc" },
+    take: Math.min(Math.max(1, limit), 100),
+    select: { id: true, status: true, publishedAt: true }
+  });
+  let requeued = 0;
+  for (const article of candidates) {
+    if (await queueArticleInstagramPost(article, { force: true })) requeued += 1;
+  }
+  return {
+    requeued,
+    skipped: candidates.length - requeued,
+    message: requeued ? `${requeued} ta maqola Instagram navbatiga qayta qo'shildi` : "Tiklash uchun qolib ketgan Instagram posti yo'q"
   };
 }
 
@@ -348,21 +439,27 @@ async function publishArticleToInstagram(articleId: string) {
   }
 }
 
-export function queueArticleInstagramPost(
+export async function queueArticleInstagramPost(
   article: { id: string; status: ArticleStatus; publishedAt: Date | null },
   options: { force?: boolean } = {}
 ) {
-  if (!configured || !instagramQueue || article.status !== "PUBLISHED") return;
+  if (!configured || !instagramQueue || article.status !== "PUBLISHED") return false;
   const revision = article.publishedAt?.getTime() ?? Date.now();
-  void instagramQueue.add("article", { articleId: article.id }, {
-    // A failed BullMQ job with the same id remains retained for diagnostics. A deliberate
-    // retry must get a fresh id after an editor fixes the Meta token or article media.
-    jobId: options.force ? `instagram-${article.id}-retry-${Date.now()}-${randomUUID()}` : `instagram-${article.id}-${revision}`,
-    attempts: 5,
-    backoff: { type: "exponential", delay: 30_000 },
-    removeOnComplete: { age: 7 * 24 * 60 * 60, count: 5_000 },
-    removeOnFail: { age: 14 * 24 * 60 * 60, count: 5_000 }
-  }).catch((error) => console.error("[instagram] post navbatga olinmadi:", error));
+  try {
+    await instagramQueue.add("article", { articleId: article.id }, {
+      // A failed BullMQ job with the same id remains retained for diagnostics. A deliberate
+      // retry must get a fresh id after an editor fixes the Meta token or article media.
+      jobId: options.force ? `instagram-${article.id}-retry-${Date.now()}-${randomUUID()}` : `instagram-${article.id}-${revision}`,
+      attempts: 5,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { age: 7 * 24 * 60 * 60, count: 5_000 },
+      removeOnFail: { age: 14 * 24 * 60 * 60, count: 5_000 }
+    });
+    return true;
+  } catch (error) {
+    console.error("[instagram] post navbatga olinmadi:", error);
+    return false;
+  }
 }
 
 let instagramQueue: Queue<InstagramJob, void, InstagramJobName> | null = null;
@@ -381,7 +478,15 @@ if (configured) {
     },
     { connection: createBullConnection(), concurrency: 1 }
   );
-  instagramWorker.on("failed", (job, error) => console.error(`[instagram] job ${job?.id ?? "unknown"} failed:`, error));
+  instagramWorker.on("failed", (job, error) => {
+    console.error(`[instagram] job ${job?.id ?? "unknown"} failed:`, error);
+    if (!job || job.attemptsMade < (job.opts.attempts ?? 1)) return;
+    const message = error instanceof Error ? error.message.slice(0, 1_500) : "Instagram yuborish navbati tugadi";
+    void prisma.article.update({
+      where: { id: job.data.articleId },
+      data: { instagramError: message }
+    }).catch((updateError) => console.error("[instagram] yakuniy job xatosini saqlab bo'lmadi:", updateError));
+  });
   instagramWorker.on("error", (error) => console.error("[instagram] worker xatosi:", error));
   instagramQueue.on("error", (error) => console.error("[instagram] queue xatosi:", error));
 }

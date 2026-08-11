@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Instagram, Loader2, RefreshCcw, Send, ShieldCheck, Video, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Instagram, Loader2, RefreshCcw, Send, ShieldCheck, Trash2, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
@@ -16,7 +16,7 @@ type InstagramStatus = {
   accountHint: string | null;
   publicMediaReady: boolean;
   mediaRendererReady: boolean;
-  posts: { sent: number; failed: number; queued: number };
+  posts: { sent: number; failed: number; queued: number; recoverable: number };
   latestFailure: { title: string; message: string; at: string } | null;
   configurationMessage: string;
 };
@@ -132,6 +132,39 @@ export function InstagramSettingsView() {
     }
   }
 
+  async function cancelDelivery(articleId: string) {
+    if (!window.confirm("Bu maqola saytda qoladi. Faqat Instagramga yuborish navbatidan chiqarilsinmi?")) return;
+    setDeliveryLoading(true);
+    setError("");
+    try {
+      const result = await adminRequest<{ message: string }>(`/admin/instagram/deliveries/${articleId}/cancel`, { method: "POST" });
+      setMessage(result.message);
+      setSelectedDelivery(null);
+      if (deliveryState) await loadDeliveries(deliveryState, deliveries?.page ?? 1);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram navbatidan olib tashlab bo'lmadi");
+    } finally {
+      setDeliveryLoading(false);
+    }
+  }
+
+  async function repairQueue() {
+    setDeliveryLoading(true);
+    setError("");
+    try {
+      const result = await adminRequest<{ message: string }>("/admin/instagram/queue/repair", { method: "POST" });
+      setMessage(result.message);
+      setDeliveryState("queued");
+      setDeliveries(await adminRequest<DeliveryResponse>("/admin/instagram/deliveries?state=queued&page=1"));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram navbatini tiklab bo'lmadi");
+    } finally {
+      setDeliveryLoading(false);
+    }
+  }
+
   return (
     <Panel
       title="Instagram sozlamalari"
@@ -204,13 +237,26 @@ export function InstagramSettingsView() {
                 );
               })}
             </div>
+            {status.posts.recoverable > 0 && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-black text-amber-900 dark:text-amber-100">{status.posts.recoverable} ta maqola navbatdan tashqarida</p>
+                    <p className="mt-1 text-sm font-semibold text-amber-800/80 dark:text-amber-100/80">Bu postlarda Instagram yoqilgan, ammo Redis navbatida faol ish yo'q.</p>
+                  </div>
+                  <Button size="sm" onClick={() => void repairQueue()} disabled={deliveryLoading || !status.ready} icon={deliveryLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />}>
+                    Navbatni tiklash
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="rounded-xl border border-slate-200 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-950/30">
               <div className="flex items-center gap-2"><Video size={18} className="text-brand" /><h3 className="font-black">Nashr tartibi</h3></div>
               <ul className="mt-3 space-y-2 text-sm font-semibold leading-5 text-slate-600 dark:text-slate-300">
                 <li>Rasmli maqola: sarlavhali muqova va asl rasm bilan Carousel Post.</li>
                 <li>Videoli maqola: watermarkli Reel va asosiy tasmada ulashish.</li>
                 <li>Caption: sarlavha, mavzu hashtaglari, asosiy matn, manba va @BESTTeamNEWS.</li>
-                <li>Yuborilgan, navbatdagi yoki xatoli son ustiga bosing - har bir xabarni previewda ko'ring.</li>
+                <li>Yuborilgan, navbatdagi yoki xatoli son ustiga bosing - har bir xabarni previewda ko'ring, qayta yuboring yoki navbatdan chiqaring.</li>
               </ul>
             </div>
             {status.latestFailure && (
@@ -275,6 +321,7 @@ export function InstagramSettingsView() {
             <div className="mt-5 flex flex-wrap gap-2">
               {selectedDelivery.instagramUrl && <a href={selectedDelivery.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-md bg-brand px-4 text-sm font-black text-white"><Instagram size={16} /> Instagramda ochish <ExternalLink size={14} /></a>}
               {selectedDelivery.instagramError && <button type="button" onClick={() => void retryDelivery(selectedDelivery.id)} disabled={deliveryLoading} className="inline-flex h-10 items-center gap-2 rounded-md bg-brand px-4 text-sm font-black text-white disabled:opacity-60"><RefreshCcw size={15} className={deliveryLoading ? "animate-spin" : ""} /> Qayta yuborish</button>}
+              {!selectedDelivery.instagramSentAt && <button type="button" onClick={() => void cancelDelivery(selectedDelivery.id)} disabled={deliveryLoading} className="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-black text-white hover:bg-red-700 disabled:opacity-60"><Trash2 size={15} /> Instagram navbatidan chiqarish</button>}
               <button type="button" onClick={() => setSelectedDelivery(null)} className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-black dark:border-white/15">Yopish</button>
             </div>
           </div>

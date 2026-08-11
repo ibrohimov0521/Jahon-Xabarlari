@@ -14,6 +14,7 @@ export const mediaRouter = Router();
 // 25 MB. These files are stored inline in Postgres (MediaFile.data), so an unbounded cap is both
 // a storage-exhaustion DoS vector and terrible for DB performance.
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const BRAND_MEDIA_VERSION = "best-team-v3";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -46,6 +47,24 @@ mediaRouter.get("/file/:key", async (req, res) => {
   if (!item) return res.status(404).json({ message: "Fayl topilmadi" });
   if (!item.data) return res.status(404).json({ message: "Fayl saqlanmagan" });
   const data = Buffer.isBuffer(item.data) ? item.data : Buffer.from(item.data);
+  const isDynamicImage = item.mimeType.startsWith("image/") && item.mimeType !== "image/gif";
+
+  if (isDynamicImage) {
+    try {
+      // Old database rows have no version in their URL and may have the retired logo embedded.
+      // New uploads use replace=0 because the raw original is now saved in the database.
+      const replaceExistingWatermark = req.query.replace !== "0";
+      const branded = await applyBrandWatermark(data, { replaceExistingWatermark });
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.setHeader("Vary", "Accept");
+      return res.send(branded);
+    } catch (error) {
+      console.error("[media] dynamic watermark failed:", error);
+      return res.status(422).json({ message: "Rasmga brend belgisi qo'shib bo'lmadi" });
+    }
+  }
+
   res.setHeader("Content-Type", item.mimeType);
   res.setHeader("Cache-Control", "public, max-age=604800, immutable");
   res.setHeader("Accept-Ranges", "bytes");
@@ -75,21 +94,12 @@ mediaRouter.post("/upload", upload.single("file"), async (req, res) => {
   let storedBuffer = req.file.buffer;
   let sniffed = sniffMedia(storedBuffer);
   if (!sniffed) return res.status(400).json({ message: "Fayl turi qo'llab-quvvatlanmaydi" });
-  // Animated GIFs stay untouched so their frames are never discarded. Other uploaded images
-  // receive the permanent upper-right brand mark before being stored.
-  if (sniffed.mime.startsWith("image/") && sniffed.mime !== "image/gif") {
-    try {
-      storedBuffer = await applyBrandWatermark(storedBuffer);
-      sniffed = { mime: "image/jpeg", ext: "jpg" };
-    } catch (error) {
-      console.error("[media] watermark failed:", error);
-      return res.status(422).json({ message: "Rasmga brend belgisi qo'shib bo'lmadi" });
-    }
-  }
+  // Store the original bytes. The delivery endpoint applies the current logo dynamically, so a
+  // rebrand can never leave a retired mark permanently burned into a newly uploaded image.
   // Key/extension/mimeType all come from the sniffed content, not req.file, so a spoofed
   // filename or Content-Type can't influence what we store or later serve.
   const key = `${crypto.randomUUID()}.${sniffed.ext}`;
-  const url = `/api/admin/media/file/${key}`;
+  const url = `/api/admin/media/file/${key}?brand=${BRAND_MEDIA_VERSION}&replace=0`;
   const sha256 = crypto.createHash("sha256").update(storedBuffer).digest("hex");
   const item = await prisma.mediaFile.upsert({
     where: { sha256 },

@@ -2,7 +2,7 @@
 
 import { ImageOff } from "lucide-react";
 import { CSSProperties, useEffect, useState } from "react";
-import { isVideoUrl, toOptimizedImageSrc } from "../lib/media";
+import { isVideoUrl, toOptimizedImageSrc, withCurrentBrandMedia } from "../lib/media";
 
 // Re-exported for existing importers of MediaView.
 export { isVideoUrl };
@@ -54,6 +54,7 @@ export function MediaView({
       </video>
     );
   }
+  const brandedSrc = withCurrentBrandMedia(src);
   const style: CSSProperties = {};
   if (isSmallImage) {
     style.objectFit = "contain";
@@ -63,14 +64,15 @@ export function MediaView({
       style.marginInline = "auto";
     }
   }
-  const isRemoteImage = /^https?:\/\//i.test(src);
+  const isRemoteImage = /^https?:\/\//i.test(brandedSrc);
   const responsiveWidths = NEXT_IMAGE_WIDTHS.filter((width) => width <= optimizedWidth);
   if (!responsiveWidths.length) responsiveWidths.push(NEXT_IMAGE_WIDTHS[0]);
   const largestWidth = responsiveWidths.at(-1) ?? 1200;
-  const optimizedSrc = toOptimizedImageSrc(src, largestWidth, 75);
-  const finalSrc = useDirectSrc ? src : optimizedSrc;
+  const optimizedSrc = toOptimizedImageSrc(brandedSrc, largestWidth, 75);
+  const finalSrc = useDirectSrc ? brandedSrc : optimizedSrc;
+  const managesOwnWatermark = /\/api\/admin\/media\/file\/[^/]+/i.test(brandedSrc);
   const srcSet = isRemoteImage && !useDirectSrc
-    ? responsiveWidths.map((width) => `${toOptimizedImageSrc(src, width, 75)} ${width}w`).join(", ")
+    ? responsiveWidths.map((width) => `${toOptimizedImageSrc(brandedSrc, width, 75)} ${width}w`).join(", ")
     : undefined;
 
   if (failed) {
@@ -93,6 +95,7 @@ export function MediaView({
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : "auto"}
       decoding="async"
+      data-managed-brand-media={managesOwnWatermark ? "true" : undefined}
       onLoad={(event) => {
         if (!avoidUpscale) return;
         const image = event.currentTarget;

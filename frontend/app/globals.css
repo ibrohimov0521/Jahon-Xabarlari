@@ -514,7 +514,7 @@ body > footer {
   width: clamp(24px, 7vw, 42px);
   aspect-ratio: 1;
   border-radius: 8px;
-  background: center / contain no-repeat url("/brand/best-team-mark-v2.png");
+  background: center / contain no-repeat url("/brand/best-team-mark-v2.png?v=best-team-v3");
   filter: drop-shadow(0 2px 7px rgba(0, 0, 0, 0.64));
   opacity: 0.92;
   pointer-events: none;
@@ -529,6 +529,12 @@ body > footer {
 
 .brand-media-watermark-detail {
   width: clamp(42px, 8vw, 72px);
+}
+
+/* Stored media is already rendered by the API with the current mark. Do not draw a second
+   client-side watermark over it; remote publisher images still receive the lightweight overlay. */
+*:has(> img[data-managed-brand-media="true"]) > .brand-media-watermark {
+  display: none;
 }
 
 .news-card-modern,

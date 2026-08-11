@@ -102,7 +102,7 @@ function completeArticleHeadline(title: string, content: string) {
 function channelHashtags(categorySlug: string, categoryName: string) {
   const raw = categorySlug || categoryName;
   const normalized = raw.toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}_]/gu, "");
-  return [`#${normalized || "yangilik"}`, "#bestteamnews", "#yangiliklar"].join(" ");
+  return `#${normalized || "yangilik"}`;
 }
 
 function headlinePrefix(useCustomEmoji: boolean) {

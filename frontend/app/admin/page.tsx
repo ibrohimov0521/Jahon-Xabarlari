@@ -70,6 +70,22 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "security", label: "Xavfsizlik", icon: ShieldCheck }
 ];
 
+const adminViews = new Set<View>([
+  "dashboard", "articles", "new", "edit", "preview", "categories", "ads", "comments",
+  "reports", "stats", "users", "auditlog", "aggregator", "instagram", "security"
+]);
+
+function isAdminView(value: unknown): value is View {
+  return typeof value === "string" && adminViews.has(value as View);
+}
+
+function adminViewUrl(view: View) {
+  const url = new URL(window.location.href);
+  if (view === "dashboard") url.searchParams.delete("section");
+  else url.searchParams.set("section", view);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export default function AdminPage() {
   const { theme, toggleTheme } = useUi();
   const [token, setToken] = useState("");
@@ -120,6 +136,8 @@ export default function AdminPage() {
   const adLoadSequence = useRef(0);
   const userLoadSequence = useRef(0);
   const refreshSequence = useRef(0);
+  const viewRef = useRef<View>("dashboard");
+  const historyReadyRef = useRef(false);
 
   const currentTitle = menu.find((item) => item.id === view)?.label ?? (view === "edit" ? "Maqolani tahrirlash" : view === "preview" ? "Ko'rib chiqish" : "Admin");
 
@@ -143,8 +161,54 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const section = new URLSearchParams(window.location.search).get("section");
-    if (section === "instagram") setView("instagram");
+    const currentState = (window.history.state ?? {}) as Record<string, unknown>;
+    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    const initialView = isAdminView(currentState.__bestTeamAdminView)
+      ? currentState.__bestTeamAdminView
+      : isAdminView(requestedSection)
+        ? requestedSection
+        : "dashboard";
+
+    if (!currentState.__bestTeamAdminHistory) {
+      const rootUrl = new URL(window.location.href);
+      rootUrl.searchParams.delete("section");
+      window.history.replaceState(
+        { ...currentState, __bestTeamAdminHistory: true, __bestTeamAdminView: "dashboard" },
+        "",
+        `${rootUrl.pathname}${rootUrl.search}${rootUrl.hash}`
+      );
+      window.history.pushState(
+        { ...currentState, __bestTeamAdminHistory: true, __bestTeamAdminView: initialView },
+        "",
+        adminViewUrl(initialView)
+      );
+    }
+
+    viewRef.current = initialView;
+    setView(initialView);
+    historyReadyRef.current = true;
+
+    const onPopState = (event: PopStateEvent) => {
+      const state = (event.state ?? {}) as Record<string, unknown>;
+      const section = new URLSearchParams(window.location.search).get("section");
+      const nextView = isAdminView(state.__bestTeamAdminView)
+        ? state.__bestTeamAdminView
+        : isAdminView(section)
+          ? section
+          : "dashboard";
+
+      viewRef.current = nextView;
+      setView(nextView);
+      if (nextView !== "edit") setEditingArticleId(null);
+      if (nextView !== "preview") setPreviewForm(null);
+      void refreshAll(nextView);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      historyReadyRef.current = false;
+      window.removeEventListener("popstate", onPopState);
+    };
   }, []);
 
   useEffect(() => () => {
@@ -294,8 +358,22 @@ export default function AdminPage() {
     setLoginForm((current) => ({ ...current, otp: "" }));
   }
 
-  async function selectView(nextView: View) {
+  function navigateView(nextView: View, replace = false) {
+    const previousView = viewRef.current;
+    viewRef.current = nextView;
+    if (historyReadyRef.current && (replace || previousView !== nextView)) {
+      const method = replace ? "replaceState" : "pushState";
+      window.history[method](
+        { ...(window.history.state ?? {}), __bestTeamAdminHistory: true, __bestTeamAdminView: nextView },
+        "",
+        adminViewUrl(nextView)
+      );
+    }
     setView(nextView);
+  }
+
+  async function selectView(nextView: View) {
+    navigateView(nextView);
     if (nextView === "new") setEditingArticleId(null);
     if (nextView !== "articles") {
       setArticleStatusFilter("");
@@ -310,7 +388,7 @@ export default function AdminPage() {
     setTrashed(false);
     setArticleSearch("");
     setArticlePage(1);
-    setView("articles");
+    navigateView("articles");
     await loadArticles(false, 1, "", status, onlyToday);
   }
 
@@ -320,13 +398,13 @@ export default function AdminPage() {
     if (action === "review") return openArticlesFromDashboard("REVIEW");
     if (action === "draft") return openArticlesFromDashboard("DRAFT");
     if (action === "users") {
-      setView("users");
+      navigateView("users");
       setArticleStatusFilter("");
       setArticleOnlyToday(false);
       await loadUsers(1);
       return;
     }
-    setView("dashboard");
+    navigateView("dashboard");
     await refreshAll("dashboard");
   }
 
@@ -461,7 +539,7 @@ export default function AdminPage() {
 
   function openEditor(id: string) {
     setEditingArticleId(id);
-    setView("edit");
+    navigateView("edit");
   }
 
   function openPreviewFromArticle(article: Article) {
@@ -487,13 +565,13 @@ export default function AdminPage() {
       showInPopular: article.showInPopular
     });
     setPreviewReturnView(view === "edit" ? "edit" : "articles");
-    setView("preview");
+    navigateView("preview");
   }
 
   function openPreviewFromForm(form: ArticleFormState) {
     setPreviewForm(form);
     setPreviewReturnView(editingArticleId ? "edit" : "new");
-    setView("preview");
+    navigateView("preview");
   }
 
   if (!authReady) {
@@ -597,7 +675,7 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <div className="p-4 sm:p-5">
+        <div className="admin-content p-4 sm:p-5">
           <ErrorBanner message={error} />
           <Toast message={message} onClose={() => setMessage("")} />
           {loading && <div className="mb-4"><LoadingBlock /></div>}
@@ -652,7 +730,7 @@ export default function AdminPage() {
               onPreview={openPreviewFromForm}
               onSaved={() => {
                 flash(view === "edit" ? "Maqola yangilandi" : "Yangi maqola saqlandi");
-                setView("articles");
+                navigateView("articles");
                 loadArticles();
               }}
             />
@@ -661,7 +739,7 @@ export default function AdminPage() {
             <ArticlePreview
               form={previewForm}
               categories={categories}
-              onBack={() => setView(previewReturnView)}
+              onBack={() => navigateView(previewReturnView)}
             />
           )}
           {view === "categories" && <CategoriesView categories={categories} onChanged={loadCategories} />}
@@ -746,6 +824,7 @@ const mobilePrimaryMenu: { id: View; label: string; icon: LucideIcon }[] = [
 
 const mobilePrimaryIds = new Set<View>(["dashboard", "articles", "new", "comments"]);
 const mobileMoreMenu = menu.filter((item) => !mobilePrimaryIds.has(item.id));
+const ADMIN_MORE_HISTORY_KEY = "__bestTeamAdminMore";
 
 function AdminMobileNav({
   view,
@@ -772,7 +851,7 @@ function AdminMobileNav({
   useEffect(() => {
     if (!moreOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
+      if (event.key === "Escape") closeMore();
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => {
@@ -780,7 +859,33 @@ function AdminMobileNav({
     };
   }, [moreOpen]);
 
+  useEffect(() => {
+    const closeOnBack = () => setMoreOpen(false);
+    window.addEventListener("popstate", closeOnBack);
+    return () => window.removeEventListener("popstate", closeOnBack);
+  }, []);
+
+  const openMore = () => {
+    window.history.pushState(
+      { ...(window.history.state ?? {}), [ADMIN_MORE_HISTORY_KEY]: true },
+      "",
+      window.location.href
+    );
+    setMoreOpen(true);
+  };
+
+  const closeMore = () => {
+    const state = (window.history.state ?? {}) as Record<string, unknown>;
+    if (state[ADMIN_MORE_HISTORY_KEY]) window.history.back();
+    else setMoreOpen(false);
+  };
+
   const select = (nextView: View) => {
+    const state = { ...((window.history.state ?? {}) as Record<string, unknown>) };
+    if (state[ADMIN_MORE_HISTORY_KEY]) {
+      delete state[ADMIN_MORE_HISTORY_KEY];
+      window.history.replaceState(state, "", window.location.href);
+    }
     setMoreOpen(false);
     onSelect(nextView);
   };
@@ -802,7 +907,7 @@ function AdminMobileNav({
           <button
             type="button"
             className="fixed inset-0 z-[70] bg-slate-950/65 backdrop-blur-sm lg:hidden"
-            onClick={() => setMoreOpen(false)}
+            onClick={closeMore}
             aria-label="Admin menyusini yopish"
           />
           <section
@@ -823,7 +928,7 @@ function AdminMobileNav({
                 label="Menyuni yopish"
                 variant="ghost"
                 className="text-slate-300 hover:bg-white/10 hover:text-white"
-                onClick={() => setMoreOpen(false)}
+                onClick={closeMore}
               />
             </div>
 
@@ -889,7 +994,7 @@ function AdminMobileNav({
 
         <button
           type="button"
-          onClick={() => setMoreOpen((open) => !open)}
+          onClick={() => (moreOpen ? closeMore() : openMore())}
           className={`bottom-nav-item ${moreActive ? "is-active" : ""}`}
           aria-expanded={moreOpen}
           aria-controls="admin-mobile-more"

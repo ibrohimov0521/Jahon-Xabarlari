@@ -3,6 +3,7 @@ import { ArticleModal } from "../components/ArticleModal";
 import { Analytics } from "../components/Analytics";
 import BottomNav from "../components/BottomNav";
 import { MobileCurrencyExperience } from "../components/MobileCurrency";
+import { MobileBackBoundary } from "../components/MobileBackBoundary";
 import SearchExperience from "../components/SearchExperience";
 import { SiteFooter } from "../components/SiteFooter";
 import SwipeNav from "../components/SwipeNav";
@@ -157,6 +158,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <UiProvider initialLanguage={lang}>
           <SearchProvider>
             <NavProvider>
+              <MobileBackBoundary />
               {children}
               <SiteFooter />
               <ArticleModal />

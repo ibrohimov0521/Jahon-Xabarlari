@@ -76,6 +76,98 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Compact breaking-news rail: touch-friendly on mobile, dense on desktop. */
+.breaking-news-bar {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgb(248 113 113 / 0.3);
+  border-radius: 8px;
+  background: rgb(69 10 10 / 0.78);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.18);
+}
+
+.breaking-news-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.breaking-news-track {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.breaking-news-track::-webkit-scrollbar {
+  display: none;
+}
+
+.breaking-news-item {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  border-right: 1px solid rgb(255 255 255 / 0.14);
+  padding: 11px 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  scroll-snap-align: start;
+  transition: background-color 180ms ease, color 180ms ease;
+  white-space: nowrap;
+}
+
+.breaking-news-item:hover {
+  background: rgb(255 255 255 / 0.1);
+  color: #cffafe;
+}
+
+@media (max-width: 639px) {
+  .breaking-news-label {
+    gap: 4px;
+    padding-inline: 9px;
+    font-size: 9px;
+  }
+
+  .breaking-news-label svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .breaking-news-track {
+    scroll-snap-type: x mandatory;
+  }
+
+  .breaking-news-item {
+    width: 88%;
+    max-width: 88%;
+    overflow: hidden;
+    padding: 9px 11px;
+    font-size: 11px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+  }
+}
+
 [role="dialog"] {
   overscroll-behavior: contain;
 }
@@ -97,6 +189,18 @@ body {
 @media (max-width: 1023px) {
   body {
     padding-bottom: calc(62px + clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
+  }
+
+  .admin-content {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .instagram-admin-preview {
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .instagram-admin-preview-card {
+    max-height: calc(100dvh - 5.25rem - env(safe-area-inset-bottom, 0px));
   }
 }
 

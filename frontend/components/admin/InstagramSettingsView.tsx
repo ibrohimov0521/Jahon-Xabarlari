@@ -3,6 +3,7 @@
 import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Instagram, Loader2, RefreshCcw, Send, ShieldCheck, Trash2, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
+import { useScrollLock } from "../../lib/use-scroll-lock";
 import { Button, ErrorBanner, Panel, SuccessBanner } from "./ui";
 
 type InstagramStatus = {
@@ -44,6 +45,7 @@ const DELIVERY_META: Record<DeliveryState, { label: string; empty: string; icon:
   queued: { label: "Navbatda", empty: "Hozir Instagram navbatida maqola yo'q.", icon: Clock3, tone: "text-amber-600 dark:text-amber-300" },
   failed: { label: "Xato", empty: "Instagram yuborish xatosi yo'q.", icon: CircleAlert, tone: "text-red-600 dark:text-red-300" }
 };
+const INSTAGRAM_PREVIEW_HISTORY_KEY = "__bestTeamInstagramPreview";
 
 function CheckItem({ ok, label, value }: { ok: boolean; label: string; value?: string | null }) {
   return (
@@ -70,6 +72,8 @@ export function InstagramSettingsView() {
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<InstagramDelivery | null>(null);
 
+  useScrollLock(Boolean(selectedDelivery));
+
   async function load() {
     setLoading(true);
     try {
@@ -82,6 +86,36 @@ export function InstagramSettingsView() {
   }
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    const closeOnBack = () => setSelectedDelivery(null);
+    window.addEventListener("popstate", closeOnBack);
+    return () => window.removeEventListener("popstate", closeOnBack);
+  }, []);
+
+  function openDeliveryPreview(delivery: InstagramDelivery) {
+    window.history.pushState(
+      { ...(window.history.state ?? {}), [INSTAGRAM_PREVIEW_HISTORY_KEY]: true },
+      "",
+      window.location.href
+    );
+    setSelectedDelivery(delivery);
+  }
+
+  function clearDeliveryPreview() {
+    const state = { ...((window.history.state ?? {}) as Record<string, unknown>) };
+    if (state[INSTAGRAM_PREVIEW_HISTORY_KEY]) {
+      delete state[INSTAGRAM_PREVIEW_HISTORY_KEY];
+      window.history.replaceState(state, "", window.location.href);
+    }
+    setSelectedDelivery(null);
+  }
+
+  function closeDeliveryPreview() {
+    const state = (window.history.state ?? {}) as Record<string, unknown>;
+    if (state[INSTAGRAM_PREVIEW_HISTORY_KEY]) window.history.back();
+    else setSelectedDelivery(null);
+  }
 
   async function testConnection() {
     setTesting(true);
@@ -120,7 +154,7 @@ export function InstagramSettingsView() {
     try {
       await adminRequest(`/admin/articles/${articleId}/instagram/retry`, { method: "POST" });
       setMessage("Maqola Instagram navbatiga qayta yuborildi");
-      setSelectedDelivery(null);
+      clearDeliveryPreview();
       setDeliveryState("queued");
       const queued = await adminRequest<DeliveryResponse>("/admin/instagram/deliveries?state=queued&page=1");
       setDeliveries(queued);
@@ -139,7 +173,7 @@ export function InstagramSettingsView() {
     try {
       const result = await adminRequest<{ message: string }>(`/admin/instagram/deliveries/${articleId}/cancel`, { method: "POST" });
       setMessage(result.message);
-      setSelectedDelivery(null);
+      clearDeliveryPreview();
       if (deliveryState) await loadDeliveries(deliveryState, deliveries?.page ?? 1);
       await load();
     } catch (err) {
@@ -216,7 +250,7 @@ export function InstagramSettingsView() {
           </div>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {(["sent", "queued", "failed"] as DeliveryState[]).map((state) => {
                 const meta = DELIVERY_META[state];
                 const Icon = meta.icon;
@@ -227,11 +261,11 @@ export function InstagramSettingsView() {
                     key={state}
                     type="button"
                     onClick={() => void loadDeliveries(state)}
-                    className={`rounded-lg border p-3 text-center transition focus:outline-none focus:ring-2 focus:ring-brand/40 ${active ? "border-brand bg-brand/10 shadow-[0_0_0_3px_rgba(20,99,255,.12)]" : state === "failed" ? "border-red-200 bg-red-50/70 hover:border-red-300 dark:border-red-400/20 dark:bg-red-400/10" : "border-slate-200 bg-white/80 hover:border-brand/40 dark:border-white/10 dark:bg-slate-950/30"}`}
+                    className={`min-w-0 rounded-lg border px-1.5 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-brand/40 sm:p-3 ${active ? "border-brand bg-brand/10 shadow-[0_0_0_3px_rgba(20,99,255,.12)]" : state === "failed" ? "border-red-200 bg-red-50/70 hover:border-red-300 dark:border-red-400/20 dark:bg-red-400/10" : "border-slate-200 bg-white/80 hover:border-brand/40 dark:border-white/10 dark:bg-slate-950/30"}`}
                     aria-pressed={active}
                   >
                     <Icon className={`mx-auto ${meta.tone}`} size={19} />
-                    <p className="mt-2 text-2xl font-black">{count}</p>
+                    <p className="mt-2 text-xl font-black sm:text-2xl">{count}</p>
                     <p className={`text-xs font-bold ${state === "failed" ? "text-red-600 dark:text-red-300" : "text-slate-500"}`}>{meta.label}</p>
                   </button>
                 );
@@ -288,7 +322,7 @@ export function InstagramSettingsView() {
               ) : (
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {deliveries.items.map((item) => (
-                    <button key={item.id} type="button" onClick={() => setSelectedDelivery(item)} className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand/40 dark:border-white/10 dark:bg-slate-950/35">
+                    <button key={item.id} type="button" onClick={() => openDeliveryPreview(item)} className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-brand hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand/40 dark:border-white/10 dark:bg-slate-950/35">
                       {item.previewUrl ? <img src={item.previewUrl} alt="" className="h-32 w-full bg-slate-950 object-cover" /> : <div className="grid h-32 place-items-center bg-slate-950 text-slate-400"><Video size={28} /></div>}
                       <div className="p-3">
                         <div className="flex items-center justify-between gap-2"><span className="text-xs font-black text-brand">{item.category.name}</span><span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500"><Eye size={13} /> Ko'rish</span></div>
@@ -311,10 +345,10 @@ export function InstagramSettingsView() {
         </section>
       )}
       {selectedDelivery && (
-        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/70 p-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-label="Instagram xabar previewi">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/15 bg-white p-4 shadow-2xl dark:bg-slate-950">
-            <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black text-brand">{selectedDelivery.category.name}</p><h3 className="mt-1 text-lg font-black">Instagram preview</h3></div><button type="button" onClick={() => setSelectedDelivery(null)} className="grid size-9 place-items-center rounded-full border border-slate-200 text-slate-500 hover:text-ink dark:border-white/15 dark:text-slate-300" aria-label="Yopish"><X size={18} /></button></div>
-            {selectedDelivery.previewUrl ? <img src={selectedDelivery.previewUrl} alt="" className="mt-4 aspect-[4/5] w-full rounded-xl bg-slate-950 object-cover" /> : <div className="mt-4 grid aspect-[4/5] place-items-center rounded-xl bg-slate-950 text-slate-400"><Video size={34} /></div>}
+        <div className="instagram-admin-preview fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/70 px-3 pt-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Instagram xabar previewi" onClick={closeDeliveryPreview}>
+          <div className="instagram-admin-preview-card w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-2xl border border-white/15 bg-white p-4 shadow-2xl dark:bg-slate-950 sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black text-brand">{selectedDelivery.category.name}</p><h3 className="mt-1 text-lg font-black">Instagram preview</h3></div><button type="button" onClick={closeDeliveryPreview} className="grid size-9 place-items-center rounded-full border border-slate-200 text-slate-500 hover:text-ink dark:border-white/15 dark:text-slate-300" aria-label="Yopish"><X size={18} /></button></div>
+            {selectedDelivery.previewUrl ? <img src={selectedDelivery.previewUrl} alt="" className="mt-4 max-h-[48dvh] w-full rounded-xl bg-slate-950 object-contain" /> : <div className="mt-4 grid aspect-[4/5] max-h-[48dvh] place-items-center rounded-xl bg-slate-950 text-slate-400"><Video size={34} /></div>}
             <p className="mt-4 text-lg font-black">{selectedDelivery.title}</p>
             <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{selectedDelivery.summary}</p>
             {selectedDelivery.instagramError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700 dark:bg-red-400/10 dark:text-red-200">{selectedDelivery.instagramError}</p>}
@@ -322,7 +356,7 @@ export function InstagramSettingsView() {
               {selectedDelivery.instagramUrl && <a href={selectedDelivery.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-md bg-brand px-4 text-sm font-black text-white"><Instagram size={16} /> Instagramda ochish <ExternalLink size={14} /></a>}
               {selectedDelivery.instagramError && <button type="button" onClick={() => void retryDelivery(selectedDelivery.id)} disabled={deliveryLoading} className="inline-flex h-10 items-center gap-2 rounded-md bg-brand px-4 text-sm font-black text-white disabled:opacity-60"><RefreshCcw size={15} className={deliveryLoading ? "animate-spin" : ""} /> Qayta yuborish</button>}
               {!selectedDelivery.instagramSentAt && <button type="button" onClick={() => void cancelDelivery(selectedDelivery.id)} disabled={deliveryLoading} className="inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-black text-white hover:bg-red-700 disabled:opacity-60"><Trash2 size={15} /> Instagram navbatidan chiqarish</button>}
-              <button type="button" onClick={() => setSelectedDelivery(null)} className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-black dark:border-white/15">Yopish</button>
+              <button type="button" onClick={closeDeliveryPreview} className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-black dark:border-white/15">Yopish</button>
             </div>
           </div>
         </div>

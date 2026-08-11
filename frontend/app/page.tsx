@@ -203,18 +203,20 @@ async function CachedHome({ lang }: { lang: "uz" | "ru" | "en" }) {
     <main>
       <Header />
       {breakingItems.length > 0 && (
-        <section className="container-page py-3">
-          <div className="flex items-stretch overflow-hidden rounded-lg border border-red-400/30 bg-red-950/55 shadow-lg">
-            <div className="flex shrink-0 items-center gap-2 bg-red-600 px-4 text-[12px] font-black uppercase tracking-wide text-white">
-              <Zap size={15} fill="currentColor" />
-              {copy.breaking}
+        <section className="container-page py-2.5 sm:py-3">
+          <div className="breaking-news-bar">
+            <div className="breaking-news-label">
+              <Zap size={14} fill="currentColor" />
+              <span className="sm:hidden">{lang === "ru" ? "Срочно" : lang === "en" ? "Breaking" : "Tezkor"}</span>
+              <span className="hidden sm:inline">{copy.breaking}</span>
             </div>
-            <div className="flex min-w-0 items-center overflow-x-auto">
+            <div className="breaking-news-track" aria-label={copy.breaking}>
               {breakingItems.map((item) => (
                 <Link
                   key={item.id}
                   href={localizedHref(`/articles/${item.slug}`, lang)}
-                  className="shrink-0 border-r border-white/15 px-4 py-3 text-[14px] font-bold text-white transition hover:bg-white/10 hover:text-cyan-100"
+                  className="breaking-news-item"
+                  title={item.title}
                 >
                   {item.title}
                 </Link>

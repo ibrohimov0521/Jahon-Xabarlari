@@ -164,6 +164,8 @@ model Article {
   instagramMediaId String?
   instagramUrl     String?
   instagramError   String?
+  instagramContainerId      String?
+  instagramPublishStartedAt DateTime?
   scheduledAt      DateTime?
   viewsCount       Int                  @default(0)
   seoTitle         String?

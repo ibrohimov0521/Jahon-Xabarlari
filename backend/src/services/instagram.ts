@@ -22,6 +22,8 @@ type InstagramArticle = {
   instagramEnabled: boolean;
   instagramFormat: InstagramFormat | null;
   instagramSentAt: Date | null;
+  instagramContainerId: string | null;
+  instagramPublishStartedAt: Date | null;
   deletedAt: Date | null;
   category: { name: string; slug: string };
 };
@@ -143,6 +145,48 @@ async function findPermalink(mediaId: string) {
   });
   const data = (await response.json().catch(() => null)) as { permalink?: string } | null;
   return typeof data?.permalink === "string" ? data.permalink : null;
+}
+
+type ExistingInstagramMedia = {
+  id: string;
+  caption?: string;
+  permalink?: string;
+  timestamp?: string;
+};
+
+async function findExistingPublication(caption: string, startedAt: Date) {
+  const response = await fetch(
+    `${graphBase}/${env.INSTAGRAM_USER_ID}/media?fields=id,caption,permalink,timestamp&limit=50&access_token=${encodeURIComponent(env.INSTAGRAM_ACCESS_TOKEN!)}`,
+    { signal: AbortSignal.timeout(20_000) }
+  );
+  const payload = (await response.json().catch(() => null)) as {
+    data?: ExistingInstagramMedia[];
+    error?: InstagramGraphError;
+  } | null;
+  if (!response.ok || payload?.error) {
+    throw new Error(`Instagram post tekshiruvi: ${payload?.error?.message ?? response.status}`);
+  }
+  const earliest = startedAt.getTime() - 10 * 60 * 1000;
+  return payload?.data?.find((media) => {
+    if (media.caption?.trim() !== caption.trim()) return false;
+    const publishedAt = media.timestamp ? new Date(media.timestamp).getTime() : Number.NaN;
+    return !Number.isFinite(publishedAt) || publishedAt >= earliest;
+  }) ?? null;
+}
+
+async function markInstagramPublished(articleId: string, media: ExistingInstagramMedia) {
+  const permalink = media.permalink ?? await findPermalink(media.id).catch(() => null);
+  await prisma.article.update({
+    where: { id: articleId },
+    data: {
+      instagramSentAt: new Date(),
+      instagramMediaId: media.id,
+      instagramUrl: permalink,
+      instagramError: null,
+      instagramContainerId: null,
+      instagramPublishStartedAt: null
+    }
+  });
 }
 
 function configurationMessage() {
@@ -360,7 +404,7 @@ export async function testInstagramConnection(): Promise<InstagramConnectionResu
   }
 }
 
-async function publishCarousel(caption: string, articleId: string) {
+async function createCarouselContainer(caption: string, articleId: string) {
   const coverUrl = instagramArticleCoverUrl(articleId);
   const originalImageUrl = brandedArticleImageUrl(articleId);
   if (!coverUrl || !originalImageUrl) throw new Error("Instagram uchun public media URL sozlanmagan");
@@ -401,16 +445,35 @@ async function publishArticleToInstagram(articleId: string) {
     return;
   }
 
+  const caption = buildInstagramCaption(article);
+  const publishStartedAt = article.instagramPublishStartedAt ?? new Date();
+  if (!article.instagramPublishStartedAt) {
+    await prisma.article.update({
+      where: { id: article.id },
+      data: { instagramPublishStartedAt: publishStartedAt, instagramError: null }
+    });
+  }
+
   try {
     const inferredFormat: InstagramFormat = isVideo(article.mainImage) ? "REEL" : "POST";
     const format = article.instagramFormat ?? inferredFormat;
     if (format === "POST" && isVideo(article.mainImage)) throw new Error("Video uchun Instagram Reel formatini tanlang");
     if (format === "REEL" && !isVideo(article.mainImage)) throw new Error("Instagram Reel uchun video kerak");
 
-    const caption = buildInstagramCaption(article);
-    const containerId = format === "POST"
-      ? await publishCarousel(caption, article.id)
-      : await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
+    // A previous attempt may have reached Meta but timed out before the database update.
+    // Reconcile first so a BullMQ retry never creates a second visible post.
+    const existing = await findExistingPublication(caption, publishStartedAt).catch(() => null);
+    if (existing) {
+      await markInstagramPublished(article.id, existing);
+      console.log(`[instagram] ${article.slug} oldingi muvaffaqiyatli urinish bilan moslashtirildi`);
+      return;
+    }
+
+    let containerId = article.instagramContainerId;
+    if (!containerId) {
+      containerId = format === "POST"
+        ? await createCarouselContainer(caption, article.id)
+        : await graphRequest(`/${env.INSTAGRAM_USER_ID}/media`, {
           access_token: env.INSTAGRAM_ACCESS_TOKEN!,
           caption,
           media_type: "REELS",
@@ -421,18 +484,29 @@ async function publishArticleToInstagram(articleId: string) {
           })(),
           share_to_feed: true
         });
-    if (format === "REEL") await waitForContainer(containerId);
+      // Persist the creation container before publishing it. If Meta or the network fails after
+      // this point, the retry continues this exact container instead of creating another post.
+      await prisma.article.update({
+        where: { id: article.id },
+        data: { instagramContainerId: containerId }
+      });
+    }
+    await waitForContainer(containerId);
     const mediaId = await graphRequest(`/${env.INSTAGRAM_USER_ID}/media_publish`, {
       access_token: env.INSTAGRAM_ACCESS_TOKEN!,
       creation_id: containerId
     });
-    const permalink = await findPermalink(mediaId).catch(() => null);
-    await prisma.article.update({
-      where: { id: article.id },
-      data: { instagramSentAt: new Date(), instagramMediaId: mediaId, instagramUrl: permalink, instagramError: null }
-    });
+    await markInstagramPublished(article.id, { id: mediaId });
     console.log(`[instagram] ${article.slug} ${format} sifatida yuborildi`);
   } catch (error) {
+    // media_publish can succeed on Meta even when its HTTP response times out. Confirm the
+    // account feed before allowing BullMQ to retry and publish a duplicate.
+    const existing = await findExistingPublication(caption, publishStartedAt).catch(() => null);
+    if (existing) {
+      await markInstagramPublished(article.id, existing);
+      console.log(`[instagram] ${article.slug} timeoutdan keyin muvaffaqiyatli deb tasdiqlandi`);
+      return;
+    }
     const message = error instanceof Error ? error.message.slice(0, 1_500) : "Instagram yuborishda noma'lum xato";
     await prisma.article.update({ where: { id: article.id }, data: { instagramError: message } }).catch(() => undefined);
     throw error;

@@ -57,7 +57,6 @@ export function Header() {
   const [weather, setWeather] = useState<FullWeather | null>(null);
   const [weatherModalOpen, setWeatherModalOpen] = useState(false);
   const [tickerIndex, setTickerIndex] = useState(0);
-  const [scrolled, setScrolled] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const languageMenuRefMobile = useRef<HTMLDivElement | null>(null);
@@ -138,14 +137,6 @@ export function Header() {
     return () => document.body.classList.remove("desktop-more-menu-open");
   }, [menuOpen]);
 
-  // Shrink the sticky header on scroll (72px -> 60px, stronger blur).
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   function selectRegion(next: UzRegion) {
     setRegion(next);
     writeStorage("weather_region", next.name);
@@ -176,7 +167,7 @@ export function Header() {
 
   return (
     <>
-      <header className={`site-header border-b border-slate-200 bg-white ${scrolled ? "is-scrolled" : ""}`}>
+      <header className="site-header border-b border-slate-200 bg-white">
         {/* ---- Desktop header ---- */}
         <div className="desktop-header-row container-page hidden h-20 min-w-0 items-center gap-5 lg:flex">
           <Link href={localizedHref("/", language)} className="desktop-brand flex shrink-0 items-center" aria-label={`${SITE_NAME} - ${SITE_ALTERNATE_NAME}`}>

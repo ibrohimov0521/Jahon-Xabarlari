@@ -159,7 +159,7 @@ services:
     networks:
       - internal
 
-  cloudflared:
+    cloudflared:
     <<: *service-defaults
     image: cloudflare/cloudflared:latest
     command:
@@ -168,6 +168,9 @@ services:
       - run
       - --token
       - ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
     depends_on:
       frontend:
         condition: service_healthy
@@ -176,7 +179,7 @@ services:
       media-renderer:
         condition: service_healthy
     networks:
-      - internal      
+      - internal
 
 volumes:
   postgres_data:

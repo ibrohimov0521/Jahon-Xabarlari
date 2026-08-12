@@ -180,6 +180,8 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - dokploy-network
+      
 volumes:
   postgres_data:
   redis_data:

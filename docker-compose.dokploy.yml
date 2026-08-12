@@ -159,7 +159,7 @@ services:
     networks:
       - internal
 
-    cloudflared:
+      cloudflared:
     <<: *service-defaults
     image: cloudflare/cloudflared:latest
     command:

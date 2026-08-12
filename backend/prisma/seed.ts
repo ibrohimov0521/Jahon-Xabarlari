@@ -65,6 +65,7 @@ async function main() {
     roleId: string;
     password?: string;
     telegramId?: string;
+    required?: boolean;
   }) {
     const [existingByEmail, existingByTelegram] = await Promise.all([
       prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
@@ -94,6 +95,10 @@ async function main() {
       return;
     }
     if (!input.password || input.password.length < 12) {
+      if (input.required === false) {
+        console.warn(`${input.email} yaratilmadi: EDITOR_PASSWORD kamida 12 belgidan iborat emas`);
+        return;
+      }
       throw new Error(`${input.email} uchun kamida 12 belgili parol ENV orqali berilishi kerak`);
     }
     const passwordHash = await bcrypt.hash(input.password, 12);
@@ -120,7 +125,8 @@ async function main() {
     email: "editor@jahonxabarlari.uz",
     roleId: editorRole.id,
     password: process.env.EDITOR_PASSWORD,
-    telegramId: telegramIds?.[1]
+    telegramId: telegramIds?.[1],
+    required: false
   });
 
   const categoryRows = [];

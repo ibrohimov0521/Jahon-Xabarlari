@@ -159,7 +159,7 @@ services:
     networks:
       - internal
 
-      cloudflared:
+  cloudflared:
     <<: *service-defaults
     image: cloudflare/cloudflared:latest
     command:
@@ -180,7 +180,6 @@ services:
         condition: service_healthy
     networks:
       - internal
-
 volumes:
   postgres_data:
   redis_data:

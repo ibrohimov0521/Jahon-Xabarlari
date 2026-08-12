@@ -7,5 +7,7 @@ dist
 __pycache__
 .venv
 uploads
+backups
+.env.dokploy.local
 playwright-report
 test-results

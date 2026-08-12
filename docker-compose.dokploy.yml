@@ -1,0 +1,170 @@
+name: best-team-news
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    <<: *service-defaults
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - internal
+
+  redis:
+    <<: *service-defaults
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    <<: *service-defaults
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      FRONTEND_URLS: ${FRONTEND_URLS:-}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:?BACKEND_PUBLIC_URL is required}
+      MEDIA_RENDERER_URL: ${MEDIA_RENDERER_URL:-}
+      MEDIA_RENDERER_SECRET: ${MEDIA_RENDERER_SECRET:-}
+    expose:
+      - "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 8
+      start_period: 90s
+    stop_grace_period: 30s
+    networks:
+      - internal
+      - dokploy-network
+
+  frontend:
+    <<: *service-defaults
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-}
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 8
+      start_period: 90s
+    networks:
+      - internal
+      - dokploy-network
+
+  media-renderer:
+    <<: *service-defaults
+    build:
+      context: ./media-renderer
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8080
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:?BACKEND_PUBLIC_URL is required}
+      MEDIA_RENDERER_SECRET: ${MEDIA_RENDERER_SECRET:?MEDIA_RENDERER_SECRET is required}
+      MAX_CONCURRENT_RENDERS: ${MAX_CONCURRENT_RENDERS:-1}
+    expose:
+      - "8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 6
+      start_period: 20s
+    stop_grace_period: 30s
+    networks:
+      - internal
+      - dokploy-network
+
+  telegram-bot:
+    <<: *service-defaults
+    build:
+      context: ./telegram-bot
+      dockerfile: Dockerfile
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:?BOT_TOKEN is required}
+      BOT_API_BASE: http://backend:4000/api
+      BOT_ADMIN_IDS: ${BOT_ADMIN_IDS:?BOT_ADMIN_IDS is required}
+      BOT_SERVICE_SECRET: ${BOT_SERVICE_SECRET:?BOT_SERVICE_SECRET is required}
+      REDIS_URL: redis://redis:6379
+      ADMIN_PANEL_URL: ${ADMIN_PANEL_URL:?ADMIN_PANEL_URL is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      FORWARD_CONCURRENCY: ${FORWARD_CONCURRENCY:-5}
+      MEDIA_GROUP_DELAY_SECONDS: ${MEDIA_GROUP_DELAY_SECONDS:-2.5}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 30s
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+    internal: true
+  dokploy-network:
+    external: true

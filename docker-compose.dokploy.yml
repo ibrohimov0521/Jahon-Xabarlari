@@ -158,6 +158,7 @@ services:
     stop_grace_period: 30s
     networks:
       - internal
+      - dokploy-network
 
   cloudflared:
     <<: *service-defaults

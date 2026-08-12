@@ -159,6 +159,25 @@ services:
     networks:
       - internal
 
+  cloudflared:
+    <<: *service-defaults
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      media-renderer:
+        condition: service_healthy
+    networks:
+      - internal      
+
 volumes:
   postgres_data:
   redis_data:

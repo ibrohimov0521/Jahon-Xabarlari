@@ -5,7 +5,7 @@ Bu loyiha Dokploy'da bitta **Docker Compose** sifatida ishlaydi. Compose fayli:
 
 ## 1. Railway ma'lumotlarini saqlash
 
-1. PostgreSQL 16 client (`pg_dump` va `pg_restore`) hamda Railway CLI o'rnatilgan kompyuterda
+1. PostgreSQL 18 client (`pg_dump` va `pg_restore`) hamda Railway CLI o'rnatilgan kompyuterda
    `powershell -ExecutionPolicy Bypass -File scripts/backup-railway.ps1` buyrug'ini bajaring.
 2. `backups/railway-production.dump` faylini kamida yana bitta xavfsiz diskka nusxalang.
 3. Railway servislaridagi maxfiy ENV qiymatlarini Dokploy uchun alohida parol menejeriga eksport qiling.
@@ -18,6 +18,10 @@ Bu loyiha Dokploy'da bitta **Docker Compose** sifatida ishlaydi. Compose fayli:
 4. Isolated Deployments'ni yoqmang: fayl public servislar uchun Dokploy network'ini aniq ulaydi.
 5. Environment oynasiga `.env.dokploy.example` asosidagi qiymatlarni kiriting. Railway'dagi real token va
    kalitlarni ko'chiring, lekin `DATABASE_URL`, public URL'lar va ichki Redis/Bot URL'larini shablondagidek qoldiring.
+
+Railway production sozlamalaridan Git kuzatmaydigan `.env.dokploy.local` faylini yaratish uchun
+`.\scripts\export-dokploy-env.ps1` buyrug'ini bajaring. Fayl mazmunini faqat Dokploy Environment oynasiga
+kiriting; uni commit yoki chatga joylamang.
 
 ## 3. Dastlabki domenlar
 
@@ -41,7 +45,7 @@ paytida DNS yozuvlarini vaqtincha **DNS only** holatida tekshirish diagnostikani
    `sh scripts/restore-dokploy.sh /path/railway-production.dump` ni bajaring.
 3. Dokploy'da Compose'ni qayta deploy qiling.
 
-PostgreSQL bazasida maqolalar, foydalanuvchilar, sozlamalar va yuklangan media fayllar saqlanadi. Redis navbati
+PostgreSQL bazasida maqolalar, foydalanuvchilar, sozlamalar va yuklangan media fayllar saqlanadi. PostgreSQL 18 Docker volume'i `/var/lib/postgresql` yo'liga ulangan. Redis navbati
 ko'chirilmaydi; u vaqtinchalik holat bo'lib, yangi serverda toza boshlanishi xavfsizroq.
 
 ## 5. Ishga tushirishdan oldingi tekshiruv

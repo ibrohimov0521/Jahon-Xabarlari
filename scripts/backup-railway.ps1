@@ -6,7 +6,13 @@ $ErrorActionPreference = "Stop"
 
 function Require-Command([string]$Name) {
   $command = Get-Command $Name -ErrorAction SilentlyContinue
-  if (-not $command) { throw "$Name topilmadi. PostgreSQL 16 client vositalarini o'rnating." }
+  if (-not $command -and $Name -in @("pg_dump", "pg_restore")) {
+    foreach ($version in @("18", "17", "16")) {
+      $postgresBinary = Join-Path "C:\Program Files\PostgreSQL\$version\bin" "$Name.exe"
+      if (Test-Path $postgresBinary) { return $postgresBinary }
+    }
+  }
+  if (-not $command) { throw "$Name topilmadi. Railway serveriga teng PostgreSQL 18 client vositalarini o'rnating." }
   return $command.Source
 }
 
@@ -32,4 +38,7 @@ if ($LASTEXITCODE -ne 0) { throw "pg_dump xato bilan tugadi." }
 if ($LASTEXITCODE -ne 0) { throw "Yaratilgan dump tekshiruvdan o'tmadi." }
 
 $sizeMb = [math]::Round((Get-Item $outputPath).Length / 1MB, 2)
+$checksum = (Get-FileHash -Algorithm SHA256 $outputPath).Hash.ToLowerInvariant()
+Set-Content -Path "$outputPath.sha256" -Value "$checksum  $(Split-Path -Leaf $outputPath)" -Encoding ascii
 Write-Host "Backup tayyor: $outputPath ($sizeMb MB)"
+Write-Host "SHA256: $checksum"

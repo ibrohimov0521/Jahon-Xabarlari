@@ -88,8 +88,8 @@ asosiy API dan alohida bajaradi, shuning uchun katta video tahririyat, bot yoki 
 qotirmaydi. `MEDIA_RENDERER_URL` hamda bir xil `MEDIA_RENDERER_SECRET` qiymatini backend va
 renderer xizmatiga kiriting.
 
-Rendererni Railway'da shu repodan alohida servis sifatida oching: Dockerfile manzili
-`media-renderer/Dockerfile`, build context esa repo ildizi bo'lsin. Rendererga
+Dokploy compose ichida `media-renderer` alohida servis sifatida ishlaydi. Dockerfile manzili
+`media-renderer/Dockerfile`, build context esa `./media-renderer` bo'lsin. Rendererga
 `BACKEND_PUBLIC_URL` va `MEDIA_RENDERER_SECRET` beriladi; uning public HTTPS manzili backenddagi
 `MEDIA_RENDERER_URL` bo'ladi. U bir vaqtda bitta videoni qayta ishlaydi.
 

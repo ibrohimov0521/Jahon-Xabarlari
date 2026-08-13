@@ -1066,6 +1066,87 @@ label[class*="rounded"][class*="border-slate-200"] {
   border-color: rgba(166, 246, 255, 0.16) !important;
 }
 
+/* Admin light mode: replace harsh white surfaces with a calm light-blue workspace. */
+:root:not([data-theme="dark"]) .admin-login-page,
+:root:not([data-theme="dark"]) .admin-shell {
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.42), transparent 34rem),
+    linear-gradient(135deg, #dceeff 0%, #eef8ff 48%, #d9ecff 100%) !important;
+  color: #08203d !important;
+}
+
+:root:not([data-theme="dark"]) .admin-header {
+  background:
+    linear-gradient(135deg, rgba(230, 246, 255, 0.94), rgba(209, 235, 255, 0.84)) !important;
+  border-color: rgba(82, 154, 214, 0.24) !important;
+  box-shadow: 0 14px 34px rgba(20, 84, 140, 0.1) !important;
+}
+
+:root:not([data-theme="dark"]) .admin-sidebar {
+  background: linear-gradient(180deg, #092441 0%, #0b3158 48%, #071a31 100%) !important;
+}
+
+:root:not([data-theme="dark"]) .admin-login-page .bg-white,
+:root:not([data-theme="dark"]) .admin-shell .bg-white,
+:root:not([data-theme="dark"]) .admin-shell .bg-slate-50,
+:root:not([data-theme="dark"]) .admin-shell .bg-slate-100 {
+  background:
+    linear-gradient(145deg, rgba(244, 251, 255, 0.94), rgba(219, 239, 255, 0.8)),
+    #eaf6ff !important;
+}
+
+:root:not([data-theme="dark"]) .admin-login-page section[class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-login-page form[class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-shell section[class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-shell aside[class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-shell article[class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-shell div[class*="rounded"][class*="border-slate-200"],
+:root:not([data-theme="dark"]) .admin-shell label[class*="rounded"][class*="border-slate-200"] {
+  background:
+    linear-gradient(145deg, rgba(245, 252, 255, 0.96), rgba(221, 241, 255, 0.82)),
+    #eaf6ff !important;
+  border-color: rgba(77, 149, 210, 0.25) !important;
+  color: #08203d !important;
+  box-shadow: 0 16px 38px rgba(34, 100, 158, 0.11) !important;
+}
+
+:root:not([data-theme="dark"]) .admin-login-page input,
+:root:not([data-theme="dark"]) .admin-login-page textarea,
+:root:not([data-theme="dark"]) .admin-login-page select,
+:root:not([data-theme="dark"]) .admin-shell input,
+:root:not([data-theme="dark"]) .admin-shell textarea,
+:root:not([data-theme="dark"]) .admin-shell select {
+  background: #f7fcff !important;
+  border-color: rgba(59, 130, 196, 0.34) !important;
+  color: #08203d !important;
+}
+
+:root:not([data-theme="dark"]) .admin-login-page input::placeholder,
+:root:not([data-theme="dark"]) .admin-login-page textarea::placeholder,
+:root:not([data-theme="dark"]) .admin-shell input::placeholder,
+:root:not([data-theme="dark"]) .admin-shell textarea::placeholder {
+  color: #6d8198 !important;
+}
+
+:root:not([data-theme="dark"]) .admin-login-page .text-slate-400,
+:root:not([data-theme="dark"]) .admin-login-page .text-slate-500,
+:root:not([data-theme="dark"]) .admin-login-page .text-slate-600,
+:root:not([data-theme="dark"]) .admin-shell .text-slate-400,
+:root:not([data-theme="dark"]) .admin-shell .text-slate-500,
+:root:not([data-theme="dark"]) .admin-shell .text-slate-600 {
+  color: #405b78 !important;
+}
+
+:root:not([data-theme="dark"]) .admin-shell .text-white {
+  text-shadow: 0 1px 2px rgba(5, 20, 38, 0.28);
+}
+
+:root:not([data-theme="dark"]) .admin-shell .instagram-admin-preview-card {
+  background: linear-gradient(145deg, #f7fcff, #e1f1ff) !important;
+  border-color: rgba(77, 149, 210, 0.28) !important;
+  color: #08203d !important;
+}
+
 .news-shadow,
 .shadow-sm,
 .shadow-lg,

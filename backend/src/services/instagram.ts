@@ -34,6 +34,7 @@ const configured = Boolean(
   env.INSTAGRAM_USER_ID &&
   env.BACKEND_PUBLIC_URL
 );
+const instagramAccountConfigured = Boolean(env.INSTAGRAM_ACCESS_TOKEN && env.INSTAGRAM_USER_ID);
 const INSTAGRAM_AUTO_PUBLISH_SETTING_KEY = "instagram.autoPublishEnabled";
 // Meta allows only a limited number of publishing actions. Keeping one complete
 // article workflow per 15 minutes also leaves room for carousel child containers.
@@ -369,7 +370,7 @@ export async function getInstagramSettingsStatus() {
   });
   const queuedIds = [...queuedArticleIds];
   const [sent, failed, queued, recoverable, latestFailure, connection, autoPublishEnabled] = await Promise.all([
-    prisma.article.count({ where: { deletedAt: null, instagramSentAt: { not: null } } }),
+    prisma.article.count({ where: { status: "PUBLISHED", deletedAt: null, instagramSentAt: { not: null } } }),
     prisma.article.count({
       where: {
         ...activeInstagramWhere(),
@@ -636,7 +637,9 @@ export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueR
 }
 
 export async function testInstagramConnection(): Promise<InstagramConnectionResult> {
-  if (!configured) return { ok: false, message: configurationMessage() };
+  if (!instagramAccountConfigured) {
+    return { ok: false, message: "Instagram ulanishini tekshirish uchun access token va Instagram user ID kerak" };
+  }
 
   try {
     const response = await fetch(

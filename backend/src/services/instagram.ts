@@ -248,7 +248,7 @@ async function markInstagramPublished(articleId: string, media: ExistingInstagra
 }
 
 function configurationMessage() {
-  if (!env.INSTAGRAM_POSTING_ENABLED) return "Instagramga avtomatik yuborish Railway sozlamalarida o'chirilgan";
+  if (!env.INSTAGRAM_POSTING_ENABLED) return "Instagramga avtomatik yuborish server sozlamalarida o'chirilgan";
   if (!env.INSTAGRAM_ACCESS_TOKEN) return "INSTAGRAM_ACCESS_TOKEN kiritilmagan";
   if (!env.INSTAGRAM_USER_ID) return "INSTAGRAM_USER_ID kiritilmagan";
   if (!env.BACKEND_PUBLIC_URL?.startsWith("https://")) return "BACKEND_PUBLIC_URL public HTTPS manzil bo'lishi kerak";
@@ -266,7 +266,7 @@ export async function getInstagramAutoPublishEnabled() {
 
 export async function setInstagramAutoPublishEnabled(enabled: boolean) {
   if (!env.INSTAGRAM_POSTING_ENABLED) {
-    throw new Error("Instagram yuborish Railway sozlamalarida o'chirilgan");
+    throw new Error("Instagram yuborish server sozlamalarida o'chirilgan");
   }
 
   if (!enabled && instagramQueue) await instagramQueue.pause();

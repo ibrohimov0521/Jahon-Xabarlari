@@ -355,6 +355,11 @@ export function InstagramSettingsView() {
                 <div>
                   <p className="font-black">{status.ready ? "Instagram ulanishi faol" : connectionConfigured ? "Meta Instagram ulanishini bloklagan" : "Instagram sozlanishi kerak"}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{status.configurationMessage}</p>
+                  {!status.enabled && (
+                    <p className="mt-2 rounded-md bg-red-500/10 px-3 py-2 text-xs font-black text-red-700 dark:text-red-200">
+                      Avtomatik nashrni yoqish uchun server/Dokploy environment’da INSTAGRAM_POSTING_ENABLED=true bo‘lishi kerak.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -382,7 +387,9 @@ export function InstagramSettingsView() {
                   <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
                     {status.autoPublishEnabled
                       ? "Yangi postlar navbat bo'yicha avtomatik yuboriladi"
-                      : "Pauzada: yangi postlar yo'qolmaydi, navbatda saqlanadi"}
+                      : status.enabled
+                        ? "Pauzada: yangi postlar yo'qolmaydi, navbatda saqlanadi"
+                        : "Server sozlamasida Instagram nashr xizmati o‘chirilgan"}
                   </p>
                 </div>
               </div>
@@ -395,8 +402,8 @@ export function InstagramSettingsView() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <CheckItem ok={status.enabled} label="Instagram nashr xizmati" value={status.enabled ? "Serverda ishga tushirilgan" : "Server sozlamasida yoqish kerak"} />
-              <CheckItem ok={status.tokenConfigured} label="Access token" value={status.tokenConfigured ? "Maxfiy token saqlangan" : "Railway'da token kiritilmagan"} />
+              <CheckItem ok={status.enabled} label="Instagram nashr xizmati" value={status.enabled ? "Serverda ishga tushirilgan" : "Dokploy environment’da INSTAGRAM_POSTING_ENABLED=true qiling"} />
+              <CheckItem ok={status.tokenConfigured} label="Access token" value={status.tokenConfigured ? "Maxfiy token saqlangan" : "Serverda token kiritilmagan"} />
               <CheckItem ok={status.userIdConfigured} label="Instagram akkaunt" value={status.accountHint ? `ID ${status.accountHint}` : "Instagram User ID kerak"} />
               <CheckItem ok={status.publicMediaReady} label="Public media URL" value={status.publicMediaReady ? "Meta rasm/video olishi mumkin" : "HTTPS BACKEND_PUBLIC_URL kerak"} />
               <CheckItem ok={status.mediaRendererReady} label="Reel media-renderer" value={status.mediaRendererReady ? "Video Reels uchun tayyor" : "MEDIA_RENDERER sozlanmagan"} />

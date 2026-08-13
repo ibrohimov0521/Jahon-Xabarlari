@@ -806,7 +806,12 @@ articleRouter.post("/admin/articles/:id/instagram/retry", requireAuth, permit("a
   }
 
   await prisma.article.update({ where: { id: article.id }, data: { instagramError: null } });
-  queueArticleInstagramPost(article, { force: true });
+  const queued = await queueArticleInstagramPost(article, { force: true });
+  if (!queued) {
+    return res.status(503).json({
+      message: "Instagram navbatiga qo'shib bo'lmadi. Serverda Instagram sozlamalari, Redis yoki Meta ulanishini tekshiring"
+    });
+  }
   await audit(req, "ARTICLE_INSTAGRAM_RETRY", "Article", article.id);
   res.status(202).json({ ok: true, message: "Instagram posti qayta navbatga qo'shildi" });
 });

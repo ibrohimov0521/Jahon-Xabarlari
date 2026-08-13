@@ -433,14 +433,18 @@ export function InstagramSettingsView() {
                 );
               })}
             </div>
-            {status.posts.recoverable > 0 && (
+            {(status.posts.recoverable > 0 || status.posts.failed > 0) && (
               <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="font-black text-amber-900 dark:text-amber-100">{status.posts.recoverable} ta maqola navbatdan tashqarida</p>
-                    <p className="mt-1 text-sm font-semibold text-amber-800/80 dark:text-amber-100/80">Bu postlarda Instagram yoqilgan, ammo Redis navbatida faol ish yo'q.</p>
+                    <p className="font-black text-amber-900 dark:text-amber-100">
+                      {status.posts.recoverable + status.posts.failed} ta Instagram posti e'tibor talab qiladi
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-amber-800/80 dark:text-amber-100/80">
+                      Navbatdan qolib ketgan va vaqtinchalik xatoga tushgan postlar qayta navbatga olinadi.
+                    </p>
                   </div>
-                  <Button size="sm" onClick={() => void repairQueue()} disabled={deliveryLoading || !status.ready} icon={deliveryLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />}>
+                  <Button size="sm" onClick={() => void repairQueue()} disabled={deliveryLoading || !status.enabled || !connectionConfigured} icon={deliveryLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />}>
                     Navbatni tiklash
                   </Button>
                 </div>

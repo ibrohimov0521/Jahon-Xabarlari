@@ -108,6 +108,11 @@ function isPermanentInstagramFailure(error: unknown) {
   return /api access blocked|invalid oauth|access token|permission|not authorized|not authorised/.test(message);
 }
 
+function isRepairableInstagramError(message: string | null) {
+  if (!message) return true;
+  return !/api access blocked|invalid oauth|access token|permission|not authorized|not authorised/i.test(message);
+}
+
 export type InstagramDeliveryState = "sent" | "queued" | "failed";
 
 type InstagramQueueRepairResult = {
@@ -618,21 +623,29 @@ export async function repairInstagramQueue(limit = 100): Promise<InstagramQueueR
   const candidates = await prisma.article.findMany({
     where: {
       ...activeInstagramWhere(),
-      instagramError: null,
       ...(queuedIds.length ? { id: { notIn: queuedIds } } : {})
     },
-    orderBy: { publishedAt: "desc" },
+    orderBy: { updatedAt: "desc" },
     take: Math.min(Math.max(1, limit), 100),
-    select: { id: true, status: true, publishedAt: true }
+    select: { id: true, status: true, publishedAt: true, instagramError: true }
   });
+  const repairable = candidates.filter((article) => isRepairableInstagramError(article.instagramError));
+  if (repairable.length) {
+    await prisma.article.updateMany({
+      where: { id: { in: repairable.map((article) => article.id) } },
+      data: { instagramError: null }
+    });
+  }
   let requeued = 0;
-  for (const article of candidates) {
+  for (const article of repairable) {
     if (await queueArticleInstagramPost(article, { force: true, connectionVerified: true })) requeued += 1;
   }
   return {
     requeued,
     skipped: candidates.length - requeued,
-    message: requeued ? `${requeued} ta maqola Instagram navbatiga qayta qo'shildi` : "Tiklash uchun qolib ketgan Instagram posti yo'q"
+    message: requeued
+      ? `${requeued} ta maqola Instagram navbatiga qayta qo'shildi`
+      : "Tiklash uchun navbatdan qolib ketgan yoki qayta urinib bo'ladigan Instagram posti yo'q"
   };
 }
 

@@ -22,6 +22,13 @@ type AggregatorSource = {
   enabled: boolean;
 };
 
+function sortAggregatorSources(items: AggregatorSource[]) {
+  return [...items].sort((a, b) => {
+    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+    return a.name.localeCompare(b.name, "uz");
+  });
+}
+
 export function AggregatorView() {
   const [status, setStatus] = useState<AggregatorStatus | null>(null);
   const [limit, setLimit] = useState("40");
@@ -41,7 +48,7 @@ export function AggregatorView() {
     setError("");
     try {
       const data = await adminRequest<AggregatorStatus>("/admin/aggregator/status");
-      setStatus(data);
+      setStatus({ ...data, sources: sortAggregatorSources(data.sources) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Holatni yuklab bo'lmadi");
     } finally {
@@ -102,12 +109,12 @@ export function AggregatorView() {
     setTogglingId(source.id);
     // Optimistic update -- flip the row immediately instead of waiting on a full status
     // refetch, and roll back only that row if the request fails.
-    setStatus((current) => (current ? { ...current, sources: current.sources.map((item) => (item.id === source.id ? { ...item, enabled: !item.enabled } : item)) } : current));
+    setStatus((current) => (current ? { ...current, sources: sortAggregatorSources(current.sources.map((item) => (item.id === source.id ? { ...item, enabled: !item.enabled } : item))) } : current));
     try {
       await adminRequest(`/admin/aggregator/sources/${source.id}`, { method: "PATCH", body: JSON.stringify({ enabled: !source.enabled }) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Manba holatini o'zgartirib bo'lmadi");
-      setStatus((current) => (current ? { ...current, sources: current.sources.map((item) => (item.id === source.id ? { ...item, enabled: source.enabled } : item)) } : current));
+      setStatus((current) => (current ? { ...current, sources: sortAggregatorSources(current.sources.map((item) => (item.id === source.id ? { ...item, enabled: source.enabled } : item))) } : current));
     } finally {
       setTogglingId(null);
     }
@@ -119,7 +126,7 @@ export function AggregatorView() {
     setAdding(true);
     try {
       const created = await adminRequest<AggregatorSource>("/admin/aggregator/sources", { method: "POST", body: JSON.stringify(sourceForm) });
-      setStatus((current) => (current ? { ...current, sources: [created, ...current.sources] } : current));
+      setStatus((current) => (current ? { ...current, sources: sortAggregatorSources([created, ...current.sources]) } : current));
       setSourceForm({ name: "", feedUrl: "" });
       setMessage("Yangi manba qo'shildi");
     } catch (err) {
@@ -275,20 +282,25 @@ export function AggregatorView() {
                       </div>
                     </div>
                     <button
+                      type="button"
+                      role="switch"
+                      aria-checked={source.enabled}
+                      aria-label={`${source.name} manbasini ${source.enabled ? "o‘chirish" : "yoqish"}`}
                       onClick={() => toggleSource(source)}
                       disabled={isToggling}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-black transition disabled:opacity-60 ${
-                        source.enabled ? "bg-green-50 text-green-700 hover:bg-green-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      className={`inline-flex h-9 min-w-[116px] items-center justify-between gap-2 rounded-full border px-1.5 pl-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-wait disabled:opacity-60 ${
+                        source.enabled
+                          ? "border-brand bg-brand text-white shadow-sm shadow-blue-900/15"
+                          : "border-slate-300 bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {isToggling ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : source.enabled ? (
-                        <CheckCircle2 size={14} />
-                      ) : (
-                        <XCircle size={14} />
-                      )}
-                      {source.enabled ? "Yoqilgan" : "O'chirilgan"}
+                      <span className="inline-flex items-center gap-1.5">
+                        {isToggling ? <Loader2 size={14} className="animate-spin" /> : source.enabled ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                        {source.enabled ? "Yoniq" : "O‘chiq"}
+                      </span>
+                      <span className={`relative h-6 w-11 rounded-full ${source.enabled ? "bg-white/25" : "bg-slate-300"}`}>
+                        <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${source.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                      </span>
                     </button>
                     {isConfirming ? (
                       <div className="flex items-center gap-2">

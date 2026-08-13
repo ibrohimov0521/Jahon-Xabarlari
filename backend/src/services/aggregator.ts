@@ -80,7 +80,7 @@ export async function getAggregatorSources(options: { enabledOnly?: boolean } = 
   await ensureDefaultAggregatorSources();
   return prisma.aggregatorSource.findMany({
     where: options.enabledOnly ? { enabled: true } : undefined,
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ enabled: "desc" }, { name: "asc" }, { createdAt: "asc" }],
     take: MAX_AGGREGATOR_SOURCES
   });
 }

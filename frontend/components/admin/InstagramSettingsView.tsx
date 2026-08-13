@@ -50,6 +50,46 @@ const DELIVERY_META: Record<DeliveryState, { label: string; empty: string; icon:
 };
 const INSTAGRAM_PREVIEW_HISTORY_KEY = "__bestTeamInstagramPreview";
 
+function sortInstagramSources(items: InstagramSource[]) {
+  return [...items].sort((a, b) => {
+    if (a.instagramEnabled !== b.instagramEnabled) return a.instagramEnabled ? -1 : 1;
+    return a.name.localeCompare(b.name, "uz");
+  });
+}
+
+function SwitchControl({
+  checked,
+  disabled,
+  onClick,
+  label
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-9 min-w-[112px] shrink-0 items-center justify-between gap-2 rounded-full border px-1.5 pl-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+        checked
+          ? "border-brand bg-brand text-white shadow-sm shadow-blue-900/15"
+          : "border-slate-300 bg-slate-100 text-slate-600 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200"
+      }`}
+    >
+      <span>{checked ? "Yoniq" : "O‘chiq"}</span>
+      <span className={`relative h-6 w-11 rounded-full ${checked ? "bg-white/25" : "bg-slate-300 dark:bg-slate-700"}`}>
+        <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`} />
+      </span>
+    </button>
+  );
+}
+
 function CheckItem({ ok, label, value }: { ok: boolean; label: string; value?: string | null }) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-950/30">
@@ -93,7 +133,7 @@ export function InstagramSettingsView() {
         adminRequest<InstagramSourcesResponse>("/admin/instagram/sources")
       ]);
       setStatus(statusResult);
-      setSources(sourceResult.items);
+      setSources(sortInstagramSources(sourceResult.items));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram holatini yuklab bo'lmadi");
     } finally {
@@ -181,7 +221,7 @@ export function InstagramSettingsView() {
         method: "PATCH",
         body: JSON.stringify({ enabled: !source.instagramEnabled })
       });
-      setSources((current) => current.map((item) => item.id === result.source.id ? result.source : item));
+      setSources((current) => sortInstagramSources(current.map((item) => item.id === result.source.id ? result.source : item)));
       setMessage(result.message);
       await load();
     } catch (err) {
@@ -334,9 +374,9 @@ export function InstagramSettingsView() {
               </div>
             </div>
 
-            <div className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${status.autoPublishEnabled ? "border-green-300 bg-green-50/80 dark:border-green-400/30 dark:bg-green-400/10" : "border-amber-300 bg-amber-50/80 dark:border-amber-400/30 dark:bg-amber-400/10"}`}>
+            <div className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${status.autoPublishEnabled ? "border-brand/30 bg-brand/5 dark:border-brand/30 dark:bg-brand/10" : "border-slate-200 bg-slate-50/90 dark:border-white/10 dark:bg-slate-900/60"}`}>
               <div className="flex min-w-0 items-center gap-3">
-                <span className={`grid size-11 shrink-0 place-items-center rounded-full ${status.autoPublishEnabled ? "bg-green-600 text-white" : "bg-amber-500 text-white"}`}>
+                <span className={`grid size-11 shrink-0 place-items-center rounded-full ${status.autoPublishEnabled ? "bg-brand text-white" : "bg-slate-500 text-white"}`}>
                   {status.autoPublishEnabled ? <PlayCircle size={22} /> : <PauseCircle size={22} />}
                 </span>
                 <div className="min-w-0">
@@ -348,17 +388,12 @@ export function InstagramSettingsView() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={status.autoPublishEnabled}
-                aria-label="Instagramga avtomatik yuborish"
+              <SwitchControl
+                checked={status.autoPublishEnabled}
                 onClick={() => void toggleAutoPublish()}
                 disabled={savingAutoPublish || !status.enabled}
-                className={`relative h-8 w-14 shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50 ${status.autoPublishEnabled ? "border-green-600 bg-green-600" : "border-slate-300 bg-slate-300 dark:border-slate-600 dark:bg-slate-700"}`}
-              >
-                <span className={`absolute top-1 size-6 rounded-full bg-white shadow-sm transition-transform ${status.autoPublishEnabled ? "translate-x-6" : "translate-x-1"}`} />
-              </button>
+                label="Instagramga avtomatik yuborish"
+              />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -444,22 +479,19 @@ export function InstagramSettingsView() {
                 let host = source.feedUrl;
                 try { host = new URL(source.feedUrl).hostname.replace(/^www\./, ""); } catch { /* Keep the feed URL. */ }
                 return (
-                  <div key={source.id} className={`flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3 transition ${source.instagramEnabled ? "border-green-200 bg-green-50/75 dark:border-green-400/25 dark:bg-green-400/10" : "border-slate-200 bg-slate-50/80 dark:border-white/10 dark:bg-slate-900/70"}`}>
+                  <div key={source.id} className={`flex min-w-0 items-center justify-between gap-3 rounded-lg border p-3 transition ${source.instagramEnabled ? "border-brand/30 bg-brand/5 dark:border-brand/30 dark:bg-brand/10" : "border-slate-200 bg-slate-50/80 dark:border-white/10 dark:bg-slate-900/70"}`}>
                     <div className="min-w-0">
                       <p className="truncate font-black">{source.name}</p>
-                      <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{host}</p>
+                      <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {host} · {source.instagramEnabled ? "Instagram navbatiga kiradi" : "Instagramga yuborilmaydi"}
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={source.instagramEnabled}
-                      aria-label={`${source.name} manbasini Instagram uchun ${source.instagramEnabled ? "o'chirish" : "yoqish"}`}
+                    <SwitchControl
+                      checked={source.instagramEnabled}
                       onClick={() => void toggleSource(source)}
                       disabled={sourceSavingId === source.id}
-                      className={`relative h-7 w-12 shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-wait disabled:opacity-60 ${source.instagramEnabled ? "border-green-600 bg-green-600" : "border-slate-300 bg-slate-300 dark:border-slate-600 dark:bg-slate-700"}`}
-                    >
-                      <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform ${source.instagramEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
-                    </button>
+                      label={`${source.name} manbasini Instagram uchun ${source.instagramEnabled ? "o‘chirish" : "yoqish"}`}
+                    />
                   </div>
                 );
               })}

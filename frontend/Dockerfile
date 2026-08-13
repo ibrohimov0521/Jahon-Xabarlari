@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG NEXT_PUBLIC_API_URL=https://backend-production-8124.up.railway.app/api
+ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_SITE_URL=https://jahonxabarlari.uz
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
 ARG GOOGLE_SITE_VERIFICATION

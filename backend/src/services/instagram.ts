@@ -292,7 +292,7 @@ export async function getInstagramAggregatorSources() {
       feedUrl: true,
       instagramEnabled: true
     },
-    orderBy: { createdAt: "asc" }
+    orderBy: [{ instagramEnabled: "desc" }, { name: "asc" }, { createdAt: "asc" }]
   });
 }
 

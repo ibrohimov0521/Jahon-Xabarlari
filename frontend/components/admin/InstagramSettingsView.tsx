@@ -19,6 +19,8 @@ type InstagramStatus = {
   publicMediaReady: boolean;
   mediaRendererReady: boolean;
   posts: { sent: number; failed: number; queued: number; recoverable: number };
+  rateLimitTtlMs: number;
+  rateLimitedUntil: string | null;
   latestFailure: { title: string; message: string; at: string } | null;
   configurationMessage: string;
 };
@@ -55,6 +57,15 @@ function sortInstagramSources(items: InstagramSource[]) {
     if (a.instagramEnabled !== b.instagramEnabled) return a.instagramEnabled ? -1 : 1;
     return a.name.localeCompare(b.name, "uz");
   });
+}
+
+function formatDuration(ms: number) {
+  const totalMinutes = Math.max(1, Math.ceil(ms / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours && minutes) return `${hours} soat ${minutes} daqiqa`;
+  if (hours) return `${hours} soat`;
+  return `${minutes} daqiqa`;
 }
 
 function SwitchControl({
@@ -446,6 +457,22 @@ export function InstagramSettingsView() {
                   </div>
                   <Button size="sm" onClick={() => void repairQueue()} disabled={deliveryLoading || !status.enabled || !connectionConfigured} icon={deliveryLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />}>
                     Navbatni tiklash
+                  </Button>
+                </div>
+              </div>
+            )}
+            {status.rateLimitTtlMs > 0 && (
+              <div className="rounded-xl border border-red-300 bg-red-50/90 p-4 dark:border-red-400/30 dark:bg-red-400/10">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-black text-red-800 dark:text-red-100">Meta vaqtinchalik yuborishni cheklagan</p>
+                    <p className="mt-1 text-sm font-semibold text-red-700/80 dark:text-red-100/80">
+                      Instagram navbati {formatDuration(status.rateLimitTtlMs)} dan keyin avtomatik davom etadi.
+                      {status.rateLimitedUntil ? ` Taxminiy vaqt: ${new Date(status.rateLimitedUntil).toLocaleString("uz-UZ")}.` : ""}
+                    </p>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading} icon={<RefreshCcw size={15} className={loading ? "animate-spin" : ""} />}>
+                    Holatni yangilash
                   </Button>
                 </div>
               </div>

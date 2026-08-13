@@ -373,6 +373,7 @@ export async function getInstagramSettingsStatus() {
     console.error("[instagram] navbat holatini o'qib bo'lmadi:", error);
     return new Set<string>();
   });
+  const rateLimitTtlMs = instagramQueue ? await instagramQueue.getRateLimitTtl(1).catch(() => 0) : 0;
   const queuedIds = [...queuedArticleIds];
   const [sent, failed, queued, recoverable, latestFailure, connection, autoPublishEnabled] = await Promise.all([
     prisma.article.count({ where: { status: "PUBLISHED", deletedAt: null, instagramSentAt: { not: null } } }),
@@ -419,10 +420,16 @@ export async function getInstagramSettingsStatus() {
     publicMediaReady: Boolean(env.BACKEND_PUBLIC_URL?.startsWith("https://")),
     mediaRendererReady: Boolean(env.MEDIA_RENDERER_URL && env.MEDIA_RENDERER_SECRET),
     posts: { sent, failed, queued, recoverable },
+    rateLimitTtlMs,
+    rateLimitedUntil: rateLimitTtlMs > 0 ? new Date(Date.now() + rateLimitTtlMs) : null,
     latestFailure: latestFailure
       ? { title: latestFailure.title, message: latestFailure.instagramError, at: latestFailure.updatedAt }
       : null,
-    configurationMessage: ready ? connection.message : (configured ? connection.message : configurationMessage())
+    configurationMessage: rateLimitTtlMs > 0
+      ? "Meta vaqtinchalik limit qo'ydi. Navbat limit tugagach avtomatik davom etadi"
+      : ready
+        ? connection.message
+        : (configured ? connection.message : configurationMessage())
   };
 }
 

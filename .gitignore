@@ -11,3 +11,4 @@ backups
 .env.dokploy.local
 playwright-report
 test-results
+.codex-ssh/

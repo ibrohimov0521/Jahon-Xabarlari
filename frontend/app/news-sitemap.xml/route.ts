@@ -1,4 +1,4 @@
-import { API_URL } from "../../lib/config";
+import { SERVER_API_URL } from "../../lib/config";
 import { timeoutSignal } from "../../lib/http";
 import { SITE_NAME, SITE_URL } from "../../lib/site";
 
@@ -11,7 +11,7 @@ function escapeXml(value: string) {
 export async function GET() {
   let items: Item[] = [];
   try {
-    const response = await fetch(`${API_URL}/articles/sitemap`, { next: { revalidate: 300 }, signal: timeoutSignal() });
+    const response = await fetch(`${SERVER_API_URL}/articles/sitemap`, { next: { revalidate: 300 }, signal: timeoutSignal() });
     if (response.ok) items = ((await response.json()) as { items?: Item[] }).items ?? [];
   } catch {
     items = [];

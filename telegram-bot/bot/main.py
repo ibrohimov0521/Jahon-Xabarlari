@@ -299,7 +299,7 @@ async def custom_emoji_id(message: Message) -> None:
     except Exception:
         logger.exception("Maxsus emoji fallbacki olinmadi")
     await message.answer(
-        "Kanal uchun Railway Backend variables:\n\n"
+        "Kanal uchun backend sozlamalari:\n\n"
         f"<code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ID={html.escape(custom_emoji_id)}</code>\n"
         f"<code>TELEGRAM_CHANNEL_CUSTOM_EMOJI_ALT={html.escape(fallback_emoji)}</code>\n\n"
         "Ikkalasini ham Backend service ichiga aynan shu ko'rinishda qo'ying. So'ng backend deployini kuting.",

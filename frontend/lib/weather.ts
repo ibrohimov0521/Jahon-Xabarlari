@@ -269,13 +269,13 @@ export type WeatherAlert = {
   expires: string;
 };
 
-import { API_URL } from "./config";
+import { apiUrl } from "./config";
 
 // Severe weather alerts, proxied through our backend (WeatherAPI). Degrades to an empty list on
 // any failure -- alerts are a bonus banner on top of the core forecast, never a blocker.
 export async function fetchWeatherAlerts(lat: number, lon: number): Promise<WeatherAlert[]> {
   try {
-    const res = await fetch(`${API_URL}/weather/alerts?lat=${lat}&lon=${lon}`, { signal: timeoutSignal() });
+    const res = await fetch(apiUrl(`/weather/alerts?lat=${lat}&lon=${lon}`), { signal: timeoutSignal() });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data?.alerts) ? data.alerts : [];
@@ -288,7 +288,7 @@ export async function fetchWeatherAlerts(lat: number, lon: number): Promise<Weat
 // calling Open-Meteo directly from the browser, per the requested architecture.
 export async function fetchFullWeather(lat: number, lon: number): Promise<FullWeather | null> {
   try {
-    const res = await fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`, { signal: timeoutSignal() });
+    const res = await fetch(apiUrl(`/weather?lat=${lat}&lon=${lon}`), { signal: timeoutSignal() });
     if (!res.ok) return null;
     const data = await res.json();
     if (

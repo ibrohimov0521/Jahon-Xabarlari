@@ -76,15 +76,15 @@ function SwitchControl({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-grid h-10 min-w-[126px] shrink-0 grid-cols-[1fr_46px] items-center gap-2 rounded-xl border px-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`inline-flex h-9 min-w-[96px] shrink-0 items-center justify-between gap-2 rounded-full border px-3 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-60 ${
         checked
           ? "border-brand bg-brand text-white shadow-sm shadow-blue-900/15"
           : "border-slate-300 bg-slate-100 text-slate-600 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200"
       }`}
     >
       <span>{checked ? "Yoniq" : "O‘chiq"}</span>
-      <span className={`relative h-6 w-[46px] rounded-full ${checked ? "bg-white/25" : "bg-slate-300 dark:bg-slate-700"}`}>
-        <span className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0"}`} />
+      <span className={`relative h-5 w-9 rounded-full ${checked ? "bg-white/25" : "bg-slate-300 dark:bg-slate-700"}`}>
+        <span className={`absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : "translate-x-0"}`} />
       </span>
     </button>
   );

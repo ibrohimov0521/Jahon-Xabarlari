@@ -44,7 +44,7 @@ export type Advertisement = {
   priority?: number;
 };
 
-import { API_URL } from "./config";
+import { apiUrl } from "./config";
 import { timeoutSignal } from "./http";
 
 const useE2EFixtures = process.env.E2E_FIXTURES === "1";
@@ -63,7 +63,7 @@ function isArticleSlug(value: string) {
 export async function getArticles(params = "", lang?: string) {
   if (useE2EFixtures) return demoArticles;
   try {
-    const res = await fetch(withLang(`${API_URL}/articles${params}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/articles${params}`), lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -101,7 +101,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
     return { ...article, contentLanguage: "uz", availableLanguages: ["uz", "ru", "en"] };
   }
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/${slug}`, lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/articles/${slug}`), lang), { next: { revalidate: 60 }, signal: timeoutSignal() });
     if (!res.ok) return null;
     return (await res.json()) as Article;
   } catch {
@@ -112,7 +112,7 @@ export async function getArticle(slug: string, lang?: string): Promise<Article |
 export async function getArticleContext(slug: string, lang?: string): Promise<{ related: Article[]; next: Article | null }> {
   if (!isArticleSlug(slug)) return { related: [], next: null };
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/${slug}/context`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/articles/${slug}/context`), lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) return { related: [], next: null };
     return (await res.json()) as { related: Article[]; next: Article | null };
   } catch {
@@ -123,7 +123,7 @@ export async function getArticleContext(slug: string, lang?: string): Promise<{ 
 export async function getTrendingArticles(lang?: string, limit = 5) {
   if (useE2EFixtures) return demoArticles.slice(0, limit);
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/trending?limit=${limit}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/articles/trending?limit=${limit}`), lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -134,7 +134,7 @@ export async function getTrendingArticles(lang?: string, limit = 5) {
 export async function getPopularArticles(lang?: string, limit = 8, days = 4) {
   if (useE2EFixtures) return demoArticles.slice(0, limit);
   try {
-    const res = await fetch(withLang(`${API_URL}/articles/popular?limit=${limit}&days=${days}`, lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/articles/popular?limit=${limit}&days=${days}`), lang), { next: { revalidate: 120 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     return (await res.json()).items as Article[];
   } catch {
@@ -146,7 +146,7 @@ export type Comment = { id: string; name: string; body: string; createdAt: strin
 
 export async function getComments(articleId: string): Promise<Comment[]> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, { cache: "no-store", signal: timeoutSignal() });
+    const res = await fetch(apiUrl(`/articles/${articleId}/comments`), { cache: "no-store", signal: timeoutSignal() });
     if (!res.ok) return [];
     return (await res.json()).items as Comment[];
   } catch {
@@ -156,7 +156,7 @@ export async function getComments(articleId: string): Promise<Comment[]> {
 
 export async function submitComment(articleId: string, name: string, body: string): Promise<{ ok: boolean; message: string; comment?: Comment }> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/comments`, {
+    const res = await fetch(apiUrl(`/articles/${articleId}/comments`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, body }),
@@ -175,7 +175,7 @@ export async function submitArticleReport(
   payload: { reason: "FACT_ERROR" | "TYPO" | "COPYRIGHT" | "INAPPROPRIATE" | "OTHER"; details: string; email?: string }
 ): Promise<{ ok: boolean; message: string }> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/reports`, {
+    const res = await fetch(apiUrl(`/articles/${articleId}/reports`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -191,7 +191,7 @@ export async function submitArticleReport(
 export async function getActiveAdvertisement(placement: Advertisement["placement"], device: "mobile" | "desktop") {
   try {
     const query = new URLSearchParams({ placement, device });
-    const res = await fetch(`${API_URL}/advertisements?${query}`, { next: { revalidate: 15 }, signal: timeoutSignal() });
+    const res = await fetch(apiUrl(`/advertisements?${query}`), { next: { revalidate: 15 }, signal: timeoutSignal() });
     if (!res.ok) return null;
     return ((await res.json()) as { item: Advertisement | null }).item;
   } catch {
@@ -208,7 +208,7 @@ export type SearchArticlesPage = {
 
 export async function searchArticlesPage(q: string, lang?: string, params = ""): Promise<SearchArticlesPage> {
   try {
-    const res = await fetch(withLang(`${API_URL}/search?q=${encodeURIComponent(q)}${params}`, lang), { next: { revalidate: 30 }, signal: timeoutSignal() });
+    const res = await fetch(withLang(apiUrl(`/search?q=${encodeURIComponent(q)}${params}`), lang), { next: { revalidate: 30 }, signal: timeoutSignal() });
     if (!res.ok) throw new Error("API error");
     const data = (await res.json()) as Partial<SearchArticlesPage>;
     return {
@@ -235,7 +235,7 @@ export async function searchArticles(q: string, lang?: string, params = "") {
 
 export async function recordArticleView(articleId: string): Promise<number | null> {
   try {
-    const res = await fetch(`${API_URL}/articles/${articleId}/view`, { method: "POST", keepalive: true, signal: timeoutSignal(8_000) });
+    const res = await fetch(apiUrl(`/articles/${articleId}/view`), { method: "POST", keepalive: true, signal: timeoutSignal(8_000) });
     if (!res.ok) return null;
     return ((await res.json()) as { viewsCount: number }).viewsCount;
   } catch {

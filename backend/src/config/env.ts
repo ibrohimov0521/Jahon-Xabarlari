@@ -24,6 +24,17 @@ const commaSeparatedOrigins = z.string().optional().refine((value) => {
 const port = z.coerce.number().int().min(1).max(65_535);
 const optionalEnv = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((value) => typeof value === "string" && !value.trim() ? undefined : value, schema.optional());
+const booleanEnv = (label: string) =>
+  z.string().trim().optional().transform((value, ctx) => {
+    if (!value) return false;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `${label} faqat true yoki false bo'lishi kerak`
+    });
+    return z.NEVER;
+  });
 
 const schema = z.object({
   DATABASE_URL: z.string().url(),
@@ -49,16 +60,10 @@ const schema = z.object({
     .refine((value) => !value || /^@?[a-zA-Z0-9_]{5,}$/.test(value) || /^-100\d{6,}$/.test(value), {
       message: "TELEGRAM_NEWS_CHANNEL @kanal_nomi yoki -100... kanal ID bo'lishi kerak"
     }),
-  TELEGRAM_CHANNEL_POSTING_ENABLED: z
-    .string()
-    .optional()
-    .transform((value) => value === "true"),
+  TELEGRAM_CHANNEL_POSTING_ENABLED: booleanEnv("TELEGRAM_CHANNEL_POSTING_ENABLED"),
   // Instagram publishing uses the official Meta Graph API. It remains disabled until all
   // credentials are present, so publishing ordinary news never depends on Meta availability.
-  INSTAGRAM_POSTING_ENABLED: z
-    .string()
-    .optional()
-    .transform((value) => value === "true"),
+  INSTAGRAM_POSTING_ENABLED: booleanEnv("INSTAGRAM_POSTING_ENABLED"),
   INSTAGRAM_ACCESS_TOKEN: optionalEnv(z.string().trim().min(20)),
   INSTAGRAM_USER_ID: optionalEnv(z.string().trim().regex(/^\d+$/, "INSTAGRAM_USER_ID faqat raqamlardan iborat bo'lishi kerak")),
   // Meta has two Instagram API products with different Graph hosts. New apps using
@@ -82,10 +87,7 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(40).optional(),
   VAPID_PRIVATE_KEY: z.string().min(30).optional(),
   VAPID_SUBJECT: z.string().default("mailto:info@jahonxabarlari.uz"),
-  NEWS_AGGREGATOR_ENABLED: z
-    .string()
-    .optional()
-    .transform((value) => value === "true"),
+  NEWS_AGGREGATOR_ENABLED: booleanEnv("NEWS_AGGREGATOR_ENABLED"),
   NEWS_AGGREGATOR_INTERVAL_MINUTES: z.coerce.number().min(1).default(5)
 }).superRefine((value, ctx) => {
   if (value.JWT_ACCESS_SECRET === value.JWT_REFRESH_SECRET) {

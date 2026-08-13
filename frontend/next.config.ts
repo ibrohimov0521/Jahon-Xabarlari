@@ -30,6 +30,8 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" }
 ];
 
+const internalApiUrl = (process.env.INTERNAL_API_URL ?? process.env.SERVER_API_URL ?? "http://backend:4000/api").replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
   experimental: {
     useCache: true
@@ -59,6 +61,14 @@ const nextConfig: NextConfig = {
         has: [{ type: "host", value: "www.jahonxabarlari.uz" }],
         destination: "https://jahonxabarlari.uz/:path*",
         permanent: true
+      }
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${internalApiUrl}/:path*`
       }
     ];
   }

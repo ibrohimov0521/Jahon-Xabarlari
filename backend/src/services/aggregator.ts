@@ -16,6 +16,7 @@ import { queueArticleInstagramPost } from "./instagram.js";
 import { queueArticleTelegramPost } from "./telegram-channel.js";
 import { queueTranslations } from "./translate.js";
 import { withRedisLock } from "./redis.js";
+import { inspectSourceFidelity } from "./source-fidelity.js";
 
 export { NEWS_SOURCES, type NewsSource };
 
@@ -265,6 +266,51 @@ async function uniqueArticleSlug(title: string): Promise<string> {
   return candidate;
 }
 
+async function verifyCandidateAgainstSource(
+  item: FeedItem,
+  candidate: { title: string; content: string }
+): Promise<{ supported: boolean; preservedUncertainty: boolean; issues: string[] }> {
+  try {
+    const completion = await client!.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a strict source-fidelity fact checker. Compare the Uzbek candidate only with the supplied source " +
+            "title and excerpt; never use outside knowledge. Translation and concise paraphrase are allowed. Mark " +
+            "supported=false if the candidate adds any fact, reason, consequence, description, quote, entity, date or " +
+            "number absent from the source, or changes an allegation/report/possibility into a confirmed fact. Mark " +
+            "preservedUncertainty=false if attribution, negation, doubt or lack of official confirmation was weakened. " +
+            "Respond ONLY with strict JSON: {\"supported\": boolean, \"preservedUncertainty\": boolean, \"issues\": string[]}."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            sourceTitle: item.title,
+            sourceExcerpt: item.snippet,
+            candidateTitle: candidate.title,
+            candidateContent: candidate.content
+          })
+        }
+      ]
+    });
+    const text = completion.choices[0]?.message?.content;
+    if (!text) throw new Error("Bo'sh fakt-chek javobi");
+    return z
+      .object({
+        supported: z.boolean(),
+        preservedUncertainty: z.boolean(),
+        issues: z.array(z.string().trim().min(1).max(180)).max(12)
+      })
+      .parse(JSON.parse(text));
+  } catch (error) {
+    console.error("[aggregator] manbaga sodiqlik fakt-cheki ishlamadi:", error instanceof Error ? error.message : error);
+    return { supported: false, preservedUncertainty: false, issues: ["FACT_CHECK_UNAVAILABLE"] };
+  }
+}
+
 async function processItem(
   item: FeedItem,
   categories: { id: string; name: string }[],
@@ -278,14 +324,20 @@ async function processItem(
       {
         role: "system",
         content:
-          "You are a news editor for an Uzbek news portal called BEST TEAM NEWS. Given a news item's title and " +
-          "snippet (possibly in English or Russian), write an ORIGINAL Uzbek-language news brief in LATIN SCRIPT. " +
+          "You are a source-faithful news editor for an Uzbek news portal called BEST TEAM NEWS. Given only a news " +
+          "item's title and snippet (possibly in English or Russian), write an Uzbek-language brief in LATIN SCRIPT. " +
           "Write a complete, standalone title under 180 characters without an ellipsis. Do not repeat the title in " +
-          "the content. Use 5-8 complete sentences, preserve every name, number and attribution from the source, and never invent " +
-          "a fact that is not present in the supplied text. Choose exactly one category and 2-6 concise Uzbek tags. " +
+          "the content. Use only the facts explicitly present in the supplied text. Never add a reason, conclusion, " +
+          "description, quote, entity, date or number from outside it. Preserve names, numbers and attribution exactly. " +
+          "CRITICAL: preserve uncertainty and attribution. A report, allegation, estimate, possibility or unconfirmed " +
+          "claim must never become a confirmed fact. Keep phrases equivalent to 'xabarlar tarqaldi', 'da'vo qilindi', " +
+          "'ehtimol' and 'rasman tasdiqlanmadi'. Do not add generic analysis or promotional filler. If the source is " +
+          "short, produce a short 2-4 sentence brief rather than expanding it. Choose one category and 2-6 Uzbek tags. " +
           "Set confidence from 0 to 1 based on whether the supplied source text contains enough facts for a reliable " +
-          "brief. Respond ONLY with strict JSON: {\"title\": string, \"content\": string, \"category\": string, " +
-          "\"isBreaking\": boolean, \"confidence\": number, \"tags\": string[]}."
+          "brief. Before responding, compare every claim with the source. List any unsupported claim instead of hiding it. " +
+          "Respond ONLY with strict JSON: {\"title\": string, \"content\": string, \"category\": string, " +
+          "\"isBreaking\": boolean, \"confidence\": number, \"tags\": string[], \"unsupportedClaims\": string[], " +
+          "\"preservedUncertainty\": boolean}."
       },
       {
         role: "user",
@@ -308,9 +360,12 @@ async function processItem(
       category: z.string().trim().min(1).max(100),
       isBreaking: z.boolean().optional(),
       confidence: z.number().min(0).max(1).optional(),
-      tags: z.array(z.string()).max(12).optional()
+      tags: z.array(z.string()).max(12).optional(),
+      unsupportedClaims: z.array(z.string()).max(12).optional(),
+      preservedUncertainty: z.boolean().optional()
     })
     .parse(JSON.parse(text));
+  const verification = await verifyCandidateAgainstSource(item, parsed);
 
   const category = categories.find((c) => c.name.toLowerCase() === parsed.category?.toLowerCase()) ?? categories[0];
   const summary = parsed.content.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ").slice(0, 220);
@@ -323,7 +378,18 @@ async function processItem(
     mainImage,
     confidence: parsed.confidence
   });
-  const status = qualityGuardedStatus(publishStatus, quality);
+  const fidelity = inspectSourceFidelity({
+    sourceTitle: item.title,
+    sourceText: item.snippet,
+    generatedTitle: parsed.title,
+    generatedContent: parsed.content,
+    category: parsed.category,
+    confidence: parsed.confidence,
+    aiSupported: verification.supported && (parsed.unsupportedClaims?.length ?? 0) === 0,
+    aiPreservedUncertainty: verification.preservedUncertainty && parsed.preservedUncertainty !== false,
+    aiIssues: [...(parsed.unsupportedClaims ?? []), ...verification.issues]
+  });
+  const status = fidelity.publishable ? qualityGuardedStatus(publishStatus, quality) : "REVIEW";
   const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
   const article = await prisma.$transaction(async (tx) => {
@@ -343,6 +409,8 @@ async function processItem(
         mainImage,
         sourceName: item.sourceName,
         sourceUrl: item.link,
+        sourceTitle: item.title,
+        sourceText: item.snippet,
         publishedAt: status === "PUBLISHED" ? new Date() : null
       }
     });
@@ -374,6 +442,12 @@ async function processItem(
           confidence: parsed.confidence ?? null,
           qualityScore: quality.score,
           qualityIssues: quality.issues,
+          sourceFidelityPassed: fidelity.publishable,
+          sourceFidelityIssues: fidelity.issues,
+          sourceHighRisk: fidelity.highRisk,
+          sourceIsUncertain: fidelity.sourceIsUncertain,
+          sourceTitle: item.title,
+          sourceText: item.snippet,
           tags: tagNames
         }
       }

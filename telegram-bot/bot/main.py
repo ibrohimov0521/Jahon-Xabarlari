@@ -50,6 +50,8 @@ from .keyboards import (
     confirm_reply_keyboard,
     instagram_format_reply_keyboard,
     instagram_settings_keyboard,
+    inquiry_actions,
+    inquiry_reply_keyboard,
     reply_menu,
     status_reply_keyboard,
     VISITOR_CANCEL,
@@ -57,7 +59,7 @@ from .keyboards import (
     visitor_message_keyboard,
     visitor_phone_keyboard,
 )
-from .states import ArticleCreate, UserInquiry
+from .states import AdminInquiryReply, ArticleCreate, UserInquiry
 
 settings = load_settings()
 api = BackendApi(settings.api_base, settings.service_secret)
@@ -258,11 +260,11 @@ async def visitor_inquiry(message: Message, state: FSMContext, bot: Bot) -> None
     delivered = 0
     for admin_id in settings.admin_ids:
         try:
-            await bot.send_message(admin_id, admin_text)
+            await bot.send_message(admin_id, admin_text, reply_markup=inquiry_actions(sender.id))
             delivered += 1
         except TelegramRetryAfter as exc:
             await asyncio.sleep(exc.retry_after)
-            await bot.send_message(admin_id, admin_text)
+            await bot.send_message(admin_id, admin_text, reply_markup=inquiry_actions(sender.id))
             delivered += 1
         except Exception:
             logger.exception("Foydalanuvchi murojaati admin %s ga yuborilmadi", admin_id)
@@ -271,6 +273,99 @@ async def visitor_inquiry(message: Message, state: FSMContext, bot: Bot) -> None
         await message.answer("Murojaatingiz tahririyatga yuborildi. Tez orada siz bilan bog'lanamiz.", reply_markup=ReplyKeyboardRemove())
     else:
         await message.answer("Murojaatni yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.", reply_markup=ReplyKeyboardRemove())
+
+
+async def send_inquiry_reply(bot: Bot, target_user_id: int, reply_text: str) -> None:
+    await bot.send_message(
+        target_user_id,
+        "<b>BEST Team NEWS tahririyatidan javob:</b>\n\n" + html.escape(reply_text),
+    )
+
+
+async def begin_inquiry_reply(message: Message, state: FSMContext, target_user_id: int) -> None:
+    await state.set_state(AdminInquiryReply.message)
+    await state.update_data(inquiry_target_user_id=target_user_id)
+    await message.answer(
+        f"Telegram ID <code>{target_user_id}</code> foydalanuvchisiga javobingizni yozing:",
+        reply_markup=inquiry_reply_keyboard(),
+    )
+
+
+@router.callback_query(F.data.startswith("inquiry_reply:"))
+async def inquiry_reply_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    if not await guard_callback(callback):
+        return
+    try:
+        target_user_id = int((callback.data or "").split(":", 1)[1])
+    except (IndexError, ValueError):
+        await callback.answer("Foydalanuvchi IDsi noto'g'ri", show_alert=True)
+        return
+    if not callback.message:
+        await callback.answer("Xabar topilmadi", show_alert=True)
+        return
+    await begin_inquiry_reply(callback.message, state, target_user_id)
+    await callback.answer()
+
+
+@router.message(Command("reply"))
+async def inquiry_reply_command(message: Message, state: FSMContext, bot: Bot) -> None:
+    if not await guard_message(message):
+        return
+    parts = (message.text or "").strip().split(maxsplit=2)
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer(
+            "Foydalanish: <code>/reply TELEGRAM_ID javob matni</code>"
+        )
+        return
+    target_user_id = int(parts[1])
+    if len(parts) == 2:
+        await begin_inquiry_reply(message, state, target_user_id)
+        return
+    try:
+        await send_inquiry_reply(bot, target_user_id, parts[2].strip())
+    except Exception as exc:
+        logger.exception("Murojaat javobi %s foydalanuvchiga yuborilmadi", target_user_id)
+        await message.answer(
+            "Javob yuborilmadi. Foydalanuvchi botni bloklagan bo'lishi mumkin: "
+            f"{html.escape(str(exc))}",
+            reply_markup=reply_menu(),
+        )
+        return
+    await message.answer("Javob foydalanuvchiga yuborildi.", reply_markup=reply_menu())
+
+
+@router.message(AdminInquiryReply.message, F.text)
+async def inquiry_reply_message(message: Message, state: FSMContext, bot: Bot) -> None:
+    if not await guard_message(message):
+        await state.clear()
+        return
+    reply_text = (message.text or "").strip()
+    if reply_text in {VISITOR_CANCEL, MENU_CANCEL, MENU_BACK}:
+        await state.clear()
+        await message.answer("Javob berish bekor qilindi.", reply_markup=reply_menu())
+        return
+    if len(reply_text) < 2:
+        await message.answer("Javob matnini yozing.", reply_markup=inquiry_reply_keyboard())
+        return
+    data = await state.get_data()
+    target_user_id = int(data.get("inquiry_target_user_id", 0))
+    if target_user_id <= 0:
+        await state.clear()
+        await message.answer("Foydalanuvchi IDsi topilmadi. Qayta urinib ko'ring.", reply_markup=reply_menu())
+        return
+    try:
+        await send_inquiry_reply(bot, target_user_id, reply_text)
+    except Exception as exc:
+        logger.exception("Murojaat javobi %s foydalanuvchiga yuborilmadi", target_user_id)
+        await message.answer(
+            "Javob yuborilmadi. Foydalanuvchi botni bloklagan bo'lishi mumkin: "
+            f"{html.escape(str(exc))}",
+            reply_markup=reply_menu(),
+        )
+        await state.clear()
+        return
+    await state.clear()
+    await message.answer("Javob foydalanuvchiga yuborildi.", reply_markup=reply_menu())
 
 
 @router.message(Command("emojiid"))

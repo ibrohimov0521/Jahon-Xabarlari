@@ -16,3 +16,7 @@ class ArticleCreate(StatesGroup):
 class UserInquiry(StatesGroup):
     phone = State()
     message = State()
+
+
+class AdminInquiryReply(StatesGroup):
+    message = State()

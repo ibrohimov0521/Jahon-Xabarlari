@@ -69,6 +69,22 @@ def visitor_message_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def inquiry_reply_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=VISITOR_CANCEL)]],
+        resize_keyboard=True,
+        input_field_placeholder="Foydalanuvchiga javobingizni yozing",
+    )
+
+
+def inquiry_actions(user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Javob berish", callback_data=f"inquiry_reply:{user_id}")]
+        ]
+    )
+
+
 def cancel_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=MENU_CANCEL), KeyboardButton(text=MENU_BACK)]],

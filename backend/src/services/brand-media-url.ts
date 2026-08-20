@@ -1,7 +1,7 @@
 import { env } from "../config/env.js";
 import crypto from "node:crypto";
 
-const BRAND_MEDIA_VERSION = "best-team-v3";
+const BRAND_MEDIA_VERSION = "best-team-v6";
 
 // Meta and Telegram fetch this public endpoint themselves. It returns a branded JPEG while
 // keeping a publisher's original URL out of the social delivery pipeline.

@@ -6,6 +6,7 @@ import { safeFetch } from "../../services/net-guard.js";
 import { applyBrandWatermark, createInstagramNewsCover } from "../../services/brand-media.js";
 
 export const instagramRouter = Router();
+const BRAND_MEDIA_VERSION = "best-team-v6";
 
 // Meta and Telegram fetch these generated assets themselves. A conservative public limit
 // prevents remote-media buffering from being abused without blocking normal carousel delivery.
@@ -39,7 +40,7 @@ async function articleImageBuffer(source: string) {
       buffer: Buffer.isBuffer(media.data) ? media.data : Buffer.from(media.data),
       // URLs from the new pipeline keep raw source bytes. Legacy database rows require their
       // retired corner mark to be hidden before applying the current transparent logo.
-      replaceExistingWatermark: url.searchParams.get("brand") !== "best-team-v3" || url.searchParams.get("replace") !== "0"
+      replaceExistingWatermark: url.searchParams.get("brand") !== BRAND_MEDIA_VERSION || url.searchParams.get("replace") !== "0"
     };
   }
   const response = await safeFetch(url.toString(), {
@@ -88,7 +89,7 @@ async function sendInstagramArticleCover(req: Request, res: ExpressResponse) {
 
   try {
     const source = await articleImageBuffer(article.mainImage);
-    const cover = await createInstagramNewsCover(source.buffer, article.title);
+    const cover = await createInstagramNewsCover(source.buffer, article.title, { replaceExistingWatermark: source.replaceExistingWatermark });
     res.set({ "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" }).send(cover);
   } catch (error) {
     console.error("[instagram] cover render failed:", error);

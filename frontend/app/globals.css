@@ -624,7 +624,7 @@ body > footer {
   width: clamp(24px, 7vw, 42px);
   aspect-ratio: 1;
   border-radius: 8px;
-  background: center / contain no-repeat url("/brand/best-team-mark-v2.png?v=best-team-v3");
+  background: center / contain no-repeat url("/brand/best-team-mark-v2.png?v=best-team-v6");
   filter: drop-shadow(0 2px 7px rgba(0, 0, 0, 0.64));
   opacity: 0.92;
   pointer-events: none;

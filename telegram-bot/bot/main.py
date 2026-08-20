@@ -1019,7 +1019,14 @@ async def fallback(message: Message, state: FSMContext):
 
 
 async def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     bot = Bot(settings.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    await bot.delete_webhook(drop_pending_updates=False)
+    me = await bot.get_me()
+    logger.info("Telegram bot polling started as @%s (%s)", me.username, me.id)
     redis_storage = RedisStorage.from_url(settings.redis_url, state_ttl=24 * 60 * 60, data_ttl=24 * 60 * 60)
     try:
         await redis_storage.redis.ping()

@@ -5,7 +5,7 @@ export function isVideoUrl(src?: string | null) {
 }
 
 const LOW_QUALITY_MEDIA = /(thumb|thumbnail|small|150x|200x|300x|_s\.|\/s\d{2,3}\/)/i;
-const BRAND_MEDIA_VERSION = "best-team-v3";
+const BRAND_MEDIA_VERSION = "best-team-v6";
 
 // Old uploads were stored with a watermark baked into their pixels. Give those media URLs a new
 // version so browsers do not keep rendering a cached legacy image while the API replaces it.
@@ -13,7 +13,9 @@ export function withCurrentBrandMedia(src: string) {
   try {
     const isAbsolute = /^https?:\/\//i.test(src);
     const url = new URL(src, "https://jahonxabarlari.uz");
-    if (!/\/api\/admin\/media\/file\/[^/]+$/i.test(url.pathname) || url.searchParams.has("brand")) return src;
+    if (!/\/api\/admin\/media\/file\/[^/]+$/i.test(url.pathname)) return src;
+    const currentBrand = url.searchParams.get("brand");
+    if (currentBrand === BRAND_MEDIA_VERSION) return src;
     url.searchParams.set("brand", BRAND_MEDIA_VERSION);
     url.searchParams.set("replace", "1");
     return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;

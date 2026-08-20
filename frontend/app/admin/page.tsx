@@ -5,6 +5,7 @@ import {
   FilePlus2,
   Flag,
   History,
+  Images,
   Instagram,
   LayoutDashboard,
   LogOut,
@@ -36,6 +37,7 @@ import { Dashboard } from "../../components/admin/Dashboard";
 import { ReportsView } from "../../components/admin/ReportsView";
 import { SecurityView } from "../../components/admin/SecurityView";
 import { InstagramSettingsView } from "../../components/admin/InstagramSettingsView";
+import { MediaLibraryView } from "../../components/admin/MediaLibraryView";
 import { UsersView } from "../../components/admin/UsersView";
 import type { Article, ArticleFormState, ArticleStatus, AdItem, AdPlacement, AdStatus, AdSummary, Category, CommentItem, CommentStatus, CommentSummary, Stats, UserItem } from "../../components/admin/types";
 import { Button, ErrorBanner, IconButton, Input, LoadingBlock, Toast } from "../../components/admin/ui";
@@ -53,13 +55,14 @@ import { SITE_LOGO, SITE_NAME } from "../../lib/site";
 import { useUi } from "../../lib/ui-context";
 import { useScrollLock } from "../../lib/use-scroll-lock";
 
-type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "instagram" | "security";
+type View = "dashboard" | "articles" | "new" | "edit" | "preview" | "categories" | "media" | "ads" | "comments" | "reports" | "stats" | "users" | "auditlog" | "aggregator" | "instagram" | "security";
 
 const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "articles", label: "Yangiliklar", icon: Newspaper },
   { id: "new", label: "Yangi maqola", icon: FilePlus2 },
   { id: "categories", label: "Kategoriyalar", icon: Tags },
+  { id: "media", label: "Media", icon: Images },
   { id: "ads", label: "Reklama", icon: Megaphone },
   { id: "comments", label: "Izohlar", icon: MessageCircle },
   { id: "reports", label: "Xato xabarlari", icon: Flag },
@@ -71,7 +74,7 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
 ];
 
 const adminViews = new Set<View>([
-  "dashboard", "articles", "new", "edit", "preview", "categories", "ads", "comments",
+  "dashboard", "articles", "new", "edit", "preview", "categories", "media", "ads", "comments",
   "reports", "stats", "users", "auditlog", "aggregator", "instagram", "security"
 ]);
 
@@ -799,6 +802,7 @@ export default function AdminPage() {
           {view === "reports" && <ReportsView />}
           {view === "auditlog" && <AuditLogView />}
           {view === "aggregator" && <AggregatorView />}
+          {view === "media" && <MediaLibraryView />}
           {view === "instagram" && <InstagramSettingsView />}
           {view === "security" && <SecurityView onReauthenticate={() => { void handleLogout(); setSessionNotice("Xavfsizlik sozlamasi o'zgardi. Qaytadan kiring."); }} />}
         </div>

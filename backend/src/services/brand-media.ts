@@ -132,7 +132,7 @@ export async function applyBrandWatermark(source: Buffer, options: WatermarkOpti
   const metadata = await image.metadata();
   const width = Math.max(1, metadata.width ?? 1200);
   const height = Math.max(1, metadata.height ?? 800);
-  const logoWidth = Math.min(220, Math.max(84, Math.round(width * 0.13)));
+  const logoWidth = Math.min(290, Math.max(112, Math.round(width * 0.16)));
   const padding = Math.max(10, Math.round(Math.min(width, height) * 0.018));
   const logo = await resizedBrandLogo(logoWidth);
   const logoMetadata = await sharp(logo).metadata();
@@ -159,18 +159,29 @@ export async function applyBrandWatermark(source: Buffer, options: WatermarkOpti
 
 // First carousel slide for Instagram: readable headline over the article image, followed by
 // the branded original image as the second slide.
-export async function createInstagramNewsCover(source: Buffer, title: string) {
+export async function createInstagramNewsCover(source: Buffer, title: string, options: WatermarkOptions = {}) {
   const oriented = await sharp(source, { failOn: "error", limitInputPixels: 50_000_000 })
     .rotate()
     .toBuffer({ resolveWithObject: true });
   const width = oriented.info.width;
   const height = oriented.info.height;
-  const logoWidth = Math.min(158, Math.max(84, Math.round(width * 0.12)));
+  const logoWidth = Math.min(230, Math.max(112, Math.round(width * 0.16)));
   const logo = await resizedBrandLogo(logoWidth);
   const padding = Math.max(18, Math.round(Math.min(width, height) * 0.025));
   const blurredBackdrop = await blurredHeadlineBackdrop(oriented.data, width, height);
+  const logoMetadata = await sharp(logo).metadata();
+  const logoHeight = Math.max(1, logoMetadata.height ?? logoWidth);
+  const replaceMask = options.replaceExistingWatermark
+    ? [{
+        input: legacyWatermarkMask(logoWidth + (padding * 2), logoHeight + (padding * 2)),
+        top: Math.max(0, padding - Math.round(padding * 0.35)),
+        left: Math.max(0, width - logoWidth - (padding * 2)),
+        blend: "over" as const
+      }]
+    : [];
   return sharp(oriented.data, { failOn: "error", limitInputPixels: 50_000_000 })
     .composite([
+      ...replaceMask,
       { input: blurredBackdrop.input, top: blurredBackdrop.top, left: 0, blend: "over" },
       { input: instagramOverlay(title, width, height), top: 0, left: 0 },
       { input: logo, top: padding, left: Math.max(padding, width - padding - logoWidth), blend: "over" }

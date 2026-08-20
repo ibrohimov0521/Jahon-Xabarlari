@@ -18,6 +18,7 @@ type MediaViewProps = {
   sizes?: string;
   intrinsicWidth?: number;
   intrinsicHeight?: number;
+  isVideo?: boolean;
 };
 
 const NEXT_IMAGE_WIDTHS = [256, 384, 640, 750, 828, 1080, 1200, 1920] as const;
@@ -32,7 +33,8 @@ export function MediaView({
   optimizedWidth = 1200,
   sizes = "(max-width: 640px) calc(100vw - 20px), (max-width: 1279px) 50vw, 33vw",
   intrinsicWidth = 1200,
-  intrinsicHeight = 675
+  intrinsicHeight = 675,
+  isVideo
 }: MediaViewProps) {
   const [isSmallImage, setIsSmallImage] = useState(false);
   const [naturalWidth, setNaturalWidth] = useState(0);
@@ -47,7 +49,7 @@ export function MediaView({
     setFailed(false);
   }, [src]);
   if (!src) return null;
-  if (isVideoUrl(src)) {
+  if (isVideo ?? isVideoUrl(src)) {
     return (
       <video className={videoClassName ?? className} controls muted playsInline preload="metadata">
         <source src={src} />

@@ -14,7 +14,7 @@ export const mediaRouter = Router();
 // 25 MB. These files are stored inline in Postgres (MediaFile.data), so an unbounded cap is both
 // a storage-exhaustion DoS vector and terrible for DB performance.
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const BRAND_MEDIA_VERSION = "best-team-v3";
+const BRAND_MEDIA_VERSION = "best-team-v6";
 
 const upload = multer({
   storage: multer.memoryStorage(),

@@ -856,7 +856,7 @@ if (configured) {
       connection: createBullConnection(),
       concurrency: env.INSTAGRAM_WORKER_CONCURRENCY,
       limiter: { max: 1, duration: INSTAGRAM_MIN_PUBLISH_INTERVAL_MS },
-      maximumRateLimitDelay: 5 * 60 * 1000
+      maximumRateLimitDelay: INSTAGRAM_RATE_LIMIT_RETRY_MS + 60_000
     }
   );
   instagramWorker.on("failed", (job, error) => {

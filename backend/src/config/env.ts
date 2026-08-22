@@ -71,6 +71,11 @@ const schema = z.object({
   INSTAGRAM_API_MODE: z.enum(["instagram_login", "facebook_login"]).default("instagram_login"),
   INSTAGRAM_GRAPH_API_VERSION: z.string().trim().regex(/^v\d+\.\d+$/, "Masalan v24.0").default("v24.0"),
   INSTAGRAM_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(3).default(2),
+  // Instagram Direct webhook. Keep auto-reply disabled until Meta messaging access is stable;
+  // admin can still view incoming messages and send AI-assisted replies from the panel.
+  INSTAGRAM_DIRECT_ENABLED: booleanEnv("INSTAGRAM_DIRECT_ENABLED"),
+  INSTAGRAM_DIRECT_AUTO_REPLY_ENABLED: booleanEnv("INSTAGRAM_DIRECT_AUTO_REPLY_ENABLED"),
+  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: optionalEnv(z.string().trim().min(12)),
   // Meta fetches the asset itself. This must be the public HTTPS URL of the backend service,
   // not a private Railway hostname or localhost.
   BACKEND_PUBLIC_URL: optionalEnv(webOrigin),

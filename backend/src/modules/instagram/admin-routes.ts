@@ -1,7 +1,9 @@
 import { Router } from "express";
+import { InstagramDirectThreadStatus } from "@prisma/client";
 import { z } from "zod";
 import { audit } from "../../middleware/audit.js";
 import { permit, requireAuth } from "../../middleware/auth.js";
+import { createInstagramDirectDraft, getInstagramDirectThread, listInstagramDirectThreads, replyToInstagramDirectThread, updateInstagramDirectThreadStatus } from "../../services/instagram-direct.js";
 import { cancelInstagramDeliveries, cancelInstagramDelivery, getInstagramAggregatorSources, getInstagramAutoPublishEnabled, getInstagramDeliveries, getInstagramSettingsStatus, prioritizeInstagramDeliveries, repairInstagramQueue, setInstagramAggregatorSourceEnabled, setInstagramAutoPublishEnabled, type InstagramDeliveryState, testInstagramConnection } from "../../services/instagram.js";
 
 export const instagramAdminRouter = Router();
@@ -93,4 +95,39 @@ instagramAdminRouter.post("/queue/repair", async (req, res) => {
   const result = await repairInstagramQueue();
   await audit(req, "INSTAGRAM_QUEUE_REPAIR", "Instagram", "queue", result);
   res.json({ ok: true, ...result });
+});
+
+instagramAdminRouter.get("/direct/threads", async (req, res) => {
+  const status = req.query.status
+    ? z.nativeEnum(InstagramDirectThreadStatus).parse(req.query.status)
+    : undefined;
+  res.json({ items: await listInstagramDirectThreads(status) });
+});
+
+instagramAdminRouter.get("/direct/threads/:id", async (req, res) => {
+  const id = z.string().min(1).max(64).parse(req.params.id);
+  res.json(await getInstagramDirectThread(id));
+});
+
+instagramAdminRouter.patch("/direct/threads/:id/status", async (req, res) => {
+  const id = z.string().min(1).max(64).parse(req.params.id);
+  const { status } = z.object({ status: z.nativeEnum(InstagramDirectThreadStatus) }).parse(req.body);
+  const thread = await updateInstagramDirectThreadStatus(id, status);
+  await audit(req, "INSTAGRAM_DIRECT_STATUS_UPDATE", "InstagramDirectThread", id, { status });
+  res.json({ ok: true, thread });
+});
+
+instagramAdminRouter.post("/direct/threads/:id/draft", async (req, res) => {
+  const id = z.string().min(1).max(64).parse(req.params.id);
+  const draft = await createInstagramDirectDraft(id);
+  await audit(req, "INSTAGRAM_DIRECT_AI_DRAFT", "InstagramDirectThread", id, {});
+  res.json({ ok: true, draft });
+});
+
+instagramAdminRouter.post("/direct/threads/:id/reply", async (req, res) => {
+  const id = z.string().min(1).max(64).parse(req.params.id);
+  const { text } = z.object({ text: z.string().trim().min(1).max(1000) }).parse(req.body);
+  const message = await replyToInstagramDirectThread(id, text);
+  await audit(req, "INSTAGRAM_DIRECT_REPLY", "InstagramDirectThread", id, { messageId: message.id });
+  res.json({ ok: true, message });
 });

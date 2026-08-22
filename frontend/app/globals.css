@@ -158,11 +158,11 @@ body {
   }
 
   .breaking-news-item {
-    width: 88%;
-    max-width: 88%;
+    width: 74%;
+    max-width: 74%;
     overflow: hidden;
-    padding: 9px 11px;
-    font-size: 11px;
+    padding: 8px 10px;
+    font-size: 10px;
     line-height: 1.2;
     text-overflow: ellipsis;
   }
@@ -188,7 +188,7 @@ body {
    content -- comments, the "load more" message at the very bottom, etc. Desktop hides the nav. */
 @media (max-width: 1023px) {
   body {
-    padding-bottom: calc(62px + clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
+    padding-bottom: calc(92px + clamp(8px, env(safe-area-inset-bottom, 0px), 34px));
   }
 
   .admin-content {
@@ -1594,7 +1594,7 @@ button.bg-white {
    Sits ABOVE the search overlay (z 120) so the nav is always visible, but
    below full-content modals (weather 200 / article 220). */
 .bottom-nav {
-  --dock-bg: linear-gradient(180deg, rgba(248, 252, 255, 0.82), rgba(232, 242, 255, 0.76));
+  --dock-bg: linear-gradient(180deg, rgba(248, 252, 255, 0.94), rgba(232, 242, 255, 0.92));
   --dock-border: rgba(52, 98, 158, 0.18);
   --dock-text: #64748b;
   position: fixed;
@@ -1633,7 +1633,7 @@ button.bg-white {
 }
 
 :root[data-theme="dark"] .bottom-nav {
-  --dock-bg: linear-gradient(180deg, rgba(18, 38, 62, 0.84), rgba(6, 17, 34, 0.88));
+  --dock-bg: linear-gradient(180deg, rgba(18, 38, 62, 0.96), rgba(6, 17, 34, 0.97));
   --dock-border: rgba(101, 194, 232, 0.2);
   --dock-text: #91a4bf;
   box-shadow:

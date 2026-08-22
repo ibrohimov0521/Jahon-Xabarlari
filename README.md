@@ -80,6 +80,9 @@ Instagramni Meta hisob tayyor bo'lgach backend servisiga quyidagilarni kiriting:
 INSTAGRAM_POSTING_ENABLED=true
 INSTAGRAM_ACCESS_TOKEN=meta_long_lived_access_token
 INSTAGRAM_USER_ID=instagram_professional_account_id
+INSTAGRAM_DIRECT_ENABLED=true
+INSTAGRAM_DIRECT_AUTO_REPLY_ENABLED=false
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN=long_random_verify_token
 BACKEND_PUBLIC_URL=https://your-public-backend-domain
 ```
 

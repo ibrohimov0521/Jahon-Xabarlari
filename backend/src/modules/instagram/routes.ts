@@ -4,6 +4,7 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { safeFetch } from "../../services/net-guard.js";
 import { applyBrandWatermark, createInstagramNewsCover } from "../../services/brand-media.js";
+import { handleInstagramWebhookPayload, verifyInstagramWebhook } from "../../services/instagram-direct.js";
 
 export const instagramRouter = Router();
 const BRAND_MEDIA_VERSION = "best-team-v6";
@@ -17,6 +18,17 @@ instagramRouter.use(rateLimit({
   legacyHeaders: false,
   message: { message: "Media so'rovlari juda ko'p. Birozdan keyin qayta urinib ko'ring." }
 }));
+
+instagramRouter.get("/instagram/webhook", (req, res) => {
+  const challenge = verifyInstagramWebhook(req.query);
+  if (!challenge) return res.sendStatus(403);
+  res.status(200).send(challenge);
+});
+
+instagramRouter.post("/instagram/webhook", async (req, res) => {
+  const result = await handleInstagramWebhookPayload(req.body);
+  res.status(200).json({ ok: true, ...result });
+});
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;

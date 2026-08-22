@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Globe2, Instagram, Loader2, PauseCircle, PlayCircle, RefreshCcw, Send, ShieldCheck, Trash2, Video, X } from "lucide-react";
+import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Globe2, Instagram, Loader2, MessageCircle, PauseCircle, PlayCircle, RefreshCcw, Send, ShieldCheck, Trash2, UserRound, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { useScrollLock } from "../../lib/use-scroll-lock";
@@ -44,6 +44,24 @@ type InstagramDelivery = {
 type DeliveryResponse = { state: DeliveryState; items: InstagramDelivery[]; total: number; page: number; pages: number };
 type InstagramSource = { id: string; name: string; feedUrl: string; instagramEnabled: boolean };
 type InstagramSourcesResponse = { items: InstagramSource[] };
+type DirectMessage = {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND" | "AI_DRAFT" | "SYSTEM";
+  text: string;
+  aiDraft: string | null;
+  sentAt: string | null;
+  createdAt: string;
+};
+type DirectThread = {
+  id: string;
+  instagramUserId: string;
+  username: string | null;
+  status: "OPEN" | "NEEDS_REVIEW" | "AUTO_REPLIED" | "CLOSED" | "BLOCKED";
+  lastMessageAt: string;
+  messages: DirectMessage[];
+};
+type DirectThreadResponse = DirectThread & { messages: DirectMessage[] };
+type DirectThreadsResponse = { items: DirectThread[] };
 
 const DELIVERY_META: Record<DeliveryState, { label: string; empty: string; icon: typeof Send; tone: string }> = {
   sent: { label: "Yuborilgan", empty: "Hali Instagramga yuborilgan maqola yo'q.", icon: Send, tone: "text-brand" },
@@ -129,6 +147,10 @@ export function InstagramSettingsView() {
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<InstagramDelivery | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [directThreads, setDirectThreads] = useState<DirectThread[]>([]);
+  const [directLoading, setDirectLoading] = useState(false);
+  const [selectedThread, setSelectedThread] = useState<DirectThreadResponse | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   const connectionConfigured = Boolean(status?.tokenConfigured && status.userIdConfigured);
 
@@ -143,10 +165,75 @@ export function InstagramSettingsView() {
       ]);
       setStatus(statusResult);
       setSources(sortInstagramSources(sourceResult.items));
+      void loadDirectThreads();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram holatini yuklab bo'lmadi");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadDirectThreads() {
+    setDirectLoading(true);
+    try {
+      const result = await adminRequest<DirectThreadsResponse>("/admin/instagram/direct/threads");
+      setDirectThreads(result.items);
+    } catch {
+      // Direct access depends on Meta messaging permissions. The main Instagram panel should
+      // still stay usable even while messaging is not configured.
+    } finally {
+      setDirectLoading(false);
+    }
+  }
+
+  async function openDirectThread(threadId: string) {
+    setDirectLoading(true);
+    setError("");
+    try {
+      const thread = await adminRequest<DirectThreadResponse>(`/admin/instagram/direct/threads/${threadId}`);
+      setSelectedThread(thread);
+      const latestDraft = [...thread.messages].reverse().find((item) => item.direction === "AI_DRAFT");
+      setReplyText(latestDraft?.text ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram Direct suhbati ochilmadi");
+    } finally {
+      setDirectLoading(false);
+    }
+  }
+
+  async function refreshAiDraft() {
+    if (!selectedThread) return;
+    setDirectLoading(true);
+    setError("");
+    try {
+      const result = await adminRequest<{ draft: DirectMessage }>(`/admin/instagram/direct/threads/${selectedThread.id}/draft`, { method: "POST" });
+      setReplyText(result.draft.text);
+      await openDirectThread(selectedThread.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI javob tayyorlanmadi");
+    } finally {
+      setDirectLoading(false);
+    }
+  }
+
+  async function sendDirectReply() {
+    if (!selectedThread || !replyText.trim()) return;
+    setDirectLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      await adminRequest(`/admin/instagram/direct/threads/${selectedThread.id}/reply`, {
+        method: "POST",
+        body: JSON.stringify({ text: replyText.trim() })
+      });
+      setMessage("Instagram Direct javobi yuborildi");
+      setReplyText("");
+      await openDirectThread(selectedThread.id);
+      await loadDirectThreads();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Instagram Direct javobi yuborilmadi");
+    } finally {
+      setDirectLoading(false);
     }
   }
 
@@ -495,6 +582,110 @@ export function InstagramSettingsView() {
             )}
           </div>
         </div>
+      )}
+      {status && (
+        <section className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/30">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand"><MessageCircle size={20} /></span>
+              <div>
+                <h3 className="font-black">Instagram Direct</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  Foydalanuvchi Instagramdan yozsa, xabar shu yerga tushadi. AI javob taklif qiladi, siz tekshirib yuborasiz.
+                </p>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => void loadDirectThreads()} disabled={directLoading} icon={<RefreshCcw size={15} className={directLoading ? "animate-spin" : ""} />}>
+              Directni yangilash
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[.9fr_1.1fr]">
+            <div className="space-y-2">
+              {!directThreads.length ? (
+                <p className="rounded-lg bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
+                  Hozircha Direct xabar yo'q. Meta webhook ulangandan keyin yangi xabarlar shu yerda ko'rinadi.
+                </p>
+              ) : directThreads.map((thread) => {
+                const latest = thread.messages[0];
+                return (
+                  <button
+                    key={thread.id}
+                    type="button"
+                    onClick={() => void openDirectThread(thread.id)}
+                    className={`w-full rounded-lg border p-3 text-left transition hover:border-brand hover:bg-brand/5 ${selectedThread?.id === thread.id ? "border-brand bg-brand/10" : "border-slate-200 bg-white/70 dark:border-white/10 dark:bg-slate-900/60"}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex min-w-0 items-center gap-2 font-black">
+                        <UserRound size={16} className="text-brand" />
+                        <span className="truncate">{thread.username ? `@${thread.username}` : `ID ${thread.instagramUserId.slice(-8)}`}</span>
+                      </span>
+                      <span className={`rounded-full px-2 py-1 text-[11px] font-black ${thread.status === "NEEDS_REVIEW" ? "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                        {thread.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{latest?.text ?? "Xabar yo'q"}</p>
+                    <p className="mt-2 text-xs font-bold text-slate-400">{new Date(thread.lastMessageAt).toLocaleString("uz-UZ")}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/70">
+              {!selectedThread ? (
+                <div className="grid min-h-64 place-items-center text-center text-slate-500">
+                  <div>
+                    <MessageCircle className="mx-auto text-brand" size={34} />
+                    <p className="mt-3 font-black">Suhbat tanlang</p>
+                    <p className="mt-1 text-sm font-semibold">Xabarlar va AI javob matni shu yerda ochiladi.</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="font-black">{selectedThread.username ? `@${selectedThread.username}` : `Instagram ID ${selectedThread.instagramUserId}`}</h4>
+                    <button type="button" onClick={() => setSelectedThread(null)} className="grid size-8 place-items-center rounded-full border border-slate-200 dark:border-white/15" aria-label="Direct panelni yopish"><X size={16} /></button>
+                  </div>
+                  <div className="mt-3 max-h-80 space-y-2 overflow-y-auto overscroll-contain pr-1">
+                    {selectedThread.messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`max-w-[88%] rounded-xl p-3 text-sm font-semibold leading-5 ${
+                          message.direction === "INBOUND"
+                            ? "mr-auto bg-white text-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                            : message.direction === "AI_DRAFT"
+                              ? "mx-auto border border-brand/25 bg-brand/10 text-slate-800 dark:text-slate-100"
+                              : "ml-auto bg-brand text-white"
+                        }`}
+                      >
+                        <div className="mb-1 flex items-center gap-1 text-[11px] font-black opacity-70">
+                          {message.direction === "AI_DRAFT" ? <Bot size={13} /> : message.direction === "INBOUND" ? <UserRound size={13} /> : <Send size={13} />}
+                          {message.direction === "AI_DRAFT" ? "AI draft" : message.direction === "INBOUND" ? "Foydalanuvchi" : "Yuborilgan"}
+                        </div>
+                        <p className="whitespace-pre-wrap">{message.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4">
+                    <textarea
+                      value={replyText}
+                      onChange={(event) => setReplyText(event.target.value)}
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-white/10 dark:bg-slate-950"
+                      placeholder="Javob yozing yoki AI draftni tahrirlang..."
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={() => void sendDirectReply()} disabled={directLoading || !replyText.trim()} icon={directLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}>
+                        Javob yuborish
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => void refreshAiDraft()} disabled={directLoading} icon={<Bot size={15} />}>
+                        AI draft
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       )}
       {status && (
         <section className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/30">

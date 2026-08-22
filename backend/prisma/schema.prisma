@@ -53,6 +53,21 @@ enum ArticleReportReason {
   OTHER
 }
 
+enum InstagramDirectThreadStatus {
+  OPEN
+  NEEDS_REVIEW
+  AUTO_REPLIED
+  CLOSED
+  BLOCKED
+}
+
+enum InstagramDirectMessageDirection {
+  INBOUND
+  OUTBOUND
+  AI_DRAFT
+  SYSTEM
+}
+
 model User {
   id                      String         @id @default(cuid())
   name                    String
@@ -301,6 +316,36 @@ model Advertisement {
 
   @@index([status, placement, priority, updatedAt])
   @@index([status, startAt, endAt])
+}
+
+model InstagramDirectThread {
+  id              String                      @id @default(cuid())
+  instagramUserId String                      @unique
+  username        String?
+  status          InstagramDirectThreadStatus @default(OPEN)
+  lastMessageAt   DateTime                    @default(now())
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  messages        InstagramDirectMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([lastMessageAt])
+}
+
+model InstagramDirectMessage {
+  id         String                          @id @default(cuid())
+  threadId   String
+  thread     InstagramDirectThread           @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  externalId String?                         @unique
+  direction  InstagramDirectMessageDirection
+  text       String                          @db.Text
+  aiDraft    String?                         @db.Text
+  rawPayload Json?
+  sentAt     DateTime?
+  createdAt  DateTime                        @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([direction, createdAt])
 }
 
 model Subscriber {

@@ -389,7 +389,10 @@ async function processItem(
     aiPreservedUncertainty: verification.preservedUncertainty && parsed.preservedUncertainty !== false,
     aiIssues: [...(parsed.unsupportedClaims ?? []), ...verification.issues]
   });
-  const status = fidelity.publishable ? qualityGuardedStatus(publishStatus, quality) : "REVIEW";
+  // The administrator's publish mode is authoritative. Fidelity/quality findings
+  // remain in the audit record, but must not silently turn an explicitly enabled
+  // auto-publish setting into REVIEW.
+  const status = qualityGuardedStatus(publishStatus, quality);
   const tagNames = normalizeArticleTags(parsed.tags).filter((name) => slugify(name, { lower: true, strict: true }));
 
   const article = await prisma.$transaction(async (tx) => {

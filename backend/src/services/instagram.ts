@@ -433,18 +433,35 @@ export async function getInstagramSettingsStatus() {
   };
 }
 
-export async function getInstagramDeliveries(state: InstagramDeliveryState, page = 1) {
-  const take = 12;
+export async function getInstagramDeliveries(
+  state: InstagramDeliveryState,
+  page = 1,
+  options: { pageSize?: number; search?: string; sort?: "asc" | "desc" } = {}
+) {
+  const take = Math.min(50, Math.max(1, Math.floor(options.pageSize ?? 50)));
   const safePage = Math.max(1, Math.floor(page) || 1);
+  const search = options.search?.trim() ?? "";
+  const sort = options.sort ?? "desc";
   const queuedArticleIds = state === "sent" ? [] : [...await getQueuedInstagramArticleIds()];
+  const searchWhere = search
+    ? {
+      OR: [
+        { title: { contains: search, mode: "insensitive" as const } },
+        { summary: { contains: search, mode: "insensitive" as const } },
+        { slug: { contains: search, mode: "insensitive" as const } }
+      ]
+    }
+    : {};
   const where = state === "sent"
     ? {
       status: "PUBLISHED" as const,
       deletedAt: null,
-      instagramSentAt: { not: null }
+      instagramSentAt: { not: null },
+      ...searchWhere
     }
     : {
       ...activeInstagramWhere(),
+      ...searchWhere,
       ...(state === "failed"
         ? { instagramError: { not: null }, ...(queuedArticleIds.length ? { id: { notIn: queuedArticleIds } } : {}) }
         : { id: { in: queuedArticleIds } })
@@ -452,7 +469,7 @@ export async function getInstagramDeliveries(state: InstagramDeliveryState, page
   const [items, total] = await Promise.all([
     prisma.article.findMany({
       where,
-      orderBy: state === "sent" ? { instagramSentAt: "desc" } : { updatedAt: "desc" },
+      orderBy: state === "sent" ? { instagramSentAt: sort } : { updatedAt: sort },
       skip: (safePage - 1) * take,
       take,
       select: {

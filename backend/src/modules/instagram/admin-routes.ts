@@ -57,7 +57,10 @@ instagramAdminRouter.get("/deliveries", async (req, res) => {
     return res.status(400).json({ message: "Noto'g'ri Instagram xabar holati" });
   }
   const page = Math.max(1, Number(req.query.page) || 1);
-  res.json(await getInstagramDeliveries(state as InstagramDeliveryState, page));
+  const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 50));
+  const search = typeof req.query.search === "string" ? req.query.search.trim().slice(0, 120) : "";
+  const sort = req.query.sort === "asc" ? "asc" : "desc";
+  res.json(await getInstagramDeliveries(state as InstagramDeliveryState, page, { pageSize, search, sort }));
 });
 
 instagramAdminRouter.post("/test-connection", async (req, res) => {

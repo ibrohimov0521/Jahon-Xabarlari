@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Globe2, Instagram, Loader2, MessageCircle, PauseCircle, PlayCircle, RefreshCcw, Send, ShieldCheck, Trash2, UserRound, Video, X } from "lucide-react";
+import { ArrowDownUp, Bot, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, Clock3, ExternalLink, Eye, Globe2, Instagram, Loader2, MessageCircle, PauseCircle, PlayCircle, RefreshCcw, Search, Send, ShieldCheck, Trash2, UserRound, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { adminRequest } from "../../lib/admin-api";
 import { useScrollLock } from "../../lib/use-scroll-lock";
@@ -145,6 +145,8 @@ export function InstagramSettingsView() {
   const [deliveryState, setDeliveryState] = useState<DeliveryState | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryResponse | null>(null);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliverySearch, setDeliverySearch] = useState("");
+  const [deliverySort, setDeliverySort] = useState<"asc" | "desc">("desc");
   const [selectedDelivery, setSelectedDelivery] = useState<InstagramDelivery | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [directThreads, setDirectThreads] = useState<DirectThread[]>([]);
@@ -327,13 +329,21 @@ export function InstagramSettingsView() {
     }
   }
 
-  async function loadDeliveries(state: DeliveryState, page = 1) {
+  async function loadDeliveries(
+    state: DeliveryState,
+    page = 1,
+    options: { search?: string; sort?: "asc" | "desc" } = {}
+  ) {
+    const search = options.search ?? deliverySearch;
+    const sort = options.sort ?? deliverySort;
     setDeliveryState(state);
     setSelectedIds(new Set());
     setDeliveryLoading(true);
     setError("");
     try {
-      setDeliveries(await adminRequest<DeliveryResponse>(`/admin/instagram/deliveries?state=${state}&page=${page}`));
+      const query = new URLSearchParams({ state, page: String(page), pageSize: "50", sort });
+      if (search.trim()) query.set("search", search.trim().slice(0, 120));
+      setDeliveries(await adminRequest<DeliveryResponse>(`/admin/instagram/deliveries?${query.toString()}`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram xabarlari yuklanmadi");
     } finally {
@@ -370,7 +380,7 @@ export function InstagramSettingsView() {
       setMessage(result.message);
       setSelectedIds(new Set());
       const nextPage = deliveries?.page ?? 1;
-      setDeliveries(await adminRequest<DeliveryResponse>(`/admin/instagram/deliveries?state=${deliveryState}&page=${nextPage}`));
+      await loadDeliveries(deliveryState, nextPage);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tanlangan postlar uchun amal bajarilmadi");
@@ -387,8 +397,7 @@ export function InstagramSettingsView() {
       setMessage("Maqola Instagram navbatiga qayta yuborildi");
       clearDeliveryPreview();
       setDeliveryState("queued");
-      const queued = await adminRequest<DeliveryResponse>("/admin/instagram/deliveries?state=queued&page=1");
-      setDeliveries(queued);
+      await loadDeliveries("queued", 1);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagramga qayta yuborib bo'lmadi");
@@ -421,7 +430,7 @@ export function InstagramSettingsView() {
       const result = await adminRequest<{ message: string }>("/admin/instagram/queue/repair", { method: "POST" });
       setMessage(result.message);
       setDeliveryState("queued");
-      setDeliveries(await adminRequest<DeliveryResponse>("/admin/instagram/deliveries?state=queued&page=1"));
+      await loadDeliveries("queued", 1);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Instagram navbatini tiklab bo'lmadi");
@@ -736,6 +745,50 @@ export function InstagramSettingsView() {
             <Button variant="secondary" size="sm" onClick={() => void loadDeliveries(deliveryState, deliveries?.page ?? 1)} disabled={deliveryLoading} icon={<RefreshCcw size={15} className={deliveryLoading ? "animate-spin" : ""} />}>
               Yangilash
             </Button>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="flex min-w-0 gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={deliverySearch}
+                  onChange={(event) => setDeliverySearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void loadDeliveries(deliveryState, 1, { search: deliverySearch });
+                  }}
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-white/10 dark:bg-slate-950/40"
+                  placeholder="Instagram xabarlaridan qidirish..."
+                  aria-label="Instagram xabarlaridan qidirish"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void loadDeliveries(deliveryState, 1, { search: deliverySearch })}
+                disabled={deliveryLoading}
+                icon={<Search size={15} />}
+                aria-label="Instagram xabarlarini qidirish"
+              >
+                Qidirish
+              </Button>
+            </div>
+            <label className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold dark:border-white/10 dark:bg-slate-950/40">
+              <ArrowDownUp size={15} className="text-brand" />
+              <span className="sr-only">Saralash</span>
+              <select
+                value={deliverySort}
+                onChange={(event) => {
+                  const nextSort = event.target.value as "asc" | "desc";
+                  setDeliverySort(nextSort);
+                  void loadDeliveries(deliveryState, 1, { sort: nextSort });
+                }}
+                className="bg-transparent text-sm font-bold outline-none"
+                aria-label="Instagram xabarlarini saralash"
+              >
+                <option value="desc">Yangisi birinchi</option>
+                <option value="asc">Eskisi birinchi</option>
+              </select>
+            </label>
           </div>
           {deliveryLoading && !deliveries && <p className="mt-4 text-sm text-slate-500">Xabarlar yuklanmoqda...</p>}
           {deliveries && (

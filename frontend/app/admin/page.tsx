@@ -2,6 +2,7 @@
 
 import {
   Bot,
+  ChevronDown,
   FilePlus2,
   Flag,
   History,
@@ -73,6 +74,14 @@ const menu: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "security", label: "Xavfsizlik", icon: ShieldCheck }
 ];
 
+const adminMenuGroups: { id: string; label: string; items: View[] }[] = [
+  { id: "overview", label: "Asosiy", items: ["dashboard"] },
+  { id: "content", label: "Kontent", items: ["articles", "new", "categories", "media"] },
+  { id: "moderation", label: "Moderatsiya", items: ["comments", "reports"] },
+  { id: "distribution", label: "Tarqatish", items: ["ads", "aggregator", "instagram"] },
+  { id: "system", label: "Tizim", items: ["users", "auditlog", "security"] }
+];
+
 const adminViews = new Set<View>([
   "dashboard", "articles", "new", "edit", "preview", "categories", "media", "ads", "comments",
   "reports", "stats", "users", "auditlog", "aggregator", "instagram", "security"
@@ -103,6 +112,9 @@ export default function AdminPage() {
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [openMenuGroups, setOpenMenuGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(adminMenuGroups.map((group) => [group.id, true]))
+  );
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -615,7 +627,7 @@ export default function AdminPage() {
 
   return (
     <main className="admin-shell min-h-[100svh] overflow-x-clip overscroll-x-none bg-slate-100 text-ink lg:flex">
-      <aside className="admin-sidebar hidden w-72 shrink-0 bg-ink p-6 text-white lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto lg:overscroll-contain">
+      <aside className="admin-sidebar hidden w-72 shrink-0 bg-ink p-5 text-white lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto lg:overscroll-contain">
         <div className="flex items-center justify-between gap-3">
           <Image src={SITE_LOGO} alt={SITE_NAME} width={116} height={58} priority className="h-14 w-auto rounded-md object-contain" />
           <div className="flex items-center gap-1">
@@ -630,19 +642,43 @@ export default function AdminPage() {
         <p className="mt-2 text-sm text-white/60">
           {user.name} · {user.role}
         </p>
-        <nav className="mt-6 space-y-2">
-          {menu.map(({ id, label, icon: Icon }) => (
-            <button
-              className={`flex w-full items-center gap-3 rounded-md px-4 py-3 text-left font-semibold transition ${
-                view === id || (id === "articles" && (view === "edit" || view === "preview")) ? "bg-brand text-white" : "hover:bg-white/10"
-              }`}
-              key={id}
-              onClick={() => selectView(id)}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
+        <nav className="mt-6 space-y-3" aria-label="Admin bo'limlari">
+          {adminMenuGroups.map((group) => {
+            const groupItems = group.items
+              .map((id) => menu.find((item) => item.id === id))
+              .filter((item): item is (typeof menu)[number] => Boolean(item));
+            const groupActive = group.items.some((id) => view === id || (id === "articles" && (view === "edit" || view === "preview")));
+            const expanded = openMenuGroups[group.id] ?? true;
+            return (
+              <div key={group.id}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setOpenMenuGroups((current) => ({ ...current, [group.id]: !expanded }))}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-black uppercase tracking-[.12em] transition ${groupActive ? "text-cyan-200" : "text-white/55 hover:bg-white/5 hover:text-white"}`}
+                >
+                  {group.label}
+                  <ChevronDown size={15} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+                </button>
+                {expanded && (
+                  <div className="mt-1 space-y-1">
+                    {groupItems.map(({ id, label, icon: Icon }) => (
+                      <button
+                        className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-[15px] font-semibold transition ${
+                          view === id || (id === "articles" && (view === "edit" || view === "preview")) ? "bg-brand text-white shadow-sm" : "text-white/85 hover:bg-white/10"
+                        }`}
+                        key={id}
+                        onClick={() => selectView(id)}
+                      >
+                        <Icon size={17} />
+                        <span className="truncate">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </aside>
 
@@ -845,6 +881,9 @@ function AdminMobileNav({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [openMoreGroups, setOpenMoreGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(adminMenuGroups.map((group) => [group.id, true]))
+  );
 
   useScrollLock(moreOpen);
 
@@ -936,22 +975,46 @@ function AdminMobileNav({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {mobileMoreMenu.map(({ id, label, icon: Icon }) => (
-                <button
-                  type="button"
-                  key={id}
-                  onClick={() => select(id)}
-                  className={`flex min-h-14 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-black transition ${
-                    isActive(id)
-                      ? "border-brand bg-brand text-white"
-                      : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-300/30 hover:bg-white/[0.08]"
-                  }`}
-                >
-                  <Icon size={18} className="shrink-0" />
-                  <span className="min-w-0 leading-4">{label}</span>
-                </button>
-              ))}
+            <div className="space-y-2">
+              {adminMenuGroups.map((group) => {
+                const groupItems = group.items
+                  .map((id) => mobileMoreMenu.find((item) => item.id === id))
+                  .filter((item): item is (typeof menu)[number] => Boolean(item));
+                if (!groupItems.length) return null;
+                const expanded = openMoreGroups[group.id] ?? true;
+                return (
+                  <div key={group.id} className="rounded-md border border-white/10 bg-white/[0.025] p-2">
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      onClick={() => setOpenMoreGroups((current) => ({ ...current, [group.id]: !expanded }))}
+                      className="flex w-full items-center justify-between px-1 py-1 text-[11px] font-black uppercase tracking-[.1em] text-cyan-200"
+                    >
+                      {group.label}
+                      <ChevronDown size={15} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+                    </button>
+                    {expanded && (
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        {groupItems.map(({ id, label, icon: Icon }) => (
+                          <button
+                            type="button"
+                            key={id}
+                            onClick={() => select(id)}
+                            className={`flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-black transition ${
+                              isActive(id)
+                                ? "border-brand bg-brand text-white"
+                                : "border-white/10 bg-white/[0.04] text-slate-200 hover:border-cyan-300/30 hover:bg-white/[0.08]"
+                            }`}
+                          >
+                            <Icon size={17} className="shrink-0" />
+                            <span className="min-w-0 leading-4">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">

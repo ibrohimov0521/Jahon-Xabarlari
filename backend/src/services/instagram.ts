@@ -410,6 +410,12 @@ export async function getInstagramSettingsStatus() {
   return {
     enabled: env.INSTAGRAM_POSTING_ENABLED,
     autoPublishEnabled,
+    direct: {
+      enabled: env.INSTAGRAM_DIRECT_ENABLED,
+      autoReplyEnabled: env.INSTAGRAM_DIRECT_AUTO_REPLY_ENABLED,
+      webhookConfigured: Boolean(env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN),
+      webhookPath: "/api/instagram/webhook"
+    },
     ready,
     apiMode: env.INSTAGRAM_API_MODE,
     apiEndpoint: graphHost,

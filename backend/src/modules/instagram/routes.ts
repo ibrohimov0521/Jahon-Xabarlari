@@ -5,6 +5,7 @@ import { prisma } from "../../config/prisma.js";
 import { safeFetch } from "../../services/net-guard.js";
 import { applyBrandWatermark, createInstagramNewsCover } from "../../services/brand-media.js";
 import { handleInstagramWebhookPayload, verifyInstagramWebhook } from "../../services/instagram-direct.js";
+import { logger } from "../../services/logger.js";
 
 export const instagramRouter = Router();
 const BRAND_MEDIA_VERSION = "best-team-v6";
@@ -14,6 +15,9 @@ const BRAND_MEDIA_VERSION = "best-team-v6";
 instagramRouter.use(rateLimit({
   windowMs: 60_000,
   limit: 30,
+  // Meta may retry bursts of webhook events. The webhook itself is acknowledged quickly
+  // below and must not be blocked by the public media rate limit.
+  skip: (req) => req.path === "/instagram/webhook",
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Media so'rovlari juda ko'p. Birozdan keyin qayta urinib ko'ring." }
@@ -25,9 +29,20 @@ instagramRouter.get("/instagram/webhook", (req, res) => {
   res.status(200).send(challenge);
 });
 
-instagramRouter.post("/instagram/webhook", async (req, res) => {
-  const result = await handleInstagramWebhookPayload(req.body);
-  res.status(200).json({ ok: true, ...result });
+instagramRouter.post("/instagram/webhook", (req, res) => {
+  // Meta expects a fast 2xx acknowledgement. AI generation and database writes must not
+  // keep the webhook request open, otherwise Meta retries the event or marks delivery failed.
+  const requestId = res.getHeader("X-Request-ID")?.toString();
+  const payload = req.body as { object?: unknown; entry?: unknown } | undefined;
+  logger.info("instagram_webhook_received", {
+    requestId,
+    object: typeof payload?.object === "string" ? payload.object : undefined,
+    entries: Array.isArray(payload?.entry) ? payload.entry.length : 0
+  });
+  res.status(200).json({ ok: true });
+  void handleInstagramWebhookPayload(payload)
+    .then((result) => logger.info("instagram_webhook_processed", { requestId, ...result }))
+    .catch((error) => logger.error("instagram_webhook_processing_failed", { requestId, error }));
 });
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;

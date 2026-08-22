@@ -24,6 +24,92 @@ type MessagingEvent = {
   };
 };
 
+type WebhookEntry = {
+  messaging?: unknown[];
+  changes?: Array<{ value?: unknown }>;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function idValue(value: unknown) {
+  if (typeof value === "string") return value;
+  return stringValue(asRecord(value)?.id);
+}
+
+function normalizeEvent(raw: unknown): MessagingEvent | null {
+  const input = asRecord(raw);
+  if (!input) return null;
+  const message = asRecord(input.message);
+  const sender = idValue(input.sender ?? input.from);
+  const recipient = idValue(input.recipient ?? input.to);
+  const timestamp = typeof input.timestamp === "number"
+    ? input.timestamp
+    : typeof input.time === "number" ? input.time : undefined;
+  if (!sender && !message && !input.postback) return null;
+  return {
+    sender: sender ? { id: sender } : undefined,
+    recipient: recipient ? { id: recipient } : undefined,
+    timestamp,
+    message: message ? {
+      mid: stringValue(message.mid ?? message.id),
+      text: stringValue(message.text),
+      is_echo: message.is_echo === true,
+      attachments: Array.isArray(message.attachments)
+        ? message.attachments
+        : message.attachments
+          ? [message.attachments]
+          : undefined
+    } : undefined,
+    postback: asRecord(input.postback) ? {
+      mid: stringValue(asRecord(input.postback)?.mid),
+      title: stringValue(asRecord(input.postback)?.title),
+      payload: stringValue(asRecord(input.postback)?.payload)
+    } : undefined
+  };
+}
+
+function webhookEvents(payload: unknown) {
+  const root = asRecord(payload);
+  const entries = Array.isArray(root?.entry) ? root.entry as unknown[] : [];
+  const events: MessagingEvent[] = [];
+  for (const rawEntry of entries) {
+    const entry = asRecord(rawEntry) as WebhookEntry | null;
+    if (!entry) continue;
+    for (const rawEvent of entry.messaging ?? []) {
+      const event = normalizeEvent(rawEvent);
+      if (event) events.push(event);
+    }
+    // Instagram Login can deliver message events inside changes[].value. Accept this
+    // envelope as well so a product/version change does not silently drop Direct messages.
+    for (const change of entry.changes ?? []) {
+      const value = asRecord(change.value);
+      if (!value) continue;
+      const candidates = Array.isArray(value.messages) ? value.messages : [value.message ?? value];
+      for (const candidate of candidates) {
+        const candidateRecord = asRecord(candidate);
+        const message = candidateRecord?.message ?? (
+          candidateRecord && (candidateRecord.text || candidateRecord.attachments) ? candidateRecord : undefined
+        );
+        const event = normalizeEvent({
+          ...candidateRecord,
+          message,
+          sender: candidateRecord?.sender ?? candidateRecord?.from ?? value.sender ?? value.from,
+          recipient: candidateRecord?.recipient ?? candidateRecord?.to ?? value.recipient ?? value.to,
+          timestamp: candidateRecord?.timestamp ?? value.timestamp ?? value.time
+        });
+        if (event) events.push(event);
+      }
+    }
+  }
+  return events;
+}
+
 function graphConfigured() {
   return Boolean(env.INSTAGRAM_ACCESS_TOKEN && env.INSTAGRAM_USER_ID);
 }
@@ -126,10 +212,11 @@ async function storeInbound(event: MessagingEvent) {
 
 export async function handleInstagramWebhookPayload(payload: unknown) {
   if (!env.INSTAGRAM_DIRECT_ENABLED) return { handled: 0, skipped: "disabled" as const };
-  const entries = (payload as { entry?: Array<{ messaging?: MessagingEvent[] }> } | null)?.entry ?? [];
+  const events = webhookEvents(payload);
   let handled = 0;
-  for (const entry of entries) {
-    for (const event of entry.messaging ?? []) {
+  let failed = 0;
+  for (const event of events) {
+    try {
       const stored = await storeInbound(event);
       if (!stored) continue;
       handled += 1;
@@ -159,9 +246,12 @@ export async function handleInstagramWebhookPayload(payload: unknown) {
           data: { status: "AUTO_REPLIED", lastMessageAt: new Date() }
         });
       }
+    } catch (error) {
+      failed += 1;
+      console.error("[instagram-direct] event processing failed:", error);
     }
   }
-  return { handled };
+  return { handled, received: events.length, failed };
 }
 
 export async function listInstagramDirectThreads(status?: InstagramDirectThreadStatus) {

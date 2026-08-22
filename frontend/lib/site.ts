@@ -6,6 +6,7 @@ export const SITE_URL = configuredSiteUrl
   .replace(/\/$/, "");
 
 export const SITE_NAME = "BEST TEAM NEWS";
+export const SITE_CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "admin@bestteam.uz";
 export const SITE_FULL_NAME = "BEST TEAM NEWS";
 export const SITE_ALTERNATE_NAME = "BEST TEAM";
 export const SITE_TAGLINE = "Tezkor. Ishonchli. Muhim.";
